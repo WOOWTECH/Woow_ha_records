@@ -1,0 +1,21 @@
+{
+  "name": "ha-record-e2e-tests",
+  "version": "1.0.0",
+  "description": "E2E browser tests for HA Record custom components",
+  "scripts": {
+    "test": "npx playwright test",
+    "test:health": "npx playwright test tests/health-record.spec.ts",
+    "test:asset": "npx playwright test tests/asset-record.spec.ts",
+    "test:note": "npx playwright test tests/note-record.spec.ts",
+    "test:finance": "npx playwright test tests/finance-record.spec.ts",
+    "test:integration": "npx playwright test tests/integration.spec.ts",
+    "report": "npx playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.59.0",
+    "ws": "^8.16.0"
+  },
+  "dependencies": {
+    "@types/ws": "^8.5.10"
+  }
+}
