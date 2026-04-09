@@ -1,0 +1,42 @@
+{
+  "entity": {
+    "sensor": {
+      "record": {
+        "name": "{record_name} 紀錄"
+      }
+    },
+    "number": {
+      "record_value": {
+        "name": "{record_name} 數值"
+      }
+    },
+    "button": {
+      "record_log": {
+        "name": "{record_name} 紀錄"
+      }
+    },
+    "text": {
+      "record_note": {
+        "name": "{record_name} 備註"
+      }
+    }
+  },
+  "config": {
+    "step": {
+      "user": {
+        "title": "新增家庭成員",
+        "description": "新增一位家庭成員來追蹤健康紀錄。",
+        "data": {
+          "member_name": "名稱",
+          "member_id": "ID（選填，留空自動產生）"
+        }
+      }
+    },
+    "error": {
+      "already_configured": "此成員已經設定過了。"
+    },
+    "abort": {
+      "already_configured": "此成員已經設定過了。"
+    }
+  }
+}

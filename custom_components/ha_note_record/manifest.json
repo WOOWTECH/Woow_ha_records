@@ -1,0 +1,14 @@
+{
+  "domain": "ha_note_record",
+  "name": "Note Record",
+  "codeowners": ["@woowtech"],
+  "config_flow": true,
+  "dependencies": ["frontend", "panel_custom"],
+  "documentation": "https://github.com/WOOWTECH/ha_note_record",
+  "homeassistant": "2025.12.0",
+  "integration_type": "service",
+  "iot_class": "local_push",
+  "issue_tracker": "https://github.com/WOOWTECH/ha_note_record/issues",
+  "requirements": [],
+  "version": "1.0.1"
+}
