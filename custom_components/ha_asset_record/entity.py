@@ -1,4 +1,8 @@
-"""Base entity for Ha Asset Record."""
+"""Base entity for Ha Asset Record.
+
+Provides the base class with common device info and coordinator
+integration for all asset-related entities.
+"""
 
 from __future__ import annotations
 
@@ -16,7 +20,21 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class AssetEntity(Entity):
-    """Base class for asset entities."""
+    """Base class for asset entities.
+
+    Provides shared ``device_info``, ``translation_key``, ``unique_id``,
+    and coordinator reference used by every concrete asset entity.
+
+    should_poll
+        ``False`` -- updates are pushed by the coordinator, not polled.
+
+    has_entity_name
+        ``True`` -- entity names are derived from the HA translation system.
+
+    Device info
+        Each asset creates one device with
+        ``identifiers={(DOMAIN, asset_id)}``.
+    """
 
     _attr_has_entity_name = True
     # [H-08] Entities are coordinator-driven, not polled.

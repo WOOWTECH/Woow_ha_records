@@ -1,4 +1,43 @@
-"""Ha Note Record integration for Home Assistant."""
+"""Ha Note Record integration for Home Assistant.
+
+Purpose
+-------
+Organize markdown notes into categories within Home Assistant, providing a
+lightweight personal knowledge-base accessible from the sidebar.
+
+Architecture
+------------
+Single config entry.  The ``HaNoteRecordStore`` instance is created during
+``async_setup_entry`` and placed in ``hass.data[DOMAIN]["store"]`` so that
+both the entity platforms and the WebSocket API can access the same data.
+
+Platforms
+~~~~~~~~~
+Two entity platforms are forwarded per config entry:
+  * **text**   -- note content (markdown body)
+  * **switch** -- pinned status (on/off)
+
+Storage
+~~~~~~~
+Categories and notes are persisted in ``.storage/ha_note_record`` via the
+``HaNoteRecordStore`` class.
+
+WebSocket API
+~~~~~~~~~~~~~
+6 commands are registered in ``websocket_api.py`` via
+``async_register_websocket_api()``.
+
+Panel
+~~~~~
+A custom panel is served via ``panel_custom`` and registered once per HA
+instance, guarded by the ``DATA_PANEL_REGISTERED`` flag in ``hass.data``.
+
+Validation limits
+~~~~~~~~~~~~~~~~~
+* ``MAX_CATEGORY_NAME_LENGTH`` = 100
+* ``MAX_NOTE_TITLE_LENGTH``    = 200
+* ``MAX_NOTE_CONTENT_LENGTH``  = 100 000
+"""
 
 from __future__ import annotations
 

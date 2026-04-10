@@ -1,4 +1,8 @@
-"""Button platform for Ha Health Record integration."""
+"""Button platform for Ha Health Record integration.
+
+Creates one button entity per record type per member. Pressing the button
+logs the current value and note to persistent storage.
+"""
 from __future__ import annotations
 
 import logging
@@ -37,7 +41,28 @@ async def async_setup_entry(
 
 
 class RecordLogButton(ButtonEntity):
-    """Button to log a record."""
+    """Button to log a record.
+
+    Pressing this button logs the current value (from ``RecordValueNumber``)
+    and note (from ``RecordNoteText``) as a new record entry in storage.
+
+    Icon
+        ``mdi:content-save``
+
+    Entity category
+        ``CONFIG``
+
+    Translation key
+        ``"record_log"`` with placeholder ``{record_name}``.
+
+    Unique ID pattern
+        ``{member_id}_{type_id}_log``
+
+    Side effects
+        Fires the ``ha_health_record_record_logged`` event with the following
+        data: ``member_id``, ``member_name``, ``record_type``,
+        ``record_name``, ``value``, ``unit``, ``note``, ``timestamp``.
+    """
 
     _attr_entity_category = EntityCategory.CONFIG
     _attr_has_entity_name = True

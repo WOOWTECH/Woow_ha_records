@@ -1,4 +1,8 @@
-"""Switch entity for Ha Note Record integration."""
+"""Switch entity for Ha Note Record integration.
+
+Creates one switch entity per note to control its pinned status.
+Turning on pins the note; turning off unpins it.
+"""
 
 from __future__ import annotations
 
@@ -61,7 +65,28 @@ async def async_setup_entry(
 
 
 class HaNoteRecordSwitchEntity(HaNoteRecordEntity, SwitchEntity):
-    """Switch entity for note pinned status."""
+    """Switch entity controlling note pinned status.
+
+    State
+        ON when the note is pinned, OFF when unpinned.
+
+    Icon
+        ``mdi:pin`` (``ICON_PINNED``) when pinned,
+        ``mdi:pin-off`` (``ICON_UNPINNED``) when unpinned.
+
+    Extra state attributes
+        * ``note_id`` (str) -- unique note identifier
+
+    Unique ID pattern
+        ``{DOMAIN}_{category_id}_{note_id}_pinned``
+
+    Name
+        ``"{note_title} Pinned"`` (set directly, not via translation key).
+
+    Methods
+        * ``async_turn_on`` -- pins the note
+        * ``async_turn_off`` -- unpins the note
+    """
 
     def __init__(
         self,

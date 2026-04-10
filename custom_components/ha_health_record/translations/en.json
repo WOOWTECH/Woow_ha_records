@@ -1,0 +1,44 @@
+{
+  "title": "Ha Health Record",
+  "entity": {
+    "sensor": {
+      "record": {
+        "name": "{record_name} Record"
+      }
+    },
+    "number": {
+      "record_value": {
+        "name": "{record_name} Value"
+      }
+    },
+    "button": {
+      "record_log": {
+        "name": "{record_name} Log"
+      }
+    },
+    "text": {
+      "record_note": {
+        "name": "{record_name} Note"
+      }
+    }
+  },
+  "config": {
+    "step": {
+      "user": {
+        "title": "Add Family Member",
+        "description": "Add a new family member to track health records.",
+        "data": {
+          "member_name": "Name",
+          "member_id": "ID (optional, auto-generated if blank)"
+        }
+      }
+    },
+    "error": {
+      "already_configured": "This member is already configured.",
+      "invalid_id": "ID must contain at least one alphanumeric character."
+    },
+    "abort": {
+      "already_configured": "This member is already configured."
+    }
+  }
+}

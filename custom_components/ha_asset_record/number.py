@@ -1,4 +1,7 @@
-"""Number platform for Ha Asset Record."""
+"""Number platform for Ha Asset Record.
+
+Creates one number entity per asset for tracking its monetary value.
+"""
 
 from __future__ import annotations
 
@@ -68,7 +71,26 @@ def _create_number_entity(
 
 
 class AssetNumberEntity(AssetEntity, NumberEntity):
-    """Number entity for asset value."""
+    """Number entity for asset value.
+
+    State
+        Monetary value of the asset.
+
+    Range
+        ``VALUE_MIN`` to ``VALUE_MAX``, step ``VALUE_STEP`` (0.01).
+
+    Unit
+        ``"$"``
+
+    Mode
+        ``BOX`` (free numeric input).
+
+    Extra state attributes
+        * ``asset_id`` (str) -- identifier of the parent asset.
+
+    Unique ID pattern
+        ``{asset_id}_value``
+    """
 
     _attr_native_min_value = VALUE_MIN
     _attr_native_max_value = VALUE_MAX

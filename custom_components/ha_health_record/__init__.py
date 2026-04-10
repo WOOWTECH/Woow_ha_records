@@ -1,4 +1,58 @@
-"""Ha Health Record integration for Home Assistant."""
+"""Ha Health Record integration for Home Assistant.
+
+Purpose
+-------
+Track health metrics (weight, blood pressure, exercise, etc.) for family
+members inside Home Assistant.
+
+Architecture
+------------
+Multi-config-entry model -- each config entry represents one family member.
+Every entry creates its own ``HealthRecordCoordinator`` that owns the
+member's data and persists it independently.
+
+Platforms
+~~~~~~~~~
+Four entity platforms are forwarded per config entry:
+  * **button**  -- trigger a new record log
+  * **number**  -- numeric metric value input
+  * **text**    -- free-text annotation
+  * **sensor**  -- read-only latest-value / statistics
+
+Each record type configured for a member produces one entity on each
+platform, so the total entity count is ``4 * len(record_sets)`` per member.
+
+Storage
+~~~~~~~
+Records are stored in ``.storage/ha_health_record_{member_id}`` via each
+coordinator's internal ``Store`` instance.
+
+Migration
+~~~~~~~~~
+Config-entry version 1 -> 2: the legacy ``activity_sets`` and
+``growth_sets`` option keys are merged into a single ``record_sets`` list
+(see ``async_migrate_entry``).
+
+Coordinator map
+~~~~~~~~~~~~~~~
+``hass.data[f"{DOMAIN}_coordinator_map"]`` holds a ``dict[str,
+HealthRecordCoordinator]`` keyed by ``member_id``, giving O(1) lookup from
+the WebSocket API without scanning all config entries.
+
+WebSocket API
+~~~~~~~~~~~~~
+12 commands are registered once in ``panel.py`` via
+``register_websocket_commands()``.
+
+Panel
+~~~~~
+A custom sidebar panel is served at ``/ha-health-record``.
+
+Events
+~~~~~~
+* ``ha_health_record_record_logged``   -- fired after a record is persisted
+* ``ha_health_record_records_pruned``  -- fired after old records are pruned
+"""
 from __future__ import annotations
 
 import logging

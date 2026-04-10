@@ -1,4 +1,44 @@
-"""Ha Asset Record - Home Assistant Custom Component for asset management."""
+"""Ha Asset Record - Home Assistant Custom Component for asset management.
+
+Purpose
+-------
+Manage household assets with warranty tracking, purchase dates,
+brand/category classification, and monetary value inside Home Assistant.
+
+Architecture
+------------
+Single config entry (``single_config_entry: true`` in manifest).  The sole
+``AssetCoordinator`` instance is stored in ``hass.data[DOMAIN]`` following
+the standard HA singleton pattern (similar to *shopping_list*).
+
+Platforms
+~~~~~~~~~
+Five entity platforms are forwarded for each tracked asset:
+  * **datetime** -- ``purchase_at`` and ``warranty_until``
+  * **text**     -- ``brand`` and ``category``
+  * **number**   -- ``value`` (monetary worth)
+
+Storage
+~~~~~~~
+Assets are persisted in ``.storage/ha_asset_record`` via the coordinator's
+internal ``Store`` instance.
+
+WebSocket API
+~~~~~~~~~~~~~
+4 commands are registered in ``websocket.py``:
+  * list, create, update, delete
+
+Panel
+~~~~~
+A custom sidebar panel is registered once per HA instance, guarded by the
+``DATA_PANEL_REGISTERED`` flag in ``hass.data``.
+
+Device removal
+~~~~~~~~~~~~~~
+``async_remove_config_entry_device`` is implemented so that orphaned device
+entries (whose underlying asset no longer exists in the coordinator) can be
+removed from the *Devices & Services* UI.
+"""
 
 from __future__ import annotations
 

@@ -1,6 +1,7 @@
 {
   "domain": "ha_asset_record",
   "name": "Asset Record",
+  "description": "Manage household assets (appliances, electronics, furniture) with purchase dates, warranty tracking, brand, category, and monetary value. Single config entry with dynamic asset creation via WebSocket. Provides 4 WebSocket commands (ha_asset_record/*) for list/create/update/delete. Exposes datetime, text, and number entities per asset.",
   "codeowners": ["@WOOWTECH"],
   "config_flow": true,
   "dependencies": ["http"],

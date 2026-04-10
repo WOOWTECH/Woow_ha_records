@@ -1,4 +1,8 @@
-"""Base entity for Ha Note Record integration."""
+"""Base entity for Ha Note Record integration.
+
+Provides the common base class for all note record entities (text and switch),
+including shared device info and no-poll update pattern.
+"""
 
 from __future__ import annotations
 
@@ -10,7 +14,15 @@ from .store import Category, HaNoteRecordStore, Note
 
 
 class HaNoteRecordEntity(Entity):
-    """Base class for Ha Note Record entities."""
+    """Base class for Ha Note Record entities.
+
+    Provides ``has_entity_name = True`` and ``should_poll = False`` for the
+    text and switch entity platforms.
+
+    Each note category creates a device with
+    ``identifiers = {(DOMAIN, category_id)}``, so every note entity that
+    belongs to the same category is grouped under one device.
+    """
 
     _attr_has_entity_name = True
     _attr_should_poll = False

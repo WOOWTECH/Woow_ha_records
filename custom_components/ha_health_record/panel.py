@@ -1,4 +1,120 @@
-"""Panel registration and WebSocket API for Ha Health Record."""
+"""Panel registration and WebSocket API for Ha Health Record.
+
+This module registers a custom panel in the Home Assistant sidebar and
+exposes 12 WebSocket commands that the frontend uses to manage health
+records.  All commands live under the ``ha_health_record/`` namespace.
+
+WebSocket Command Reference
+============================
+
+Query APIs (no admin required)
+------------------------------
+- **ha_health_record/get_members**
+    Params: (none)
+    Returns: ``{members: [{id, name, note, record_sets: [{type, name,
+    unit, default_value, default_value_mode, current_value,
+    last_record}]}]}``
+
+- **ha_health_record/get_records**
+    Params: ``start_time`` (str, ISO 8601), ``end_time`` (str, ISO 8601)
+    Returns: ``{records: [...]}`` sorted by timestamp descending.
+    Errors: ``invalid_date``
+
+- **ha_health_record/export_csv**
+    Params: ``member_id`` (str)
+    Returns: ``{csv_content, member_name, record_count}``
+    Errors: ``member_not_found``
+
+Record Logging (admin required)
+-------------------------------
+- **ha_health_record/log_record**
+    Params: ``member_id`` (str), ``record_type`` (str),
+    ``value`` (float, NaN/Inf rejected), ``note`` (str, optional),
+    ``timestamp`` (str, optional, ISO 8601)
+    Returns: ``{success: true}``
+    Errors: ``member_not_found``, ``record_type_not_found``,
+    ``invalid_timestamp``, ``log_failed``
+    Side effects: fires ``ha_health_record_record_logged`` event.
+
+Record Management (admin required)
+-----------------------------------
+- **ha_health_record/update_record**
+    Params: ``member_id`` (str), ``type_id`` (str),
+    ``timestamp`` (str, ISO 8601), ``record_id`` (str, optional),
+    ``value`` (float, optional), ``note`` (str, optional),
+    ``new_timestamp`` (str, optional)
+    Returns: ``{success: true}``
+    Errors: ``member_not_found``, ``record_not_found``
+
+- **ha_health_record/delete_record**
+    Params: ``member_id`` (str), ``type_id`` (str),
+    ``timestamp`` (str), ``record_id`` (str, optional)
+    Returns: ``{success: true}``
+    Errors: ``member_not_found``, ``record_not_found``
+
+Record Type Management (admin required)
+----------------------------------------
+- **ha_health_record/add_record_type**
+    Params: ``member_id`` (str), ``name`` (str), ``unit`` (str),
+    ``default_value`` (float, optional, default 0),
+    ``default_value_mode`` (str, optional, "fixed"|"last_value",
+    default "fixed")
+    Returns: ``{success: true, type_id: str}``
+    Errors: ``member_not_found``, ``type_exists``, ``invalid_type_id``
+    Side effects: updates config entry, triggers config reload creating
+    new entities.
+
+- **ha_health_record/update_record_type**
+    Params: ``member_id`` (str), ``type_id`` (str), ``name`` (str),
+    ``unit`` (str), ``default_value`` (float, optional),
+    ``default_value_mode`` (str, optional)
+    Returns: ``{success: true}``
+    Errors: ``member_not_found``, ``type_not_found``
+    Side effects: updates config entry, triggers config reload.
+
+- **ha_health_record/delete_record_type**
+    Params: ``member_id`` (str), ``type_id`` (str)
+    Returns: ``{success: true}``
+    Errors: ``member_not_found``, ``type_not_found``
+    Side effects: removes entities from entity registry (sensor, button,
+    number, text), updates config entry, triggers config reload.
+
+Member Management (admin required)
+-----------------------------------
+- **ha_health_record/add_member**
+    Params: ``name`` (str), ``member_id`` (str, optional,
+    auto-generated from name), ``note`` (str, optional, default "")
+    Returns: ``{success: true, member_id: str, entry_id: str}``
+    Errors: ``invalid_member_id``, ``member_exists``, ``create_failed``
+    Side effects: creates a new config entry via the config flow.
+
+- **ha_health_record/update_member**
+    Params: ``member_id`` (str), ``name`` (str),
+    ``note`` (str, optional, default "")
+    Returns: ``{success: true}``
+    Errors: ``member_not_found``
+    Side effects: updates config entry data and title, triggers reload.
+
+- **ha_health_record/delete_member**
+    Params: ``member_id`` (str)
+    Returns: ``{success: true}``
+    Errors: ``member_not_found``
+    Side effects: removes the config entry and all associated data.
+
+Error Codes
+-----------
+``member_not_found``   -- No config entry matches the given member_id.
+``record_not_found``   -- No record matches the given timestamp/record_id.
+``type_not_found``     -- No record type matches the given type_id.
+``type_exists``        -- A record type with that generated id already exists.
+``member_exists``      -- A member with that id already exists.
+``invalid_date``       -- start_time / end_time could not be parsed as ISO 8601.
+``invalid_timestamp``  -- The optional timestamp could not be parsed.
+``invalid_type_id``    -- The generated type_id is empty after sanitization.
+``invalid_member_id``  -- The generated member_id is empty after sanitization.
+``log_failed``         -- The coordinator failed to persist the record.
+``create_failed``      -- The config flow did not create a new entry.
+"""
 from __future__ import annotations
 
 import csv
@@ -140,7 +256,25 @@ def ws_get_members(
     connection: websocket_api.ActiveConnection,
     msg: dict[str, Any],
 ) -> None:
-    """Handle get_members WebSocket command."""
+    """Return every registered member with their record-set metadata.
+
+    Command:
+        ``ha_health_record/get_members``
+
+    Parameters:
+        None (only the required ``type`` field).
+
+    Permission:
+        No admin required -- any authenticated user may call this.
+
+    Returns:
+        ``{members: [{id, name, note, record_sets: [{type, name, unit,
+        default_value, default_value_mode, current_value,
+        last_record}]}]}``
+
+    Error codes:
+        None.
+    """
     members = []
 
     for coordinator in _get_coordinators(hass):
@@ -187,7 +321,25 @@ def ws_get_records(
     connection: websocket_api.ActiveConnection,
     msg: dict[str, Any],
 ) -> None:
-    """Handle get_records WebSocket command."""
+    """Return health records across all members within a time range.
+
+    Command:
+        ``ha_health_record/get_records``
+
+    Parameters:
+        start_time (str): Start of the range in ISO 8601 format.
+        end_time (str): End of the range in ISO 8601 format.
+
+    Permission:
+        No admin required -- any authenticated user may call this.
+
+    Returns:
+        ``{records: [...]}`` -- records sorted by timestamp descending.
+
+    Error codes:
+        ``invalid_date`` -- ``start_time`` or ``end_time`` could not be
+        parsed as ISO 8601.
+    """
     try:
         start_time = datetime.fromisoformat(msg["start_time"].replace('Z', '+00:00'))
         end_time = datetime.fromisoformat(msg["end_time"].replace('Z', '+00:00'))
@@ -220,7 +372,23 @@ def ws_export_csv(
     connection: websocket_api.ActiveConnection,
     msg: dict[str, Any],
 ) -> None:
-    """Handle export_csv WebSocket command."""
+    """Export all records for a single member as CSV text.
+
+    Command:
+        ``ha_health_record/export_csv``
+
+    Parameters:
+        member_id (str): The unique identifier of the member to export.
+
+    Permission:
+        No admin required -- any authenticated user may call this.
+
+    Returns:
+        ``{csv_content: str, member_name: str, record_count: int}``
+
+    Error codes:
+        ``member_not_found`` -- no config entry matches *member_id*.
+    """
     member_id = msg["member_id"]
 
     coordinator = _find_coordinator(hass, member_id)
@@ -276,7 +444,40 @@ def ws_log_record(
     connection: websocket_api.ActiveConnection,
     msg: dict[str, Any],
 ) -> None:
-    """Handle log_record WebSocket command."""
+    """Log a new health record for a member.
+
+    Command:
+        ``ha_health_record/log_record``
+
+    Parameters:
+        member_id (str): The member to log the record for.
+        record_type (str): The record-type id (must already exist).
+        value (float): The measured value.  NaN and Infinity are
+            rejected by the schema validator.
+        note (str, optional): Free-text note attached to the record.
+            Defaults to ``""``.
+        timestamp (str, optional): ISO 8601 timestamp.  When omitted
+            the current time is used.
+
+    Permission:
+        Admin required.
+
+    Returns:
+        ``{success: true}``
+
+    Error codes:
+        ``member_not_found`` -- no config entry matches *member_id*.
+        ``record_type_not_found`` -- *record_type* is not in the
+            member's record sets.
+        ``invalid_timestamp`` -- the supplied *timestamp* could not be
+            parsed as ISO 8601.
+        ``log_failed`` -- the coordinator failed to persist the record.
+
+    Side effects:
+        Fires a ``ha_health_record_record_logged`` event on the HA
+        event bus containing member details, value, unit, note, and
+        timestamp.
+    """
     member_id = msg["member_id"]
     record_type = msg["record_type"]
     value = msg["value"]
@@ -354,7 +555,32 @@ def ws_update_record(
     connection: websocket_api.ActiveConnection,
     msg: dict[str, Any],
 ) -> None:
-    """Handle update_record WebSocket command."""
+    """Update an existing health record's value, note, or timestamp.
+
+    Command:
+        ``ha_health_record/update_record``
+
+    Parameters:
+        member_id (str): The owning member's identifier.
+        type_id (str): The record-type id the record belongs to.
+        timestamp (str): ISO 8601 timestamp used to locate the record.
+        record_id (str, optional): UUID of the record.  When provided
+            this is preferred over *timestamp* for lookup.
+        value (float, optional): New value for the record.
+        note (str, optional): New note for the record.
+        new_timestamp (str, optional): Replacement timestamp (ISO 8601).
+
+    Permission:
+        Admin required.
+
+    Returns:
+        ``{success: true}``
+
+    Error codes:
+        ``member_not_found`` -- no config entry matches *member_id*.
+        ``record_not_found`` -- no record matches the given
+            *timestamp* / *record_id*.
+    """
     member_id = msg["member_id"]
     type_id = msg["type_id"]
     timestamp = msg["timestamp"]
@@ -397,7 +623,29 @@ def ws_delete_record(
     connection: websocket_api.ActiveConnection,
     msg: dict[str, Any],
 ) -> None:
-    """Handle delete_record WebSocket command."""
+    """Delete a single health record.
+
+    Command:
+        ``ha_health_record/delete_record``
+
+    Parameters:
+        member_id (str): The owning member's identifier.
+        type_id (str): The record-type id the record belongs to.
+        timestamp (str): ISO 8601 timestamp used to locate the record.
+        record_id (str, optional): UUID of the record.  When provided
+            this is preferred over *timestamp* for lookup.
+
+    Permission:
+        Admin required.
+
+    Returns:
+        ``{success: true}``
+
+    Error codes:
+        ``member_not_found`` -- no config entry matches *member_id*.
+        ``record_not_found`` -- no record matches the given
+            *timestamp* / *record_id*.
+    """
     member_id = msg["member_id"]
     type_id = msg["type_id"]
     timestamp = msg["timestamp"]
@@ -437,7 +685,39 @@ async def ws_add_record_type(
     connection: websocket_api.ActiveConnection,
     msg: dict[str, Any],
 ) -> None:
-    """Handle add_record_type WebSocket command."""
+    """Add a new record type to a member's configuration.
+
+    Command:
+        ``ha_health_record/add_record_type``
+
+    Parameters:
+        member_id (str): The member to add the type to.
+        name (str): Human-readable name (also used to derive *type_id*).
+        unit (str): Unit of measurement (e.g. "kg", "bpm").
+        default_value (float, optional): Initial default value.
+            Defaults to ``0``.
+        default_value_mode (str, optional): ``"fixed"`` or
+            ``"last_value"``.  Defaults to ``"fixed"``.
+
+    Permission:
+        Admin required.
+
+    Returns:
+        ``{success: true, type_id: str}`` -- the auto-generated
+        type identifier.
+
+    Error codes:
+        ``member_not_found`` -- no config entry matches *member_id*.
+        ``type_exists`` -- a record type with the derived *type_id*
+            already exists for this member.
+        ``invalid_type_id`` -- the sanitized *name* yields an empty
+            identifier.
+
+    Side effects:
+        Updates the config entry's options with the new record set and
+        triggers a config reload, which creates the corresponding
+        sensor, button, number, and text entities.
+    """
     member_id = msg["member_id"]
     name = msg["name"]
     unit = msg["unit"]
@@ -510,7 +790,35 @@ async def ws_update_record_type(
     connection: websocket_api.ActiveConnection,
     msg: dict[str, Any],
 ) -> None:
-    """Handle update_record_type WebSocket command."""
+    """Update the metadata of an existing record type.
+
+    Command:
+        ``ha_health_record/update_record_type``
+
+    Parameters:
+        member_id (str): The owning member's identifier.
+        type_id (str): The record-type id to update.
+        name (str): New human-readable name.
+        unit (str): New unit of measurement.
+        default_value (float, optional): New default value.  Unchanged
+            when omitted.
+        default_value_mode (str, optional): ``"fixed"`` or
+            ``"last_value"``.  Unchanged when omitted.
+
+    Permission:
+        Admin required.
+
+    Returns:
+        ``{success: true}``
+
+    Error codes:
+        ``member_not_found`` -- no config entry matches *member_id*.
+        ``type_not_found`` -- *type_id* does not exist for this member.
+
+    Side effects:
+        Updates the config entry's options and triggers a config reload
+        so that entity attributes reflect the changes.
+    """
     member_id = msg["member_id"]
     type_id = msg["type_id"]
     name = msg["name"]
@@ -577,7 +885,30 @@ async def ws_delete_record_type(
     connection: websocket_api.ActiveConnection,
     msg: dict[str, Any],
 ) -> None:
-    """Handle delete_record_type WebSocket command."""
+    """Delete a record type and its associated entities.
+
+    Command:
+        ``ha_health_record/delete_record_type``
+
+    Parameters:
+        member_id (str): The owning member's identifier.
+        type_id (str): The record-type id to delete.
+
+    Permission:
+        Admin required.
+
+    Returns:
+        ``{success: true}``
+
+    Error codes:
+        ``member_not_found`` -- no config entry matches *member_id*.
+        ``type_not_found`` -- *type_id* does not exist for this member.
+
+    Side effects:
+        Removes the four related entities (sensor, button, number, text)
+        from the entity registry, updates the config entry's options,
+        and triggers a config reload.
+    """
     member_id = msg["member_id"]
     type_id = msg["type_id"]
 
@@ -647,7 +978,34 @@ async def ws_add_member(
     connection: websocket_api.ActiveConnection,
     msg: dict[str, Any],
 ) -> None:
-    """Handle add_member WebSocket command."""
+    """Add a new member (person) to be tracked.
+
+    Command:
+        ``ha_health_record/add_member``
+
+    Parameters:
+        name (str): Display name of the new member.
+        member_id (str, optional): Unique identifier.  When omitted it
+            is auto-generated by sanitizing *name* (lowercase,
+            underscores, alphanumeric only).
+        note (str, optional): Free-text note.  Defaults to ``""``.
+
+    Permission:
+        Admin required.
+
+    Returns:
+        ``{success: true, member_id: str, entry_id: str}``
+
+    Error codes:
+        ``invalid_member_id`` -- the sanitized *member_id* is empty.
+        ``member_exists`` -- a config entry with this *member_id*
+            already exists.
+        ``create_failed`` -- the config flow did not produce a new
+            entry.
+
+    Side effects:
+        Creates a new config entry via the integration's config flow.
+    """
     name = msg["name"]
     member_id = msg.get("member_id")
 
@@ -702,7 +1060,30 @@ async def ws_update_member(
     connection: websocket_api.ActiveConnection,
     msg: dict[str, Any],
 ) -> None:
-    """Handle update_member WebSocket command."""
+    """Update a member's display name and note.
+
+    Command:
+        ``ha_health_record/update_member``
+
+    Parameters:
+        member_id (str): The member to update.
+        name (str): New display name.
+        note (str, optional): New note.  Defaults to ``""``.
+
+    Permission:
+        Admin required.
+
+    Returns:
+        ``{success: true}``
+
+    Error codes:
+        ``member_not_found`` -- no config entry matches *member_id*.
+
+    Side effects:
+        Updates the config entry's ``data`` dict and ``title``, then
+        triggers a config reload so the coordinator picks up the new
+        values.
+    """
     member_id = msg["member_id"]
     name = msg["name"]
 
@@ -745,7 +1126,28 @@ async def ws_delete_member(
     connection: websocket_api.ActiveConnection,
     msg: dict[str, Any],
 ) -> None:
-    """Handle delete_member WebSocket command."""
+    """Delete a member and all associated data.
+
+    Command:
+        ``ha_health_record/delete_member``
+
+    Parameters:
+        member_id (str): The member to delete.
+
+    Permission:
+        Admin required.
+
+    Returns:
+        ``{success: true}``
+
+    Error codes:
+        ``member_not_found`` -- no config entry matches *member_id*.
+
+    Side effects:
+        Removes the config entry, which cascades to unload the
+        coordinator, remove all entities, and delete persisted record
+        data.
+    """
     member_id = msg["member_id"]
 
     # Find the config entry for this member

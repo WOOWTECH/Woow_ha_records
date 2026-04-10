@@ -1,4 +1,9 @@
-"""Text entity for Ha Note Record integration."""
+"""Text entity for Ha Note Record integration.
+
+Creates one text entity per note to expose the note content. Content is
+stored as markdown and can be up to 100,000 characters via the WebSocket API,
+but the HA text entity state is capped at 255 characters by HA core.
+"""
 
 from __future__ import annotations
 
@@ -73,7 +78,34 @@ async def async_setup_entry(
 
 
 class HaNoteRecordTextEntity(HaNoteRecordEntity, TextEntity):
-    """Text entity for note content."""
+    """Text entity exposing note content.
+
+    State
+        The note's content text, truncated to 255 characters by HA core.
+        Full content is available via the ``raw_content`` extra state
+        attribute.
+
+    Mode
+        ``TextMode.TEXT`` (plain text input).
+
+    Icon
+        ``mdi:note-text`` (the ``ICON_NOTE`` constant).
+
+    Extra state attributes
+        * ``raw_content`` (str) -- full markdown content of the note
+        * ``title`` (str) -- note title
+        * ``category`` (str) -- category name
+        * ``created_at`` (str) -- ISO-8601 creation timestamp
+        * ``updated_at`` (str) -- ISO-8601 last-update timestamp
+        * ``note_id`` (str) -- unique note identifier
+        * ``category_id`` (str) -- unique category identifier
+
+    Unique ID pattern
+        ``{DOMAIN}_{category_id}_{note_id}_content``
+
+    Name
+        The note title, set directly (not via translation key).
+    """
 
     _attr_mode = TextMode.TEXT
     _attr_icon = ICON_NOTE

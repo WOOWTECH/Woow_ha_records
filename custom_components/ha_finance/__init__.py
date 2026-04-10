@@ -1,4 +1,58 @@
-"""Ha Finance Record integration for Home Assistant."""
+"""Ha Finance Record integration for Home Assistant.
+
+Purpose
+-------
+Track personal finances with multiple accounts, transactions, and recurring
+plans inside Home Assistant.
+
+Architecture
+------------
+Multi-config-entry model -- each config entry represents one financial
+account.  A single shared ``FinanceStore`` is created in ``async_setup``
+(which runs once before any entries) and is reused by every entry's
+coordinator.
+
+Store pattern
+~~~~~~~~~~~~~
+``FinanceStore`` is instantiated in ``async_setup`` and stored in
+``hass.data[DOMAIN]["store"]``.  The helper ``_get_or_create_store()``
+ensures exactly one store exists regardless of call order.
+
+Coordinator
+~~~~~~~~~~~
+One ``FinanceCoordinator`` per config entry.  Each coordinator references
+the shared store and handles balance updates, transaction recording, and
+recurring-plan execution for its account.
+
+Platforms
+~~~~~~~~~
+Only the **sensor** platform is forwarded.  Per-account sensors include:
+  * balance
+  * last_transaction
+  * last_note
+  * last_time
+  * plan sensors (one per recurring plan)
+
+Panel / WebSocket
+~~~~~~~~~~~~~~~~~
+The sidebar panel and WebSocket commands are registered in ``async_setup``
+(not ``async_setup_entry``), so they are set up exactly once and remain
+available even when individual entries are reloaded.
+
+Events
+~~~~~~
+* ``ha_finance_transaction_added``    -- a new transaction was recorded
+* ``ha_finance_recurring_executed``   -- a recurring plan was executed
+* ``ha_finance_balance_adjusted``     -- manual balance adjustment
+* ``ha_finance_low_balance``          -- balance dropped below threshold
+* ``ha_finance_transactions_trimmed`` -- old transactions pruned
+
+Configuration defaults
+~~~~~~~~~~~~~~~~~~~~~~
+* ``currency``               -- ``NTD``
+* ``low_balance_threshold``  -- ``1000.0``
+* ``max_transactions``       -- ``1000``
+"""
 from __future__ import annotations
 
 import logging

@@ -1,4 +1,16 @@
-"""Sensor entities for Ha Finance Record integration."""
+"""Sensor entities for Ha Finance Record integration.
+
+Creates multiple sensor entities per financial account:
+
+- BalanceDisplaySensor: current account balance
+- LastTransactionSensor: amount of the most recent transaction
+- LastNoteSensor: note from the most recent transaction
+- LastTimeSensor: timestamp of the most recent transaction
+- PlanNextDateSensor: next execution date for each recurring plan
+- PlanLastExecutedSensor: last execution time for each recurring plan
+
+All sensors update via the FinanceCoordinator (no polling).
+"""
 from __future__ import annotations
 
 from datetime import date, datetime
@@ -73,7 +85,13 @@ async def async_setup_entry(
 
 
 class FinanceSensorBase(CoordinatorEntity[FinanceCoordinator], SensorEntity):
-    """Base class for finance sensor entities."""
+    """Base class for finance sensor entities.
+
+    Extends ``CoordinatorEntity[FinanceCoordinator]`` and ``SensorEntity``
+    to provide shared ``device_info``, a unique-ID prefix based on
+    ``account_id``, ``has_entity_name = True``, and ``should_poll = False``
+    (inherited from ``CoordinatorEntity``).
+    """
 
     _attr_has_entity_name = True
 
@@ -102,7 +120,20 @@ class FinanceSensorBase(CoordinatorEntity[FinanceCoordinator], SensorEntity):
 
 
 class BalanceDisplaySensor(FinanceSensorBase):
-    """Sensor entity for balance display."""
+    """Sensor showing the current account balance.
+
+    State
+        Current account balance (float), with ``state_class = TOTAL``.
+
+    Icon
+        ``mdi:cash``
+
+    Unit
+        Account currency (from config entry options, default NTD).
+
+    Translation key
+        ``balance_display``
+    """
 
     _attr_icon = "mdi:cash"
     _attr_translation_key = "balance_display"
@@ -126,7 +157,21 @@ class BalanceDisplaySensor(FinanceSensorBase):
 
 
 class LastTransactionSensor(FinanceSensorBase):
-    """Sensor entity for last transaction amount."""
+    """Sensor showing the amount of the most recent transaction.
+
+    State
+        Amount of the most recent transaction (float), or ``None`` if no
+        transactions exist.
+
+    Icon
+        ``mdi:cash-fast``
+
+    Unit
+        Account currency (from config entry options, default NTD).
+
+    Translation key
+        ``last_transaction``
+    """
 
     _attr_icon = "mdi:cash-fast"
     _attr_translation_key = "last_transaction"
@@ -152,7 +197,21 @@ class LastTransactionSensor(FinanceSensorBase):
 
 
 class LastNoteSensor(FinanceSensorBase):
-    """Sensor entity for last transaction note."""
+    """Sensor showing the note text from the most recent transaction.
+
+    State
+        Note text (str) from the most recent transaction, or ``None`` if
+        no transactions exist.
+
+    Icon
+        ``mdi:note-text-outline``
+
+    Unit
+        None.
+
+    Translation key
+        ``last_note``
+    """
 
     _attr_icon = "mdi:note-text-outline"
     _attr_translation_key = "last_note"
@@ -175,7 +234,20 @@ class LastNoteSensor(FinanceSensorBase):
 
 
 class LastTimeSensor(FinanceSensorBase):
-    """Sensor entity for last transaction time."""
+    """Sensor showing the timestamp of the most recent transaction.
+
+    State
+        Timestamp of the most recent transaction as a ``datetime`` object.
+
+    Device class
+        ``SensorDeviceClass.TIMESTAMP``
+
+    Icon
+        ``mdi:clock-outline``
+
+    Translation key
+        ``last_time``
+    """
 
     _attr_icon = "mdi:clock-outline"
     _attr_translation_key = "last_time"
@@ -202,7 +274,22 @@ class LastTimeSensor(FinanceSensorBase):
 
 
 class PlanNextDateSensor(FinanceSensorBase):
-    """Sensor entity for recurring plan next execution date."""
+    """Sensor showing the next scheduled execution date of a recurring plan.
+
+    One entity is created per recurring plan.
+
+    State
+        Next scheduled execution date (``date`` object).
+
+    Device class
+        ``SensorDeviceClass.DATE``
+
+    Icon
+        ``mdi:calendar-arrow-right``
+
+    Translation key
+        ``plan_next_date`` with placeholder ``{title}`` (plan title).
+    """
 
     _attr_icon = "mdi:calendar-arrow-right"
     _attr_translation_key = "plan_next_date"
@@ -249,7 +336,23 @@ class PlanNextDateSensor(FinanceSensorBase):
 
 
 class PlanLastExecutedSensor(FinanceSensorBase):
-    """Sensor entity for recurring plan last executed time."""
+    """Sensor showing the last execution timestamp of a recurring plan.
+
+    One entity is created per recurring plan.
+
+    State
+        Timestamp of the last execution (``datetime``), or ``None`` if
+        the plan has never been executed.
+
+    Device class
+        ``SensorDeviceClass.TIMESTAMP``
+
+    Icon
+        ``mdi:calendar-check``
+
+    Translation key
+        ``plan_last_executed`` with placeholder ``{title}`` (plan title).
+    """
 
     _attr_icon = "mdi:calendar-check"
     _attr_translation_key = "plan_last_executed"

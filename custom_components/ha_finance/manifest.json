@@ -1,6 +1,7 @@
 {
   "domain": "ha_finance",
   "name": "Finance Record",
+  "description": "Track personal finances with multiple accounts, transactions, and recurring plans (daily/weekly/monthly/yearly). Each account is a separate config entry. Provides 12 WebSocket commands (ha_finance/*) for account, transaction, recurring plan, and chart data operations. Fires 5 HA bus events (transaction_added, recurring_executed, balance_adjusted, low_balance, transactions_trimmed). Exposes sensor entities for balance, last transaction, and recurring plan schedules.",
   "version": "1.0.1",
   "documentation": "https://github.com/WOOWTECH/ha_finance",
   "codeowners": ["@WOOWTECH"],

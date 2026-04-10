@@ -1,4 +1,8 @@
-"""Number platform for Ha Health Record integration."""
+"""Number platform for Ha Health Record integration.
+
+Creates one number entity per record type per member for entering
+measurement values before logging.
+"""
 from __future__ import annotations
 
 import logging
@@ -37,7 +41,32 @@ async def async_setup_entry(
 
 
 class RecordValueNumber(NumberEntity):
-    """Number entity for record value input."""
+    """Number entity for record value input.
+
+    State
+        The value to be logged on the next button press, or the
+        ``default_value`` configured for this record type.
+
+    Range
+        0 to 10 000, step 0.1.
+
+    Mode
+        ``BOX`` (free numeric input).
+
+    Icon
+        ``mdi:numeric``
+
+    Entity category
+        ``CONFIG``
+
+    Translation key
+        ``"record_value"`` with placeholder ``{record_name}``.
+
+    Unique ID pattern
+        ``{member_id}_{type_id}_value``
+
+    Updates via dispatcher signal, not polling.
+    """
 
     _attr_entity_category = EntityCategory.CONFIG
     _attr_has_entity_name = True

@@ -1,4 +1,78 @@
-"""WebSocket API for Ha Asset Record."""
+"""WebSocket API for household asset management in Home Assistant.
+
+This module exposes four WebSocket commands that allow the HA frontend
+(or any WebSocket client) to perform full CRUD operations on household
+assets.
+
+Commands
+--------
+ha_asset_record/list
+    List every asset stored by the integration.
+    Parameters: (none)
+    Permission: any authenticated user
+    Returns: ``{assets: [{id, name, brand, category, value, purchase_at,
+              warranty_until, manual_md, maintenance_md, created_at,
+              updated_at}, ...]}``
+
+ha_asset_record/create
+    Create a new asset and its associated HA entities.
+    Parameters:
+        name             (str, required, max 255, whitespace-trimmed)
+        brand            (str, optional, max 255)
+        category         (str, optional, max 255)
+        value            (float, optional)
+        purchase_at      (str, optional, ISO 8601 datetime)
+        warranty_until   (str, optional, ISO 8601 datetime)
+        manual_md        (str, optional, max 65535)
+        maintenance_md   (str, optional, max 65535)
+    Permission: admin only
+    Returns: ``{asset: {id, name, brand, ...}}``
+
+ha_asset_record/update
+    Update one or more fields on an existing asset.
+    Parameters:
+        asset_id         (str, required, must match ``^asset_[a-f0-9]+$``)
+        name             (str, optional, max 255, cannot be empty)
+        brand            (str, optional, max 255)
+        category         (str, optional, max 255)
+        value            (float, optional)
+        purchase_at      (str, optional, ISO 8601 datetime)
+        warranty_until   (str, optional, ISO 8601 datetime)
+        manual_md        (str, optional, max 65535)
+        maintenance_md   (str, optional, max 65535)
+    Permission: admin only
+    Returns: ``{asset: {...updated}}``
+
+ha_asset_record/delete
+    Delete an asset and all of its associated entities.
+    Parameters:
+        asset_id         (str, required, must match ``^asset_[a-f0-9]+$``)
+    Permission: admin only
+    Returns: ``{success: true}``
+
+Permission model
+----------------
+* ``ha_asset_record/list`` is available to every authenticated user.
+* ``ha_asset_record/create``, ``ha_asset_record/update``, and
+  ``ha_asset_record/delete`` require admin privileges
+  (``@websocket_api.require_admin``).
+
+Validation
+----------
+* ``ASSET_ID_PATTERN = r"^asset_[a-f0-9]+$"`` -- enforced on
+  ``asset_id`` parameters via ``vol.Match``.
+* String fields: max 255 characters (``vol.Length``).
+* Markdown fields (``manual_md``, ``maintenance_md``): max 65535
+  characters.
+
+Error codes
+-----------
+* ``not_found``       -- integration not configured, or the requested
+                         asset does not exist.
+* ``invalid_input``   -- a required field is empty (e.g. blank name).
+* ``invalid_format``  -- a datetime string could not be parsed as
+                         ISO 8601.
+"""
 
 from __future__ import annotations
 
@@ -79,7 +153,30 @@ async def ws_list_assets(
     connection: websocket_api.ActiveConnection,
     msg: dict[str, Any],
 ) -> None:
-    """Handle list assets command."""
+    """Handle the ``ha_asset_record/list`` WebSocket command.
+
+    Return every asset currently managed by the integration.
+
+    Parameters
+    ----------
+    (no additional parameters beyond the mandatory ``type``)
+
+    Permission
+    ----------
+    Any authenticated user (no admin requirement).
+
+    Returns
+    -------
+    result : dict
+        ``{assets: [{id, name, brand, category, value, purchase_at,
+        warranty_until, manual_md, maintenance_md, created_at,
+        updated_at}, ...]}``
+
+    Errors
+    ------
+    not_found
+        The integration is not configured (coordinator missing).
+    """
     coordinator = _get_coordinator_from_hass(hass)
     if coordinator is None:
         connection.send_error(msg["id"], "not_found", "Integration not configured")
@@ -111,7 +208,57 @@ async def ws_create_asset(
     connection: websocket_api.ActiveConnection,
     msg: dict[str, Any],
 ) -> None:
-    """Handle create asset command."""
+    """Handle the ``ha_asset_record/create`` WebSocket command.
+
+    Create a new household asset along with its associated Home
+    Assistant entities (datetime, text, number) and persist the data
+    to ``.storage``.
+
+    Parameters
+    ----------
+    name : str, required
+        Asset name.  Max 255 characters.  Whitespace-trimmed; cannot
+        be empty after trimming.
+    brand : str, optional
+        Brand / manufacturer.  Max 255 characters.
+    category : str, optional
+        User-defined category.  Max 255 characters.
+    value : float, optional
+        Monetary value of the asset.
+    purchase_at : str, optional
+        Purchase date as an ISO 8601 datetime string.
+    warranty_until : str, optional
+        Warranty expiry as an ISO 8601 datetime string.
+    manual_md : str, optional
+        Free-form manual notes in Markdown.  Max 65535 characters.
+    maintenance_md : str, optional
+        Maintenance log in Markdown.  Max 65535 characters.
+
+    Permission
+    ----------
+    Admin only (``@websocket_api.require_admin``).
+
+    Returns
+    -------
+    result : dict
+        ``{asset: {id, name, brand, ...}}``
+
+    Errors
+    ------
+    not_found
+        The integration is not configured (coordinator missing).
+    invalid_input
+        The ``name`` field is empty after whitespace trimming.
+    invalid_format
+        A datetime string (``purchase_at`` or ``warranty_until``)
+        could not be parsed as ISO 8601.
+
+    Side effects
+    -------------
+    * Creates Home Assistant entities (datetime, text, number) for
+      the new asset.
+    * Persists the asset to ``.storage``.
+    """
     coordinator = _get_coordinator_from_hass(hass)
     if coordinator is None:
         connection.send_error(msg["id"], "not_found", "Integration not configured")
@@ -187,7 +334,55 @@ async def ws_update_asset(
     connection: websocket_api.ActiveConnection,
     msg: dict[str, Any],
 ) -> None:
-    """Handle update asset command."""
+    """Handle the ``ha_asset_record/update`` WebSocket command.
+
+    Update one or more fields on an existing asset.  Only the fields
+    present in the message are modified; omitted fields are left
+    unchanged.
+
+    Parameters
+    ----------
+    asset_id : str, required
+        The identifier of the asset to update.  Must match the
+        pattern ``^asset_[a-f0-9]+$``.
+    name : str, optional
+        New asset name.  Max 255 characters.  Cannot be empty after
+        whitespace trimming.
+    brand : str, optional
+        Brand / manufacturer.  Max 255 characters.
+    category : str, optional
+        User-defined category.  Max 255 characters.
+    value : float, optional
+        Monetary value of the asset.
+    purchase_at : str, optional
+        Purchase date as an ISO 8601 datetime string.
+    warranty_until : str, optional
+        Warranty expiry as an ISO 8601 datetime string.
+    manual_md : str, optional
+        Free-form manual notes in Markdown.  Max 65535 characters.
+    maintenance_md : str, optional
+        Maintenance log in Markdown.  Max 65535 characters.
+
+    Permission
+    ----------
+    Admin only (``@websocket_api.require_admin``).
+
+    Returns
+    -------
+    result : dict
+        ``{asset: {...updated}}``
+
+    Errors
+    ------
+    not_found
+        The integration is not configured (coordinator missing) or the
+        specified ``asset_id`` does not exist.
+    invalid_input
+        The ``name`` field is empty after whitespace trimming.
+    invalid_format
+        A datetime string (``purchase_at`` or ``warranty_until``)
+        could not be parsed as ISO 8601.
+    """
     coordinator = _get_coordinator_from_hass(hass)
     if coordinator is None:
         connection.send_error(msg["id"], "not_found", "Integration not configured")
@@ -274,7 +469,38 @@ async def ws_delete_asset(
     connection: websocket_api.ActiveConnection,
     msg: dict[str, Any],
 ) -> None:
-    """Handle delete asset command."""
+    """Handle the ``ha_asset_record/delete`` WebSocket command.
+
+    Delete an asset and remove all of its associated Home Assistant
+    entities.  The change is persisted to ``.storage``.
+
+    Parameters
+    ----------
+    asset_id : str, required
+        The identifier of the asset to delete.  Must match the
+        pattern ``^asset_[a-f0-9]+$``.
+
+    Permission
+    ----------
+    Admin only (``@websocket_api.require_admin``).
+
+    Returns
+    -------
+    result : dict
+        ``{success: true}``
+
+    Errors
+    ------
+    not_found
+        The integration is not configured (coordinator missing) or the
+        specified ``asset_id`` does not exist.
+
+    Side effects
+    -------------
+    * Removes the asset and all associated entities from Home
+      Assistant.
+    * Persists the deletion to ``.storage``.
+    """
     coordinator = _get_coordinator_from_hass(hass)
     if coordinator is None:
         connection.send_error(msg["id"], "not_found", "Integration not configured")

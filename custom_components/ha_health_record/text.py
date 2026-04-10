@@ -1,4 +1,8 @@
-"""Text platform for Ha Health Record integration."""
+"""Text platform for Ha Health Record integration.
+
+Creates one text entity per record type per member for entering
+free-text notes to attach to each logged record.
+"""
 from __future__ import annotations
 
 import logging
@@ -36,7 +40,31 @@ async def async_setup_entry(
 
 
 class RecordNoteText(TextEntity):
-    """Text entity for record note input."""
+    """Text entity for record note input.
+
+    State
+        The note text to be attached on the next log, or an empty string.
+
+    Max length
+        255 characters.
+
+    Mode
+        ``TEXT``
+
+    Icon
+        ``mdi:note-text``
+
+    Entity category
+        ``CONFIG``
+
+    Translation key
+        ``"record_note"`` with placeholder ``{record_name}``.
+
+    Unique ID pattern
+        ``{member_id}_{type_id}_note``
+
+    Updates via dispatcher signal, not polling.
+    """
 
     _attr_entity_category = EntityCategory.CONFIG
     _attr_has_entity_name = True

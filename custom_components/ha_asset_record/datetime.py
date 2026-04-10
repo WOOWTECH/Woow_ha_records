@@ -1,4 +1,8 @@
-"""Datetime platform for Ha Asset Record."""
+"""Datetime platform for Ha Asset Record.
+
+Creates datetime entities for the ``purchase_at`` and ``warranty_until``
+fields of each asset.
+"""
 
 from __future__ import annotations
 
@@ -70,7 +74,19 @@ def _create_datetime_entities(
 
 
 class AssetDateTimeEntity(AssetEntity, DateTimeEntity):
-    """Datetime entity for asset dates."""
+    """Datetime entity for asset dates.
+
+    Tracks the purchase date or warranty expiry for an asset.
+
+    Fields
+        ``purchase_at``, ``warranty_until``
+
+    Extra state attributes
+        * ``asset_id`` (str) -- identifier of the parent asset.
+
+    Unique ID pattern
+        ``{asset_id}_{field_name}``
+    """
 
     @property
     def native_value(self) -> datetime | None:

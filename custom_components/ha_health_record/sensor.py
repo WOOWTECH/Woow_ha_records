@@ -1,4 +1,8 @@
-"""Sensor platform for Ha Health Record integration."""
+"""Sensor platform for Ha Health Record integration.
+
+Creates one sensor entity per record type per member. Each sensor displays
+the most recent recorded value for that metric (e.g., weight, blood pressure).
+"""
 from __future__ import annotations
 
 import logging
@@ -40,7 +44,32 @@ async def async_setup_entry(
 
 
 class RecordSensor(SensorEntity):
-    """Sensor showing the last record value."""
+    """Sensor showing the last record value.
+
+    State
+        Numeric value of the most recent record for this type.
+        ``None`` if no records have been logged yet.
+
+    Icon
+        ``mdi:clipboard-text-clock``
+
+    Unit
+        Configurable per record type (e.g. ``"kg"``, ``"ml"``, ``"cm"``).
+
+    Translation key
+        ``"record"`` with placeholder ``{record_name}``.
+
+    Extra state attributes
+        * ``record_name`` (str) -- display name of the record type.
+        * ``unit`` (str) -- unit of measurement.
+        * ``note`` (str) -- free-text note attached to the record.
+        * ``timestamp`` (str, ISO 8601) -- when the record was logged.
+
+    Unique ID pattern
+        ``{member_id}_{type_id}_record``
+
+    Updates via dispatcher signal, not polling.
+    """
 
     _attr_has_entity_name = True
     _attr_should_poll = False

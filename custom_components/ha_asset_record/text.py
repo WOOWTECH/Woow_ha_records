@@ -1,4 +1,9 @@
-"""Text platform for Ha Asset Record."""
+"""Text platform for Ha Asset Record.
+
+Creates text entities for the ``brand`` and ``category`` fields of each
+asset. Long-text fields (``manual_md``, ``maintenance_md``) are excluded
+because they exceed HA core's 255-character hard cap on TextEntity state.
+"""
 
 from __future__ import annotations
 
@@ -76,6 +81,25 @@ def _create_text_entities(
 
 class AssetTextEntity(AssetEntity, TextEntity):
     """Text entity for asset text fields.
+
+    Provides a text input for ``brand`` and ``category`` fields of an asset.
+    Max length is 255 characters, enforced by HA core.
+
+    Mode
+        ``TEXT``
+
+    Extra state attributes
+        * ``asset_id`` (str) -- identifier of the parent asset.
+
+    Unique ID pattern
+        ``{asset_id}_{field_name}``
+
+    Note
+        ``manual_md`` and ``maintenance_md`` are NOT exposed as text entities
+        because HA core's ``TextEntity.max`` hard-caps at
+        ``MAX_LENGTH_STATE_STATE`` (255 characters) regardless of
+        ``native_max``. Those fields should be accessed via service calls or
+        attributes.
 
     [L-05] Removed misleading _attr_native_max = 65535.
     HA core's TextEntity.max property hard-caps at MAX_LENGTH_STATE_STATE (255)
