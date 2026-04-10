@@ -5,10 +5,10 @@
   "codeowners": ["@WOOWTECH"],
   "config_flow": true,
   "dependencies": ["http"],
-  "documentation": "https://github.com/WOOWTECH/ha_asset_record",
+  "documentation": "https://github.com/WOOWTECH/Woow_ha_records",
   "homeassistant": "2025.12.0",
   "iot_class": "calculated",
-  "issue_tracker": "https://github.com/WOOWTECH/ha_asset_record/issues",
+  "issue_tracker": "https://github.com/WOOWTECH/Woow_ha_records/issues",
   "requirements": [],
   "single_config_entry": true,
   "version": "1.0.0"

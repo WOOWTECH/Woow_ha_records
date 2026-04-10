@@ -2,13 +2,13 @@
   "domain": "ha_health_record",
   "name": "Ha Health Record",
   "description": "Track health metrics (weight, blood pressure, feeding, sleep, etc.) for family members. Each member is a separate config entry with customizable record types. Provides 12 WebSocket commands (ha_health_record/*) for CRUD on members, record types, and records. Fires ha_health_record_record_logged event on each log. Exposes sensor, number, text, and button entities per record type per member.",
-  "codeowners": ["@oaoomg"],
+  "codeowners": ["@WOOWTECH"],
   "config_flow": true,
   "dependencies": ["frontend"],
-  "documentation": "https://github.com/oaoomg/ha_health_record",
+  "documentation": "https://github.com/WOOWTECH/Woow_ha_records",
   "integration_type": "service",
   "iot_class": "calculated",
-  "issue_tracker": "https://github.com/oaoomg/ha_health_record/issues",
+  "issue_tracker": "https://github.com/WOOWTECH/Woow_ha_records/issues",
   "requirements": [],
   "version": "1.0.0"
 }

@@ -2,14 +2,14 @@
   "domain": "ha_note_record",
   "name": "Note Record",
   "description": "Organize markdown notes into categories within Home Assistant. Single config entry with persistent local storage. Provides 6 WebSocket commands (ha_note_record/*) for managing categories and notes (CRUD). Supports note pinning, markdown content up to 100,000 chars. Exposes text entities (note content) and switch entities (pinned status) per note.",
-  "codeowners": ["@woowtech"],
+  "codeowners": ["@WOOWTECH"],
   "config_flow": true,
   "dependencies": ["frontend", "panel_custom"],
-  "documentation": "https://github.com/WOOWTECH/ha_note_record",
+  "documentation": "https://github.com/WOOWTECH/Woow_ha_records",
   "homeassistant": "2025.12.0",
   "integration_type": "service",
   "iot_class": "local_push",
-  "issue_tracker": "https://github.com/WOOWTECH/ha_note_record/issues",
+  "issue_tracker": "https://github.com/WOOWTECH/Woow_ha_records/issues",
   "requirements": [],
   "version": "1.0.1"
 }
