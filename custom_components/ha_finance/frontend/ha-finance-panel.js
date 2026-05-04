@@ -1380,6 +1380,10 @@ class HaFinancePanel extends LitElement {
     this._activeTab = tab;
   }
 
+  _toggleSidebar() {
+    this.dispatchEvent(new CustomEvent("hass-toggle-menu", { bubbles: true, composed: true }));
+  }
+
   _getTranslation(key) {
     const translations = {
       en: {
@@ -1977,6 +1981,9 @@ class HaFinancePanel extends LitElement {
     return html`
       <!-- Top Bar -->
       <div class="top-bar">
+        <button class="top-bar-sidebar-btn" @click=${this._toggleSidebar}>
+          <svg viewBox="0 0 24 24"><path fill="currentColor" d="M3,6H21V8H3V6M3,11H21V13H3V11M3,16H21V18H3V16Z"/></svg>
+        </button>
         <h1 class="top-bar-title">${this._getTranslation("panel_title")}</h1>
       </div>
 

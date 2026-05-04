@@ -2004,6 +2004,9 @@ class HaHealthRecordPanel extends HTMLElement {
       // Top Bar (like Finance Record)
       content = `
         <div class="top-bar">
+          <button class="top-bar-sidebar-btn" id="sidebar-toggle">
+            <svg viewBox="0 0 24 24"><path fill="currentColor" d="M3,6H21V8H3V6M3,11H21V13H3V11M3,16H21V18H3V16Z"/></svg>
+          </button>
           <h1 class="top-bar-title">${this._t('title')}</h1>
         </div>
       `;
@@ -2525,6 +2528,10 @@ class HaHealthRecordPanel extends HTMLElement {
   }
 
   _attachEventListeners() {
+    // Sidebar toggle
+    const sidebarBtn = this.shadowRoot.querySelector('#sidebar-toggle');
+    if (sidebarBtn) sidebarBtn.addEventListener('click', () => this._toggleSidebar());
+
     // Tab navigation
     this.shadowRoot.querySelectorAll('.tab').forEach(tab => {
       tab.addEventListener('click', () => this._switchTab(tab.dataset.tab));

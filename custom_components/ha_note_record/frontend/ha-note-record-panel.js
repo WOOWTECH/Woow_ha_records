@@ -85,6 +85,22 @@ const sharedStylesLit = `
     gap: 12px;
     margin: -16px -16px 16px -16px;
   }
+  .top-bar-sidebar-btn {
+    width: 40px;
+    height: 40px;
+    border: none;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: background 0.2s;
+    flex-shrink: 0;
+  }
+  .top-bar-sidebar-btn:hover { background: var(--secondary-background-color, rgba(0,0,0,0.1)); }
+  .top-bar-sidebar-btn svg { width: 24px; height: 24px; }
   .top-bar-title {
     flex: 1;
     font-size: 20px;
@@ -737,6 +753,10 @@ class HaNoteRecordPanel extends LitElement {
     }
   }
 
+  _toggleSidebar() {
+    this.dispatchEvent(new CustomEvent("hass-toggle-menu", { bubbles: true, composed: true }));
+  }
+
   _localize(key) {
     // Try to get translation from HA's built-in localization first
     const translation = this.hass?.localize?.(`component.ha_note_record.panel.${key}`);
@@ -929,6 +949,9 @@ class HaNoteRecordPanel extends LitElement {
     return html`
       <!-- Top Bar -->
       <div class="top-bar">
+        <button class="top-bar-sidebar-btn" @click=${this._toggleSidebar}>
+          <svg viewBox="0 0 24 24"><path fill="currentColor" d="M3,6H21V8H3V6M3,11H21V13H3V11M3,16H21V18H3V16Z"/></svg>
+        </button>
         <h1 class="top-bar-title">${this._localize("title")}</h1>
       </div>
 
