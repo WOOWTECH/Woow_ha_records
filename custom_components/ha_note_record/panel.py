@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import time
 from pathlib import Path
 
 from homeassistant.components import frontend, panel_custom
@@ -43,6 +44,12 @@ async def async_register_panel(hass: HomeAssistant) -> None:
         module_url=f"/{DOMAIN}/frontend/ha-note-record-panel.js?v={PANEL_VERSION}",
         require_admin=False,
         config={},
+    )
+
+    # Register sidebar title i18n script (runs on every page)
+    cache_buster = int(time.time())
+    frontend.add_extra_js_url(
+        hass, f"/{DOMAIN}/frontend/sidebar-title.js?v={cache_buster}"
     )
 
     _LOGGER.info("Registered Ha Note Record panel")

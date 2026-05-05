@@ -69,6 +69,7 @@ Transaction Types
 from __future__ import annotations
 
 import logging
+import time
 from typing import TYPE_CHECKING, Any
 
 import voluptuous as vol
@@ -135,6 +136,12 @@ async def async_setup_panel(hass: HomeAssistant) -> None:
         },
         require_admin=False,
         update=True,
+    )
+
+    # Register sidebar title i18n script (runs on every page)
+    cache_buster = int(time.time())
+    frontend.add_extra_js_url(
+        hass, f"{PANEL_URL}/sidebar-title.js?v={cache_buster}"
     )
 
     # Register WebSocket commands

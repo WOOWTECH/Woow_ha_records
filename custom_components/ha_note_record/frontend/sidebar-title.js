@@ -1,5 +1,5 @@
 /**
- * Sidebar title localization for ha_health_record.
+ * Sidebar title localization for ha_note_record.
  *
  * Strategy (Plan B): Mutate hass.panels[key].title and trigger a reactive
  * update via Object.assign.  ha-sidebar's shouldUpdate() detects the change
@@ -11,12 +11,12 @@
 (function () {
   'use strict';
 
-  var PANEL_KEY = 'ha-health-record';
+  var PANEL_KEY = 'ha-note-record';
 
   var TITLES = {
-    'en': 'Health Record',
-    'zh-Hant': '\u5065\u5eb7\u7d00\u9304',
-    'zh-Hans': '\u5065\u5eb7\u8bb0\u5f55'
+    'en': 'Note Record',
+    'zh-Hant': '\u7b46\u8a18\u672c',
+    'zh-Hans': '\u7b14\u8bb0\u672c'
   };
 
   function getLanguage(hass) {
@@ -34,7 +34,6 @@
     return TITLES[lang] || TITLES['en'];
   }
 
-  /** Get the live hass object from home-assistant-main. */
   function getHassObject() {
     try {
       var ha = document.querySelector('home-assistant');
@@ -46,13 +45,6 @@
     }
   }
 
-  /**
-   * Mutate hass.panels[PANEL_KEY].title and trigger ha-sidebar re-render.
-   *
-   * ha-sidebar.shouldUpdate() compares hass.panels by reference, so
-   * reassigning main.hass with Object.assign triggers a LitElement update
-   * cycle that calls getPanelTitle() → reads the new panel.title.
-   */
   function updateTitle(hass, title) {
     try {
       if (!hass || !hass.panels || !hass.panels[PANEL_KEY]) return false;
@@ -78,7 +70,6 @@
     var attempts = 0;
     var maxAttempts = 30;
 
-    // Phase 1: Wait for hass + panels to be ready, then apply title
     var retryInterval = setInterval(function () {
       attempts++;
       var hass = getHassObject();
@@ -98,7 +89,6 @@
       }
     }, 2000);
 
-    // Phase 2: Subscribe to core_config_updated for system language changes
     var subscribed = false;
     var subInterval = setInterval(function () {
       if (subscribed) { clearInterval(subInterval); return; }
@@ -120,7 +110,6 @@
       } catch (e) { /* ignore */ }
     }, 1000);
 
-    // Phase 3: Polling fallback for profile-level language changes (every 5s)
     setInterval(function () {
       var hass = getHassObject();
       if (!hass) return;
