@@ -669,7 +669,7 @@ class HaAssetPanel extends LitElement {
 
     // Fallback translations (M-21: standardized to "Asset Record" naming)
     const fallbacks = {
-      title: this.hass?.language === "zh-Hant" ? "資產紀錄" : "Asset Record",
+      title: this.hass?.language === "zh-Hant" ? "設備紀錄" : "Asset Record",
       add_asset: this.hass?.language === "zh-Hant" ? "新增資產" : "Add Asset",
       edit_asset: this.hass?.language === "zh-Hant" ? "編輯資產" : "Edit Asset",
       name: this.hass?.language === "zh-Hant" ? "名稱" : "Name",

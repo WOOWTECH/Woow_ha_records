@@ -21,6 +21,7 @@ FIELD_PURCHASE_AT: Final = "purchase_at"
 FIELD_WARRANTY_UNTIL: Final = "warranty_until"
 FIELD_BRAND: Final = "brand"
 FIELD_CATEGORY: Final = "category"
+FIELD_CATEGORY_ID: Final = "category_id"
 FIELD_MANUAL_MD: Final = "manual_md"
 FIELD_MAINTENANCE_MD: Final = "maintenance_md"
 FIELD_VALUE: Final = "value"
@@ -40,6 +41,10 @@ TEXT_MAX_LENGTH: Final = 255
 # Attribute keys
 ATTR_RAW_CONTENT: Final = "raw_content"
 ATTR_ASSET_ID: Final = "asset_id"
+
+# Category constants
+MAX_CATEGORY_NAME_LENGTH: Final = 100
+CATEGORY_ID_PREFIX: Final = "cat_"
 
 # Options flow actions
 ACTION_CREATE_ASSET: Final = "create_asset"

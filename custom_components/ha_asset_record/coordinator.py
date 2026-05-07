@@ -18,15 +18,18 @@ from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
 from .const import (
+    CATEGORY_ID_PREFIX,
     DOMAIN,
     FIELD_BRAND,
     FIELD_CATEGORY,
+    FIELD_CATEGORY_ID,
     FIELD_MAINTENANCE_MD,
     FIELD_MANUAL_MD,
     FIELD_NAME,
     FIELD_PURCHASE_AT,
     FIELD_VALUE,
     FIELD_WARRANTY_UNTIL,
+    MAX_CATEGORY_NAME_LENGTH,
     STORAGE_KEY,
     STORAGE_VERSION,
 )
@@ -37,7 +40,7 @@ _LOGGER = logging.getLogger(__name__)
 _FIELD_TYPES: dict[str, tuple[type, ...]] = {
     FIELD_NAME: (str,),
     FIELD_BRAND: (str,),
-    FIELD_CATEGORY: (str,),
+    FIELD_CATEGORY_ID: (str,),
     FIELD_VALUE: (int, float),
     FIELD_PURCHASE_AT: (datetime, type(None)),
     FIELD_WARRANTY_UNTIL: (datetime, type(None)),
@@ -79,13 +82,39 @@ def _ensure_aware_utc(dt_value: datetime) -> datetime:
 
 
 @dataclass
+class Category:
+    """Represents an asset category."""
+
+    id: str
+    name: str
+    created_at: str  # ISO 8601 UTC
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert category to dictionary for storage."""
+        return {
+            "id": self.id,
+            "name": self.name,
+            "created_at": self.created_at,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> Category:
+        """Create category from dictionary."""
+        return cls(
+            id=data["id"],
+            name=data.get("name", ""),
+            created_at=data.get("created_at", dt_util.utcnow().isoformat()),
+        )
+
+
+@dataclass
 class Asset:
     """Represents an asset."""
 
     id: str
     name: str
     brand: str = ""
-    category: str = ""
+    category_id: str = ""
     value: float = 0
     purchase_at: datetime | None = None
     warranty_until: datetime | None = None
@@ -100,7 +129,7 @@ class Asset:
             "id": self.id,
             "name": self.name,
             "brand": self.brand,
-            "category": self.category,
+            "category_id": self.category_id,
             "value": self.value,
             "purchase_at": self.purchase_at.isoformat() if self.purchase_at else None,
             "warranty_until": (
@@ -146,7 +175,7 @@ class Asset:
             id=data["id"],
             name=data.get("name", ""),
             brand=data.get("brand", ""),
-            category=data.get("category", ""),
+            category_id=data.get("category_id", ""),
             value=value,
             purchase_at=purchase_at,
             warranty_until=warranty_until,
@@ -175,6 +204,8 @@ class AssetCoordinator:
             hass, STORAGE_VERSION, STORAGE_KEY
         )
         self._assets: dict[str, Asset] = {}
+        self._categories: list[Category] = []
+        self._categories_by_id: dict[str, Category] = {}
         # [M-03] Dict-based listeners with integer keys for O(1) add/remove,
         # following the pattern from HA DataUpdateCoordinator.
         self._listeners: dict[int, Callable[[], None]] = {}
@@ -188,6 +219,11 @@ class AssetCoordinator:
         """
         return MappingProxyType(self._assets)
 
+    @property
+    def categories(self) -> list[Category]:
+        """Return all categories."""
+        return list(self._categories)
+
     async def async_load(self) -> None:
         """Load assets from storage.
 
@@ -195,6 +231,9 @@ class AssetCoordinator:
         storage file logs a warning and continues with an empty asset
         dict instead of crashing. The caller (async_setup_entry) can
         then decide whether to raise ConfigEntryNotReady.
+
+        Handles migration from old format (assets with `category` text
+        field) to new format (separate `categories` list + `category_id`).
         """
         try:
             data = await self._store.async_load()
@@ -205,26 +244,84 @@ class AssetCoordinator:
             )
             data = None
 
-        if data is not None:
-            for asset_data in data.get("assets", []):
-                try:
-                    asset = Asset.from_dict(asset_data)
-                    self._assets[asset.id] = asset
-                except Exception:
-                    _LOGGER.warning(
-                        "Skipping corrupt asset record: %s",
-                        asset_data.get("id", "unknown"),
-                        exc_info=True,
-                    )
-        _LOGGER.debug("Loaded %d assets", len(self._assets))
+        if data is None:
+            _LOGGER.debug("Loaded 0 assets, 0 categories")
+            return
+
+        needs_migration = "categories" not in data
+
+        # Load categories (new format)
+        for cat_data in data.get("categories", []):
+            try:
+                cat = Category.from_dict(cat_data)
+                self._categories.append(cat)
+                self._categories_by_id[cat.id] = cat
+            except Exception:
+                _LOGGER.warning(
+                    "Skipping corrupt category: %s",
+                    cat_data.get("id", "unknown"),
+                    exc_info=True,
+                )
+
+        # Load assets
+        for asset_data in data.get("assets", []):
+            try:
+                if needs_migration and "category" in asset_data:
+                    # Migrate: convert old `category` text to `category_id`
+                    old_cat = asset_data.pop("category", "")
+                    asset_data["category_id"] = ""
+                    if old_cat and old_cat.strip():
+                        old_cat = old_cat.strip()
+                        # Find or create category
+                        existing = next(
+                            (c for c in self._categories if c.name == old_cat),
+                            None,
+                        )
+                        if existing is None:
+                            cat_id = f"{CATEGORY_ID_PREFIX}{uuid.uuid4().hex}"
+                            existing = Category(
+                                id=cat_id,
+                                name=old_cat,
+                                created_at=dt_util.utcnow().isoformat(),
+                            )
+                            self._categories.append(existing)
+                            self._categories_by_id[existing.id] = existing
+                        asset_data["category_id"] = existing.id
+
+                asset = Asset.from_dict(asset_data)
+                self._assets[asset.id] = asset
+            except Exception:
+                _LOGGER.warning(
+                    "Skipping corrupt asset record: %s",
+                    asset_data.get("id", "unknown"),
+                    exc_info=True,
+                )
+
+        _LOGGER.debug(
+            "Loaded %d assets, %d categories",
+            len(self._assets),
+            len(self._categories),
+        )
+
+        if needs_migration:
+            _LOGGER.info(
+                "Migrated storage: created %d categories from old category text fields",
+                len(self._categories),
+            )
+            await self._async_save()
 
     async def _async_save(self) -> None:
-        """Save assets to storage."""
+        """Save categories and assets to storage."""
         data = {
-            "assets": [asset.to_dict() for asset in self._assets.values()]
+            "categories": [cat.to_dict() for cat in self._categories],
+            "assets": [asset.to_dict() for asset in self._assets.values()],
         }
         await self._store.async_save(data)
-        _LOGGER.debug("Saved %d assets", len(self._assets))
+        _LOGGER.debug(
+            "Saved %d assets, %d categories",
+            len(self._assets),
+            len(self._categories),
+        )
 
     @callback  # [M-02] Mark as @callback per HA convention
     def add_listener(
@@ -275,7 +372,7 @@ class AssetCoordinator:
         name: str,
         *,
         brand: str = "",
-        category: str = "",
+        category_id: str = "",
         value: float = 0,
         purchase_at: datetime | None = None,
         warranty_until: datetime | None = None,
@@ -296,7 +393,7 @@ class AssetCoordinator:
             id=asset_id,
             name=name,
             brand=brand,
-            category=category,
+            category_id=category_id,
             value=value,
             purchase_at=(
                 _ensure_aware_utc(purchase_at) if purchase_at else None
@@ -369,8 +466,8 @@ class AssetCoordinator:
             asset.name = value
         elif field_name == FIELD_BRAND:
             asset.brand = value
-        elif field_name == FIELD_CATEGORY:
-            asset.category = value
+        elif field_name == FIELD_CATEGORY_ID:
+            asset.category_id = value
         elif field_name == FIELD_VALUE:
             asset.value = value
         elif field_name == FIELD_PURCHASE_AT:
@@ -398,3 +495,99 @@ class AssetCoordinator:
     def get_asset(self, asset_id: str) -> Asset | None:
         """Get an asset by ID."""
         return self._assets.get(asset_id)
+
+    def get_category(self, category_id: str) -> Category | None:
+        """Get a category by ID."""
+        return self._categories_by_id.get(category_id)
+
+    async def async_create_category(self, name: str) -> Category:
+        """Create a new category.
+
+        Raises ValueError if name is empty, too long, or duplicate.
+        """
+        name = name.strip()
+        if not name:
+            raise ValueError("Category name is required")
+        if len(name) > MAX_CATEGORY_NAME_LENGTH:
+            raise ValueError(
+                f"Category name exceeds maximum length of {MAX_CATEGORY_NAME_LENGTH}"
+            )
+        # Case-insensitive duplicate check
+        for cat in self._categories:
+            if cat.name.lower() == name.lower():
+                raise ValueError(f"Category '{name}' already exists")
+
+        cat_id = f"{CATEGORY_ID_PREFIX}{uuid.uuid4().hex}"
+        category = Category(
+            id=cat_id,
+            name=name,
+            created_at=dt_util.utcnow().isoformat(),
+        )
+        self._categories.append(category)
+        self._categories_by_id[category.id] = category
+        await self._async_save()
+        self._notify_listeners()
+        _LOGGER.info("Created category: %s (%s)", name, cat_id)
+        return category
+
+    async def async_update_category(self, category_id: str, name: str) -> Category:
+        """Rename a category.
+
+        Raises ValueError if name is empty, too long, or duplicate.
+        """
+        category = self._categories_by_id.get(category_id)
+        if category is None:
+            raise ValueError(f"Category {category_id} not found")
+
+        name = name.strip()
+        if not name:
+            raise ValueError("Category name is required")
+        if len(name) > MAX_CATEGORY_NAME_LENGTH:
+            raise ValueError(
+                f"Category name exceeds maximum length of {MAX_CATEGORY_NAME_LENGTH}"
+            )
+        # Case-insensitive duplicate check (exclude self)
+        for cat in self._categories:
+            if cat.id != category_id and cat.name.lower() == name.lower():
+                raise ValueError(f"Category '{name}' already exists")
+
+        category.name = name
+        await self._async_save()
+        self._notify_listeners()
+        _LOGGER.info("Updated category: %s (%s)", name, category_id)
+        return category
+
+    async def async_delete_category(self, category_id: str) -> bool:
+        """Delete a category and cascade-delete all assets in it."""
+        category = self._categories_by_id.get(category_id)
+        if category is None:
+            return False
+
+        # Cascade delete: remove all assets with this category_id
+        asset_ids_to_delete = [
+            aid for aid, a in self._assets.items()
+            if a.category_id == category_id
+        ]
+        dev_reg = dr.async_get(self.hass)
+        for asset_id in asset_ids_to_delete:
+            asset = self._assets.pop(asset_id)
+            device = dev_reg.async_get_device(identifiers={(DOMAIN, asset_id)})
+            if device is not None:
+                dev_reg.async_remove_device(device.id)
+            _LOGGER.info(
+                "Cascade-deleted asset: %s (%s)", asset.name, asset_id
+            )
+
+        # Remove the category
+        self._categories = [c for c in self._categories if c.id != category_id]
+        self._categories_by_id.pop(category_id, None)
+
+        await self._async_save()
+        self._notify_listeners()
+        _LOGGER.info(
+            "Deleted category: %s (%s), removed %d assets",
+            category.name,
+            category_id,
+            len(asset_ids_to_delete),
+        )
+        return True

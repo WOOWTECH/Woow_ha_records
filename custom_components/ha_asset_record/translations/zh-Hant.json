@@ -49,7 +49,7 @@
     }
   },
   "panel": {
-    "title": "資產紀錄",
+    "title": "設備紀錄",
     "add_asset": "新增資產",
     "edit_asset": "編輯資產",
     "name": "名稱",
