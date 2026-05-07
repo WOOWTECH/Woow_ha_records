@@ -1,8 +1,10 @@
 """Text platform for Ha Asset Record.
 
-Creates text entities for the ``brand`` and ``category`` fields of each
-asset. Long-text fields (``manual_md``, ``maintenance_md``) are excluded
-because they exceed HA core's 255-character hard cap on TextEntity state.
+Creates a text entity for the ``brand`` field of each asset.
+Category is now managed by the independent Category CRUD system
+(not as a free-text HA entity). Long-text fields (``manual_md``,
+``maintenance_md``) are excluded because they exceed HA core's
+255-character hard cap on TextEntity state.
 """
 
 from __future__ import annotations
@@ -20,7 +22,6 @@ from .const import (
     ATTR_ASSET_ID,
     DOMAIN,
     FIELD_BRAND,
-    FIELD_CATEGORY,
 )
 from .coordinator import Asset, AssetCoordinator
 from .entity import AssetEntity
@@ -68,43 +69,27 @@ def _create_text_entities(
 ) -> list[AssetTextEntity]:
     """Create text entities for an asset.
 
-    [C-02] Only brand and category are exposed as text entities.
-    manual_md and maintenance_md are long-text fields that exceed
-    HA core's hard cap of 255 characters for TextEntity state.
-    Those fields should be accessed via service calls or attributes.
+    Only brand is exposed as a text entity. Category is now managed
+    by the independent Category CRUD system. manual_md and maintenance_md
+    are long-text fields that exceed HA core's hard cap of 255 characters
+    for TextEntity state.
     """
     return [
         AssetTextEntity(coordinator, asset, FIELD_BRAND, "brand"),
-        AssetTextEntity(coordinator, asset, FIELD_CATEGORY, "category"),
     ]
 
 
 class AssetTextEntity(AssetEntity, TextEntity):
     """Text entity for asset text fields.
 
-    Provides a text input for ``brand`` and ``category`` fields of an asset.
+    Provides a text input for the ``brand`` field of an asset.
+    Category is managed by the independent Category CRUD system.
     Max length is 255 characters, enforced by HA core.
-
-    Mode
-        ``TEXT``
-
-    Extra state attributes
-        * ``asset_id`` (str) -- identifier of the parent asset.
-
-    Unique ID pattern
-        ``{asset_id}_{field_name}``
-
-    Note
-        ``manual_md`` and ``maintenance_md`` are NOT exposed as text entities
-        because HA core's ``TextEntity.max`` hard-caps at
-        ``MAX_LENGTH_STATE_STATE`` (255 characters) regardless of
-        ``native_max``. Those fields should be accessed via service calls or
-        attributes.
 
     [L-05] Removed misleading _attr_native_max = 65535.
     HA core's TextEntity.max property hard-caps at MAX_LENGTH_STATE_STATE (255)
     regardless of what native_max is set to (see core text/__init__.py line 205).
-    We rely on the default (255) which is correct for brand/category fields.
+    We rely on the default (255) which is correct for the brand field.
     """
 
     _attr_mode = TextMode.TEXT
@@ -123,8 +108,6 @@ class AssetTextEntity(AssetEntity, TextEntity):
         """Get the raw value for this field."""
         if self.field_name == FIELD_BRAND:
             return self.asset.brand
-        if self.field_name == FIELD_CATEGORY:
-            return self.asset.category
         return ""
 
     @property

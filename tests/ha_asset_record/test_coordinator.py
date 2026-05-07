@@ -13,7 +13,7 @@ from homeassistant.util import dt as dt_util
 
 from custom_components.ha_asset_record.const import (
     FIELD_BRAND,
-    FIELD_CATEGORY,
+    FIELD_CATEGORY_ID,
     FIELD_MAINTENANCE_MD,
     FIELD_MANUAL_MD,
     FIELD_NAME,
@@ -21,7 +21,11 @@ from custom_components.ha_asset_record.const import (
     FIELD_VALUE,
     FIELD_WARRANTY_UNTIL,
 )
-from custom_components.ha_asset_record.coordinator import Asset, AssetCoordinator
+from custom_components.ha_asset_record.coordinator import (
+    Asset,
+    AssetCoordinator,
+    Category,
+)
 
 
 class TestAsset:
@@ -34,7 +38,7 @@ class TestAsset:
             id="asset_abc123",
             name="TV",
             brand="Sony",
-            category="Electronics",
+            category_id="cat_abc123",
             value=1299.99,
             purchase_at=now,
             warranty_until=now,
@@ -88,7 +92,7 @@ class TestAssetCoordinator:
         asset = await coordinator.async_create_asset_full(
             name="Laptop",
             brand="Dell",
-            category="Electronics",
+            category_id="cat_electronics",
             value=2500.0,
             purchase_at=purchase,
             warranty_until=warranty,
@@ -207,3 +211,112 @@ class TestAssetCoordinator:
 
         not_found = coordinator.get_asset("nonexistent")
         assert not_found is None
+
+    async def test_update_asset_category_id(self, coordinator):
+        """Test updating category_id field."""
+        asset = await coordinator.async_create_asset("Test")
+        result = await coordinator.async_update_asset(
+            asset.id, FIELD_CATEGORY_ID, "cat_abc123"
+        )
+        assert result is True
+        assert coordinator._assets[asset.id].category_id == "cat_abc123"
+
+
+class TestCategory:
+    """Tests for the Category dataclass."""
+
+    def test_to_dict_and_from_dict_round_trip(self):
+        """Test Category serialization round-trip."""
+        cat = Category(id="cat_abc123", name="Electronics", created_at="2025-01-01T00:00:00+00:00")
+        data = cat.to_dict()
+        restored = Category.from_dict(data)
+        assert restored.id == "cat_abc123"
+        assert restored.name == "Electronics"
+        assert restored.created_at == "2025-01-01T00:00:00+00:00"
+
+
+class TestCategoryCRUD:
+    """Tests for category CRUD operations."""
+
+    async def test_create_category(self, coordinator):
+        """Test creating a category."""
+        cat = await coordinator.async_create_category("Electronics")
+        assert cat.name == "Electronics"
+        assert cat.id.startswith("cat_")
+        assert len(coordinator.categories) == 1
+        coordinator._store.async_save.assert_called()
+
+    async def test_create_category_duplicate_rejected(self, coordinator):
+        """Test creating a duplicate category raises ValueError."""
+        await coordinator.async_create_category("Electronics")
+        with pytest.raises(ValueError, match="already exists"):
+            await coordinator.async_create_category("electronics")  # case-insensitive
+
+    async def test_create_category_empty_rejected(self, coordinator):
+        """Test creating a category with empty name raises ValueError."""
+        with pytest.raises(ValueError, match="required"):
+            await coordinator.async_create_category("")
+
+    async def test_rename_category(self, coordinator):
+        """Test renaming a category."""
+        cat = await coordinator.async_create_category("Old Name")
+        updated = await coordinator.async_update_category(cat.id, "New Name")
+        assert updated.name == "New Name"
+
+    async def test_rename_category_not_found(self, coordinator):
+        """Test renaming a nonexistent category raises ValueError."""
+        with pytest.raises(ValueError, match="not found"):
+            await coordinator.async_update_category("cat_nonexistent", "Name")
+
+    async def test_delete_category_cascade(self, hass, coordinator):
+        """Test deleting a category also deletes its assets."""
+        cat = await coordinator.async_create_category("ToDelete")
+        asset = await coordinator.async_create_asset_full(
+            name="Item", category_id=cat.id
+        )
+        assert asset.id in coordinator._assets
+
+        result = await coordinator.async_delete_category(cat.id)
+        assert result is True
+        assert len(coordinator.categories) == 0
+        assert asset.id not in coordinator._assets
+
+    async def test_delete_category_not_found(self, coordinator):
+        """Test deleting a nonexistent category returns False."""
+        result = await coordinator.async_delete_category("cat_nonexistent")
+        assert result is False
+
+    async def test_migration_from_old_category_format(self, coordinator):
+        """Test migration from old category text field to category_id."""
+        data = {
+            "assets": [
+                {"id": "asset_1", "name": "TV", "category": "Electronics"},
+                {"id": "asset_2", "name": "Fridge", "category": "Electronics"},
+                {"id": "asset_3", "name": "Desk", "category": "Furniture"},
+                {"id": "asset_4", "name": "Lamp", "category": ""},
+            ],
+        }
+        coordinator._store.async_load = AsyncMock(return_value=data)
+        await coordinator.async_load()
+
+        # Should create 2 categories (Electronics, Furniture)
+        assert len(coordinator.categories) == 2
+        cat_names = {c.name for c in coordinator.categories}
+        assert cat_names == {"Electronics", "Furniture"}
+
+        # Assets with same old category should share the same category_id
+        asset1 = coordinator._assets["asset_1"]
+        asset2 = coordinator._assets["asset_2"]
+        assert asset1.category_id == asset2.category_id
+        assert asset1.category_id.startswith("cat_")
+
+        # Asset with different category should have different category_id
+        asset3 = coordinator._assets["asset_3"]
+        assert asset3.category_id != asset1.category_id
+
+        # Asset with empty category should have empty category_id
+        asset4 = coordinator._assets["asset_4"]
+        assert asset4.category_id == ""
+
+        # Migration should have triggered a save
+        coordinator._store.async_save.assert_called()

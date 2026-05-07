@@ -81,7 +81,7 @@ const sharedStylesLit = `
     padding: 0 16px;
     background: var(--primary-background-color);
     border-bottom: 1px solid var(--divider-color);
-    margin: 0 -16px 16px -16px;
+    margin: 0 -16px 0 -16px;
     gap: 8px;
   }
   .search-row-input-wrapper {
@@ -170,6 +170,7 @@ class HaAssetPanel extends LitElement {
       narrow: { type: Boolean },
       panel: { type: Object },
       _assets: { type: Array },
+      _categories: { type: Array },
       _loading: { type: Boolean },
       _dialogOpen: { type: Boolean },
       _editingAsset: { type: Object },
@@ -179,6 +180,14 @@ class HaAssetPanel extends LitElement {
       _nameError: { type: Boolean },
       _searchQuery: { type: String },
       _errorMessage: { type: String },
+      _activeTab: { type: String },
+      _sortField: { type: String },
+      _sortDirection: { type: String },
+      _categoryDialogOpen: { type: Boolean },
+      _categoryDialogName: { type: String },
+      _categoryDialogId: { type: String },
+      _categoryDeleteConfirmOpen: { type: Boolean },
+      _categoryDeleteTarget: { type: Object },
     };
   }
 
@@ -254,6 +263,162 @@ class HaAssetPanel extends LitElement {
         font-size: 18px;
         line-height: 1;
         flex-shrink: 0;
+      }
+
+      /* Category Tab Bar */
+      .tab-bar {
+        display: flex;
+        align-items: center;
+        padding: 0 16px;
+        background: var(--primary-background-color);
+        border-bottom: 1px solid var(--divider-color);
+        margin: 0 -16px 0 -16px;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        gap: 0;
+        min-height: 44px;
+      }
+      .tab-bar::-webkit-scrollbar { display: none; }
+      .tab-item {
+        padding: 10px 16px;
+        border: none;
+        background: transparent;
+        color: var(--secondary-text-color);
+        font-size: 14px;
+        cursor: pointer;
+        white-space: nowrap;
+        border-bottom: 2px solid transparent;
+        transition: color 0.2s, border-color 0.2s;
+        flex-shrink: 0;
+        position: relative;
+      }
+      .tab-item:hover {
+        color: var(--primary-text-color);
+      }
+      .tab-item.active {
+        color: var(--primary-color);
+        border-bottom-color: var(--primary-color);
+        font-weight: 500;
+      }
+      .tab-item-count {
+        font-size: 11px;
+        color: var(--secondary-text-color);
+        margin-left: 4px;
+      }
+      .tab-add-btn {
+        width: 32px;
+        height: 32px;
+        border: 1px dashed var(--divider-color);
+        background: transparent;
+        color: var(--secondary-text-color);
+        cursor: pointer;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        margin-left: 8px;
+        transition: color 0.2s, border-color 0.2s;
+        font-size: 18px;
+      }
+      .tab-add-btn:hover {
+        color: var(--primary-color);
+        border-color: var(--primary-color);
+      }
+
+      /* Sort controls */
+      .sort-btn {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        padding: 6px 12px;
+        border: 1px solid var(--divider-color);
+        border-radius: 8px;
+        background: var(--card-background-color);
+        color: var(--primary-text-color);
+        font-size: 13px;
+        cursor: pointer;
+        white-space: nowrap;
+        flex-shrink: 0;
+        height: 36px;
+        box-sizing: border-box;
+      }
+      .sort-btn:hover {
+        border-color: var(--primary-color);
+      }
+      .sort-btn svg {
+        width: 16px;
+        height: 16px;
+      }
+      .sort-dropdown {
+        position: absolute;
+        top: 100%;
+        right: 0;
+        background: var(--card-background-color);
+        border: 1px solid var(--divider-color);
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        z-index: 200;
+        min-width: 160px;
+        overflow: hidden;
+        margin-top: 4px;
+      }
+      .sort-dropdown-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 10px 16px;
+        border: none;
+        background: transparent;
+        color: var(--primary-text-color);
+        font-size: 14px;
+        cursor: pointer;
+        width: 100%;
+        text-align: left;
+      }
+      .sort-dropdown-item:hover {
+        background: var(--secondary-background-color);
+      }
+      .sort-dropdown-item.active {
+        color: var(--primary-color);
+        font-weight: 500;
+      }
+      .sort-dropdown-item svg {
+        width: 16px;
+        height: 16px;
+        margin-left: 8px;
+      }
+      .sort-wrapper {
+        position: relative;
+      }
+
+      /* Tab context menu */
+      .tab-context-menu {
+        position: fixed;
+        background: var(--card-background-color);
+        border: 1px solid var(--divider-color);
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        z-index: 300;
+        min-width: 140px;
+        overflow: hidden;
+      }
+      .tab-context-menu-item {
+        display: block;
+        width: 100%;
+        padding: 10px 16px;
+        border: none;
+        background: transparent;
+        color: var(--primary-text-color);
+        font-size: 14px;
+        cursor: pointer;
+        text-align: left;
+      }
+      .tab-context-menu-item:hover {
+        background: var(--secondary-background-color);
+      }
+      .tab-context-menu-item.danger {
+        color: var(--error-color, #f44336);
       }
 
       .table-container {
@@ -475,7 +640,8 @@ class HaAssetPanel extends LitElement {
       }
 
       .form-group input,
-      .form-group textarea {
+      .form-group textarea,
+      .form-group select {
         width: 100%;
         padding: 8px 12px;
         border: 1px solid var(--divider-color);
@@ -492,7 +658,8 @@ class HaAssetPanel extends LitElement {
       }
 
       .form-group input:focus,
-      .form-group textarea:focus {
+      .form-group textarea:focus,
+      .form-group select:focus {
         outline: none;
         border-color: var(--primary-color);
       }
@@ -560,12 +727,17 @@ class HaAssetPanel extends LitElement {
         opacity: 0.5;
         cursor: not-allowed;
       }
+
+      .content-area {
+        margin-top: 16px;
+      }
     `;
   }
 
   constructor() {
     super();
     this._assets = [];
+    this._categories = [];
     this._loading = true;
     this._dialogOpen = false;
     this._editingAsset = null;
@@ -575,7 +747,18 @@ class HaAssetPanel extends LitElement {
     this._nameError = false;
     this._searchQuery = "";
     this._errorMessage = "";
+    this._activeTab = "all";
+    this._sortField = "updated_at";
+    this._sortDirection = "desc";
+    this._sortDropdownOpen = false;
+    this._categoryDialogOpen = false;
+    this._categoryDialogName = "";
+    this._categoryDialogId = null;
+    this._categoryDeleteConfirmOpen = false;
+    this._categoryDeleteTarget = null;
+    this._tabContextMenu = null;
     this._boundHandleKeydown = this._handleKeydown.bind(this);
+    this._boundCloseMenus = this._closeAllMenus.bind(this);
     this._prevLanguage = null;
   }
 
@@ -583,23 +766,69 @@ class HaAssetPanel extends LitElement {
     this._searchQuery = e.target.value;
   }
 
+  _getCategoryName(categoryId) {
+    if (!categoryId) return this._localize("uncategorized");
+    const cat = this._categories.find(c => c.id === categoryId);
+    return cat ? cat.name : this._localize("uncategorized");
+  }
+
   _getFilteredAssets() {
-    if (!this._searchQuery || !this._searchQuery.trim()) {
-      return this._assets;
+    let assets = this._assets;
+
+    // 1. Category filter
+    if (this._activeTab && this._activeTab !== "all") {
+      if (this._activeTab === "__uncategorized__") {
+        assets = assets.filter(a => !a.category_id);
+      } else {
+        assets = assets.filter(a => a.category_id === this._activeTab);
+      }
     }
-    const query = this._searchQuery.toLowerCase().trim();
-    return this._assets.filter((asset) => {
-      const name = (asset.name || "").toLowerCase();
-      const brand = (asset.brand || "").toLowerCase();
-      const category = (asset.category || "").toLowerCase();
-      return name.includes(query) || brand.includes(query) || category.includes(query);
+
+    // 2. Search filter
+    if (this._searchQuery?.trim()) {
+      const query = this._searchQuery.toLowerCase().trim();
+      assets = assets.filter((asset) => {
+        const name = (asset.name || "").toLowerCase();
+        const brand = (asset.brand || "").toLowerCase();
+        const catName = this._getCategoryName(asset.category_id).toLowerCase();
+        return name.includes(query) || brand.includes(query) || catName.includes(query);
+      });
+    }
+
+    // 3. Sort
+    assets = this._sortAssets(assets);
+    return assets;
+  }
+
+  _sortAssets(assets) {
+    const sorted = [...assets];
+    const dir = this._sortDirection === "asc" ? 1 : -1;
+    sorted.sort((a, b) => {
+      let va, vb;
+      switch (this._sortField) {
+        case "name":
+          va = (a.name || "").toLowerCase();
+          vb = (b.name || "").toLowerCase();
+          return va < vb ? -dir : va > vb ? dir : 0;
+        case "created_at":
+          va = a.created_at || "";
+          vb = b.created_at || "";
+          return va < vb ? -dir : va > vb ? dir : 0;
+        case "updated_at":
+        default:
+          va = a.updated_at || "";
+          vb = b.updated_at || "";
+          return va < vb ? -dir : va > vb ? dir : 0;
+      }
     });
+    return sorted;
   }
 
   connectedCallback() {
     super.connectedCallback();
     this._loadAssets();
     document.addEventListener("keydown", this._boundHandleKeydown);
+    document.addEventListener("click", this._boundCloseMenus);
     if (this.hass) {
       const lang = this.hass.language || "en";
       this._prevLanguage = lang;
@@ -610,6 +839,7 @@ class HaAssetPanel extends LitElement {
   disconnectedCallback() {
     super.disconnectedCallback();
     document.removeEventListener("keydown", this._boundHandleKeydown);
+    document.removeEventListener("click", this._boundCloseMenus);
   }
 
   updated(changedProperties) {
@@ -624,8 +854,24 @@ class HaAssetPanel extends LitElement {
   }
 
   _handleKeydown(e) {
-    if (e.key === "Escape" && this._dialogOpen) {
-      this._closeDialog();
+    if (e.key === "Escape") {
+      if (this._categoryDialogOpen) {
+        this._closeCategoryDialog();
+      } else if (this._dialogOpen) {
+        this._closeDialog();
+      }
+      this._closeAllMenus();
+    }
+  }
+
+  _closeAllMenus() {
+    if (this._sortDropdownOpen) {
+      this._sortDropdownOpen = false;
+      this.requestUpdate();
+    }
+    if (this._tabContextMenu) {
+      this._tabContextMenu = null;
+      this.requestUpdate();
     }
   }
 
@@ -651,9 +897,11 @@ class HaAssetPanel extends LitElement {
     try {
       const result = await this.hass.callWS({ type: "ha_asset_record/list" });
       this._assets = result.assets || [];
+      this._categories = result.categories || [];
     } catch (e) {
       this._showError(this._localize("load_error"), e);
       this._assets = [];
+      this._categories = [];
     }
     this._loading = false;
   }
@@ -667,36 +915,55 @@ class HaAssetPanel extends LitElement {
     const translation = this.hass?.localize?.(`component.ha_asset_record.panel.${key}`);
     if (translation) return translation;
 
-    // Fallback translations (M-21: standardized to "Asset Record" naming)
+    // Fallback translations
+    const isZhHant = this.hass?.language === "zh-Hant" ||
+      this.hass?.language?.startsWith("zh-TW") ||
+      this.hass?.language?.startsWith("zh-HK");
     const fallbacks = {
-      title: this.hass?.language === "zh-Hant" ? "設備紀錄" : "Asset Record",
-      add_asset: this.hass?.language === "zh-Hant" ? "新增資產" : "Add Asset",
-      edit_asset: this.hass?.language === "zh-Hant" ? "編輯資產" : "Edit Asset",
-      name: this.hass?.language === "zh-Hant" ? "名稱" : "Name",
-      brand: this.hass?.language === "zh-Hant" ? "品牌" : "Brand",
-      category: this.hass?.language === "zh-Hant" ? "類型" : "Category",
-      value: this.hass?.language === "zh-Hant" ? "價值" : "Value",
-      warranty: this.hass?.language === "zh-Hant" ? "保固" : "Warranty",
-      purchase_at: this.hass?.language === "zh-Hant" ? "購買時間" : "Purchase Date",
-      warranty_until: this.hass?.language === "zh-Hant" ? "保固到期" : "Warranty Until",
-      manual: this.hass?.language === "zh-Hant" ? "使用說明" : "Manual",
-      maintenance: this.hass?.language === "zh-Hant" ? "維修說明" : "Maintenance",
-      save: this.hass?.language === "zh-Hant" ? "儲存" : "Save",
-      cancel: this.hass?.language === "zh-Hant" ? "取消" : "Cancel",
-      delete: this.hass?.language === "zh-Hant" ? "刪除" : "Delete",
-      delete_confirm: this.hass?.language === "zh-Hant" ? "確定要刪除此資產嗎？" : "Are you sure you want to delete this asset?",
-      total_assets: this.hass?.language === "zh-Hant" ? "資產總數" : "Total Assets",
-      total_value: this.hass?.language === "zh-Hant" ? "總價值" : "Total Value",
-      no_assets: this.hass?.language === "zh-Hant" ? "尚無資產資料" : "No assets yet",
-      no_assets_hint: this.hass?.language === "zh-Hant" ? "點擊上方按鈕新增您的第一筆資產" : "Click the button above to add your first asset",
-      expired: this.hass?.language === "zh-Hant" ? "已過期" : "Expired",
-      name_required: this.hass?.language === "zh-Hant" ? "名稱為必填" : "Name is required",
-      no_search_results: this.hass?.language === "zh-Hant" ? "沒有符合搜尋條件的資產" : "No results found",
-      save_error: this.hass?.language === "zh-Hant" ? "儲存資產失敗" : "Failed to save asset",
-      delete_error: this.hass?.language === "zh-Hant" ? "刪除資產失敗" : "Failed to delete asset",
-      load_error: this.hass?.language === "zh-Hant" ? "載入資產失敗" : "Failed to load assets",
-      invalid_date: this.hass?.language === "zh-Hant" ? "無效日期" : "Invalid date",
-      deleting: this.hass?.language === "zh-Hant" ? "刪除中..." : "Deleting...",
+      title: isZhHant ? "設備紀錄" : "Asset Record",
+      add_asset: isZhHant ? "新增資產" : "Add Asset",
+      edit_asset: isZhHant ? "編輯資產" : "Edit Asset",
+      name: isZhHant ? "名稱" : "Name",
+      brand: isZhHant ? "品牌" : "Brand",
+      category: isZhHant ? "類型" : "Category",
+      value: isZhHant ? "價值" : "Value",
+      warranty: isZhHant ? "保固" : "Warranty",
+      purchase_at: isZhHant ? "購買時間" : "Purchase Date",
+      warranty_until: isZhHant ? "保固到期" : "Warranty Until",
+      manual: isZhHant ? "使用說明" : "Manual",
+      maintenance: isZhHant ? "維修說明" : "Maintenance",
+      save: isZhHant ? "儲存" : "Save",
+      cancel: isZhHant ? "取消" : "Cancel",
+      delete: isZhHant ? "刪除" : "Delete",
+      delete_confirm: isZhHant ? "確定要刪除此資產嗎？" : "Are you sure you want to delete this asset?",
+      total_assets: isZhHant ? "資產總數" : "Total Assets",
+      total_value: isZhHant ? "總價值" : "Total Value",
+      no_assets: isZhHant ? "尚無資產資料" : "No assets yet",
+      no_assets_hint: isZhHant ? "點擊上方按鈕新增您的第一個資產" : "Click the button above to add your first asset",
+      expired: isZhHant ? "已過期" : "Expired",
+      name_required: isZhHant ? "名稱為必填" : "Name is required",
+      no_search_results: isZhHant ? "沒有符合搜尋條件的資產" : "No results found",
+      save_error: isZhHant ? "儲存資產失敗" : "Failed to save asset",
+      delete_error: isZhHant ? "刪除資產失敗" : "Failed to delete asset",
+      load_error: isZhHant ? "載入資產失敗" : "Failed to load assets",
+      invalid_date: isZhHant ? "無效日期" : "Invalid date",
+      deleting: isZhHant ? "刪除中..." : "Deleting...",
+      all_categories: isZhHant ? "全部" : "All",
+      uncategorized: isZhHant ? "未分類" : "Uncategorized",
+      add_category: isZhHant ? "新增分類" : "Add Category",
+      category_name: isZhHant ? "分類名稱" : "Category Name",
+      category_name_placeholder: isZhHant ? "輸入分類名稱" : "Enter category name",
+      rename_category: isZhHant ? "重新命名分類" : "Rename Category",
+      delete_category: isZhHant ? "刪除分類" : "Delete Category",
+      delete_category_confirm: isZhHant ? "將同時刪除分類下的設備，確定要刪除嗎？" : "This will also delete assets in this category. Are you sure?",
+      category_empty_error: isZhHant ? "分類名稱不能為空" : "Category name cannot be empty",
+      category_duplicate_error: isZhHant ? "已存在相同名稱的分類" : "A category with this name already exists",
+      sort_by: isZhHant ? "排序" : "Sort by",
+      sort_name: isZhHant ? "名稱" : "Name",
+      sort_created: isZhHant ? "建立時間" : "Created",
+      sort_updated: isZhHant ? "更新時間" : "Updated",
+      sort_asc: isZhHant ? "升序" : "Ascending",
+      sort_desc: isZhHant ? "降序" : "Descending",
     };
     return fallbacks[key] || key;
   }
@@ -747,11 +1014,13 @@ class HaAssetPanel extends LitElement {
     return { class: "warranty-ok", text: this._formatDate(warrantyUntil) };
   }
 
+  // ---- Asset dialog ----
+
   _openAddDialog() {
     this._editingAsset = {
       name: "",
       brand: "",
-      category: "",
+      category_id: this._activeTab !== "all" && this._activeTab !== "__uncategorized__" ? this._activeTab : "",
       value: 0,
       purchase_at: "",
       warranty_until: "",
@@ -760,7 +1029,6 @@ class HaAssetPanel extends LitElement {
     };
     this._dialogOpen = true;
     this._errorMessage = "";
-    // Focus the first input after the dialog renders (M-22: accessibility)
     this.updateComplete.then(() => this._focusFirstDialogInput());
   }
 
@@ -768,14 +1036,9 @@ class HaAssetPanel extends LitElement {
     this._editingAsset = { ...asset };
     this._dialogOpen = true;
     this._errorMessage = "";
-    // Focus the first input after the dialog renders (M-22: accessibility)
     this.updateComplete.then(() => this._focusFirstDialogInput());
   }
 
-  /**
-   * Focus the first focusable input inside the dialog.
-   * Part of accessibility focus management (M-22).
-   */
   _focusFirstDialogInput() {
     const dialog = this.shadowRoot?.querySelector(".dialog");
     if (!dialog) return;
@@ -783,11 +1046,6 @@ class HaAssetPanel extends LitElement {
     if (firstInput) firstInput.focus();
   }
 
-  /**
-   * Trap focus within the dialog when Tab is pressed (M-22: accessibility).
-   * When the user tabs past the last focusable element, focus wraps to the first,
-   * and vice versa with Shift+Tab.
-   */
   _handleDialogKeydown(e) {
     if (e.key !== "Tab") return;
 
@@ -802,14 +1060,12 @@ class HaAssetPanel extends LitElement {
     const lastFocusable = focusableElements[focusableElements.length - 1];
 
     if (e.shiftKey) {
-      // Shift+Tab: if focused on first element, wrap to last
       if (document.activeElement === firstFocusable ||
           this.shadowRoot.activeElement === firstFocusable) {
         e.preventDefault();
         lastFocusable.focus();
       }
     } else {
-      // Tab: if focused on last element, wrap to first
       if (document.activeElement === lastFocusable ||
           this.shadowRoot.activeElement === lastFocusable) {
         e.preventDefault();
@@ -826,7 +1082,6 @@ class HaAssetPanel extends LitElement {
   }
 
   async _saveAsset() {
-    // Validate and trim name (L-17: trim name before sending)
     const name = (this._editingAsset?.name || "").trim();
     if (!name) {
       this._nameError = true;
@@ -834,19 +1089,17 @@ class HaAssetPanel extends LitElement {
     }
     this._nameError = false;
 
-    // Prevent double submission
     if (this._saving) return;
     this._saving = true;
 
     try {
       if (this._editingAsset.id) {
-        // Update existing
         await this.hass.callWS({
           type: "ha_asset_record/update",
           asset_id: this._editingAsset.id,
           name: name,
           brand: (this._editingAsset.brand || "").trim(),
-          category: (this._editingAsset.category || "").trim(),
+          category_id: this._editingAsset.category_id || "",
           value: parseFloat(this._editingAsset.value) || 0,
           purchase_at: this._editingAsset.purchase_at || null,
           warranty_until: this._editingAsset.warranty_until || null,
@@ -854,12 +1107,11 @@ class HaAssetPanel extends LitElement {
           maintenance_md: this._editingAsset.maintenance_md || "",
         });
       } else {
-        // Create new
         await this.hass.callWS({
           type: "ha_asset_record/create",
           name: name,
           brand: (this._editingAsset.brand || "").trim(),
-          category: (this._editingAsset.category || "").trim(),
+          category_id: this._editingAsset.category_id || "",
           value: parseFloat(this._editingAsset.value) || 0,
           purchase_at: this._editingAsset.purchase_at || null,
           warranty_until: this._editingAsset.warranty_until || null,
@@ -870,7 +1122,6 @@ class HaAssetPanel extends LitElement {
       this._closeDialog();
       await this._loadAssets();
     } catch (e) {
-      // M-19: show visible error feedback on save failure
       this._showError(this._localize("save_error"), e);
     } finally {
       this._saving = false;
@@ -880,7 +1131,6 @@ class HaAssetPanel extends LitElement {
   async _deleteAsset() {
     if (!this._editingAsset?.id) return;
 
-    // L-17: Prevent double-submit during delete
     if (this._deleting) return;
     this._deleting = true;
 
@@ -892,7 +1142,6 @@ class HaAssetPanel extends LitElement {
       this._closeDialog();
       await this._loadAssets();
     } catch (e) {
-      // M-19: show visible error feedback on delete failure
       this._showError(this._localize("delete_error"), e);
     } finally {
       this._deleting = false;
@@ -906,15 +1155,229 @@ class HaAssetPanel extends LitElement {
     };
   }
 
-  /**
-   * Handle keyboard activation on table rows (M-22: accessibility).
-   * Enter or Space key opens the asset edit dialog.
-   */
   _handleRowKeydown(e, asset) {
     if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
       this._openEditDialog(asset);
     }
+  }
+
+  // ---- Category CRUD ----
+
+  _openAddCategoryDialog() {
+    this._categoryDialogName = "";
+    this._categoryDialogId = null;
+    this._categoryDialogOpen = true;
+    this._closeAllMenus();
+    this.updateComplete.then(() => {
+      const input = this.shadowRoot?.querySelector(".category-dialog-input");
+      if (input) input.focus();
+    });
+  }
+
+  _openRenameCategoryDialog(cat) {
+    this._categoryDialogName = cat.name;
+    this._categoryDialogId = cat.id;
+    this._categoryDialogOpen = true;
+    this._closeAllMenus();
+    this.updateComplete.then(() => {
+      const input = this.shadowRoot?.querySelector(".category-dialog-input");
+      if (input) input.focus();
+    });
+  }
+
+  _closeCategoryDialog() {
+    this._categoryDialogOpen = false;
+    this._categoryDialogName = "";
+    this._categoryDialogId = null;
+  }
+
+  async _saveCategoryDialog() {
+    const name = this._categoryDialogName.trim();
+    if (!name) {
+      this._showError(this._localize("category_empty_error"));
+      return;
+    }
+
+    try {
+      if (this._categoryDialogId) {
+        await this.hass.callWS({
+          type: "ha_asset_record/update_category",
+          category_id: this._categoryDialogId,
+          name: name,
+        });
+      } else {
+        await this.hass.callWS({
+          type: "ha_asset_record/create_category",
+          name: name,
+        });
+      }
+      this._closeCategoryDialog();
+      await this._loadAssets();
+    } catch (e) {
+      const errMsg = e?.message || "";
+      if (errMsg.toLowerCase().includes("duplicate") || errMsg.toLowerCase().includes("already exists")) {
+        this._showError(this._localize("category_duplicate_error"), e);
+      } else {
+        this._showError(errMsg || this._localize("save_error"), e);
+      }
+    }
+  }
+
+  _openDeleteCategoryConfirm(cat) {
+    const count = this._assets.filter(a => a.category_id === cat.id).length;
+    this._categoryDeleteTarget = { ...cat, assetCount: count };
+    this._categoryDeleteConfirmOpen = true;
+    this._closeAllMenus();
+  }
+
+  _closeDeleteCategoryConfirm() {
+    this._categoryDeleteConfirmOpen = false;
+    this._categoryDeleteTarget = null;
+  }
+
+  async _confirmDeleteCategory() {
+    if (!this._categoryDeleteTarget) return;
+    try {
+      await this.hass.callWS({
+        type: "ha_asset_record/delete_category",
+        category_id: this._categoryDeleteTarget.id,
+      });
+      if (this._activeTab === this._categoryDeleteTarget.id) {
+        this._activeTab = "all";
+      }
+      this._closeDeleteCategoryConfirm();
+      await this._loadAssets();
+    } catch (e) {
+      this._showError(this._localize("delete_error"), e);
+    }
+  }
+
+  // ---- Sort ----
+
+  _toggleSortDropdown(e) {
+    e.stopPropagation();
+    this._sortDropdownOpen = !this._sortDropdownOpen;
+    this._tabContextMenu = null;
+    this.requestUpdate();
+  }
+
+  _setSortField(field) {
+    if (this._sortField === field) {
+      this._sortDirection = this._sortDirection === "asc" ? "desc" : "asc";
+    } else {
+      this._sortField = field;
+      this._sortDirection = field === "name" ? "asc" : "desc";
+    }
+    this._sortDropdownOpen = false;
+  }
+
+  _getSortLabel() {
+    const labels = {
+      name: this._localize("sort_name"),
+      created_at: this._localize("sort_created"),
+      updated_at: this._localize("sort_updated"),
+    };
+    return labels[this._sortField] || this._sortField;
+  }
+
+  // ---- Tab context menu ----
+
+  _onTabContextMenu(e, cat) {
+    e.preventDefault();
+    e.stopPropagation();
+    this._tabContextMenu = { cat, x: e.clientX, y: e.clientY };
+    this._sortDropdownOpen = false;
+    this.requestUpdate();
+  }
+
+  // ---- Render helpers ----
+
+  _renderTabBar() {
+    const allCount = this._assets.length;
+
+    return html`
+      <div class="tab-bar">
+        <button
+          class="tab-item ${this._activeTab === "all" ? "active" : ""}"
+          @click=${() => { this._activeTab = "all"; }}
+        >
+          ${this._localize("all_categories")}
+          <span class="tab-item-count">${allCount}</span>
+        </button>
+        ${this._categories.map(cat => {
+          const count = this._assets.filter(a => a.category_id === cat.id).length;
+          return html`
+            <button
+              class="tab-item ${this._activeTab === cat.id ? "active" : ""}"
+              @click=${() => { this._activeTab = cat.id; }}
+              @contextmenu=${(e) => this._onTabContextMenu(e, cat)}
+            >
+              ${cat.name}
+              <span class="tab-item-count">${count}</span>
+            </button>
+          `;
+        })}
+        <button
+          class="tab-add-btn"
+          @click=${() => this._openAddCategoryDialog()}
+          title="${this._localize("add_category")}"
+        >+</button>
+      </div>
+    `;
+  }
+
+  _renderTabContextMenu() {
+    if (!this._tabContextMenu) return "";
+    const { cat, x, y } = this._tabContextMenu;
+    return html`
+      <div
+        class="tab-context-menu"
+        style="left: ${x}px; top: ${y}px;"
+        @click=${(e) => e.stopPropagation()}
+      >
+        <button class="tab-context-menu-item" @click=${() => this._openRenameCategoryDialog(cat)}>
+          ${this._localize("rename_category")}
+        </button>
+        <button class="tab-context-menu-item danger" @click=${() => this._openDeleteCategoryConfirm(cat)}>
+          ${this._localize("delete_category")}
+        </button>
+      </div>
+    `;
+  }
+
+  _renderSortDropdown() {
+    const arrowUp = html`<svg viewBox="0 0 24 24"><path fill="currentColor" d="M7,15L12,10L17,15H7Z"/></svg>`;
+    const arrowDown = html`<svg viewBox="0 0 24 24"><path fill="currentColor" d="M7,10L12,15L17,10H7Z"/></svg>`;
+    const currentArrow = this._sortDirection === "asc" ? arrowUp : arrowDown;
+
+    return html`
+      <div class="sort-wrapper">
+        <button class="sort-btn" @click=${(e) => this._toggleSortDropdown(e)}>
+          ${currentArrow}
+          ${this._getSortLabel()}
+        </button>
+        ${this._sortDropdownOpen ? html`
+          <div class="sort-dropdown" @click=${(e) => e.stopPropagation()}>
+            ${["name", "created_at", "updated_at"].map(field => html`
+              <button
+                class="sort-dropdown-item ${this._sortField === field ? "active" : ""}"
+                @click=${() => this._setSortField(field)}
+              >
+                ${{
+                  name: this._localize("sort_name"),
+                  created_at: this._localize("sort_created"),
+                  updated_at: this._localize("sort_updated"),
+                }[field]}
+                ${this._sortField === field
+                  ? (this._sortDirection === "asc" ? arrowUp : arrowDown)
+                  : ""}
+              </button>
+            `)}
+          </div>
+        ` : ""}
+      </div>
+    `;
   }
 
   _renderTable() {
@@ -958,6 +1421,7 @@ class HaAssetPanel extends LitElement {
           <tbody>
             ${filteredAssets.map(asset => {
               const warranty = this._getWarrantyStatus(asset.warranty_until);
+              const catName = this._getCategoryName(asset.category_id);
               return html`
                 <tr
                   tabindex="0"
@@ -968,7 +1432,7 @@ class HaAssetPanel extends LitElement {
                 >
                   <td data-label="${this._localize("name")}">${asset.name}</td>
                   <td data-label="${this._localize("brand")}">${asset.brand || "-"}</td>
-                  <td data-label="${this._localize("category")}">${asset.category || "-"}</td>
+                  <td data-label="${this._localize("category")}">${catName}</td>
                   <td data-label="${this._localize("value")}">${this._formatValue(asset.value)}</td>
                   <td data-label="${this._localize("warranty")}" class=${warranty.class}>${warranty.text}</td>
                 </tr>
@@ -981,8 +1445,9 @@ class HaAssetPanel extends LitElement {
   }
 
   _renderSummary() {
-    const totalAssets = this._assets.length;
-    const totalValue = this._assets.reduce((sum, a) => sum + (a.value || 0), 0);
+    const filteredAssets = this._getFilteredAssets();
+    const totalAssets = filteredAssets.length;
+    const totalValue = filteredAssets.reduce((sum, a) => sum + (a.value || 0), 0);
 
     return html`
       <div class="summary">
@@ -1051,11 +1516,15 @@ class HaAssetPanel extends LitElement {
 
             <div class="form-group">
               <label>${this._localize("category")}</label>
-              <input
-                type="text"
-                .value=${this._editingAsset?.category || ""}
-                @input=${e => this._handleInput(e, "category")}
-              />
+              <select
+                .value=${this._editingAsset?.category_id || ""}
+                @change=${e => this._handleInput(e, "category_id")}
+              >
+                <option value="">${this._localize("uncategorized")}</option>
+                ${this._categories.map(cat => html`
+                  <option value="${cat.id}" ?selected=${this._editingAsset?.category_id === cat.id}>${cat.name}</option>
+                `)}
+              </select>
             </div>
 
             <div class="form-group">
@@ -1156,6 +1625,88 @@ class HaAssetPanel extends LitElement {
     `;
   }
 
+  _renderCategoryDialog() {
+    if (!this._categoryDialogOpen) return "";
+    const isRename = !!this._categoryDialogId;
+    const title = isRename ? this._localize("rename_category") : this._localize("add_category");
+
+    return html`
+      <div class="dialog-backdrop" @click=${this._closeCategoryDialog}>
+        <div
+          class="dialog"
+          role="dialog"
+          aria-modal="true"
+          @click=${e => e.stopPropagation()}
+          @keydown=${(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              this._saveCategoryDialog();
+            }
+          }}
+        >
+          <div class="dialog-header">
+            <h2>${title}</h2>
+            <button class="dialog-close" @click=${this._closeCategoryDialog}>&#x2715;</button>
+          </div>
+          <div class="dialog-content">
+            <div class="form-group">
+              <label>${this._localize("category_name")}</label>
+              <input
+                class="category-dialog-input"
+                type="text"
+                .value=${this._categoryDialogName}
+                placeholder="${this._localize("category_name_placeholder")}"
+                @input=${(e) => { this._categoryDialogName = e.target.value; }}
+              />
+            </div>
+          </div>
+          <div class="dialog-footer">
+            <div></div>
+            <div class="dialog-footer-right">
+              <button class="btn btn-secondary" @click=${this._closeCategoryDialog}>
+                ${this._localize("cancel")}
+              </button>
+              <button class="btn btn-primary" @click=${() => this._saveCategoryDialog()}>
+                ${this._localize("save")}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  _renderDeleteCategoryConfirm() {
+    if (!this._categoryDeleteConfirmOpen || !this._categoryDeleteTarget) return "";
+    const { name, assetCount } = this._categoryDeleteTarget;
+
+    return html`
+      <div class="dialog-backdrop" @click=${this._closeDeleteCategoryConfirm}>
+        <div class="dialog" @click=${e => e.stopPropagation()}>
+          <div class="dialog-header">
+            <h2>${this._localize("delete_category")}</h2>
+            <button class="dialog-close" @click=${this._closeDeleteCategoryConfirm}>&#x2715;</button>
+          </div>
+          <div class="dialog-content">
+            <p>${this._localize("delete_category_confirm").replace("{count}", assetCount)}</p>
+            <p style="font-weight: 500; margin-top: 8px;">${name} (${assetCount})</p>
+          </div>
+          <div class="dialog-footer">
+            <div></div>
+            <div class="dialog-footer-right">
+              <button class="btn btn-secondary" @click=${this._closeDeleteCategoryConfirm}>
+                ${this._localize("cancel")}
+              </button>
+              <button class="btn btn-danger" @click=${() => this._confirmDeleteCategory()}>
+                ${this._localize("delete")}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
   render() {
     return html`
       <div class="container">
@@ -1177,7 +1728,10 @@ class HaAssetPanel extends LitElement {
           </div>
         </div>
 
-        <!-- Search Row -->
+        <!-- Category Tabs -->
+        ${this._renderTabBar()}
+
+        <!-- Search Row + Sort -->
         <div class="search-row">
           <div class="search-row-input-wrapper">
             <svg class="search-row-icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M9.5,3A6.5,6.5 0 0,1 16,9.5C16,11.11 15.41,12.59 14.44,13.73L14.71,14H15.5L20.5,19L19,20.5L14,15.5V14.71L13.73,14.44C12.59,15.41 11.11,16 9.5,16A6.5,6.5 0 0,1 3,9.5A6.5,6.5 0 0,1 9.5,3M9.5,5C7,5 5,7 5,9.5C5,12 7,14 9.5,14C12,14 14,12 14,9.5C14,7 12,5 9.5,5Z"/></svg>
@@ -1190,6 +1744,7 @@ class HaAssetPanel extends LitElement {
               @input=${this._onSearchInput}
             />
           </div>
+          ${this._renderSortDropdown()}
         </div>
 
         <!-- Error banner (M-19: visible error feedback) -->
@@ -1206,14 +1761,19 @@ class HaAssetPanel extends LitElement {
             `
           : ""}
 
-        ${this._loading
-          ? html`<div class="loading"><ha-circular-progress active></ha-circular-progress></div>`
-          : html`
-              ${this._renderTable()}
-              ${this._renderSummary()}
-            `}
+        <div class="content-area">
+          ${this._loading
+            ? html`<div class="loading"><ha-circular-progress active></ha-circular-progress></div>`
+            : html`
+                ${this._renderTable()}
+                ${this._renderSummary()}
+              `}
+        </div>
 
         ${this._dialogOpen ? this._renderDialog() : ""}
+        ${this._renderCategoryDialog()}
+        ${this._renderDeleteCategoryConfirm()}
+        ${this._renderTabContextMenu()}
       </div>
     `;
   }
