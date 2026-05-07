@@ -1728,9 +1728,6 @@ class HaAssetPanel extends LitElement {
           </div>
         </div>
 
-        <!-- Category Tabs -->
-        ${this._renderTabBar()}
-
         <!-- Search Row + Sort -->
         <div class="search-row">
           <div class="search-row-input-wrapper">
@@ -1746,6 +1743,9 @@ class HaAssetPanel extends LitElement {
           </div>
           ${this._renderSortDropdown()}
         </div>
+
+        <!-- Category Tabs -->
+        ${this._renderTabBar()}
 
         <!-- Error banner (M-19: visible error feedback) -->
         ${this._errorMessage
