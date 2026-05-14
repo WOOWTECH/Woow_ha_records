@@ -74,6 +74,7 @@ from .const import (
 )
 from .coordinator import HealthRecordCoordinator
 from .panel import async_setup_panel, async_unload_panel, register_websocket_commands
+from .services import async_register_services, async_unregister_services
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -88,6 +89,7 @@ PLATFORMS_LIST: list[Platform] = [
 
 # Keys for tracking one-time setup state in hass.data
 _KEY_WS_REGISTERED = f"{DOMAIN}_ws_registered"
+_KEY_SERVICES_REGISTERED = f"{DOMAIN}_services_registered"
 _KEY_PANEL_REGISTERED = f"{DOMAIN}_panel_registered"
 KEY_COORDINATOR_MAP = f"{DOMAIN}_coordinator_map"
 
@@ -156,6 +158,11 @@ async def async_setup_entry(
         register_websocket_commands(hass)
         hass.data[_KEY_WS_REGISTERED] = True
 
+    # Register HA services once
+    if not hass.data.get(_KEY_SERVICES_REGISTERED):
+        async_register_services(hass)
+        hass.data[_KEY_SERVICES_REGISTERED] = True
+
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS_LIST)
 
     # Set up panel only once (for the first entry).
@@ -200,10 +207,14 @@ async def async_unload_entry(
             and e.state is ConfigEntryState.LOADED
         ]
 
-        # Unload panel if no more entries
-        if not remaining and hass.data.get(_KEY_PANEL_REGISTERED):
-            await async_unload_panel(hass)
-            hass.data[_KEY_PANEL_REGISTERED] = False
+        # Unload panel and services if no more entries
+        if not remaining:
+            if hass.data.get(_KEY_PANEL_REGISTERED):
+                await async_unload_panel(hass)
+                hass.data[_KEY_PANEL_REGISTERED] = False
+            if hass.data.get(_KEY_SERVICES_REGISTERED):
+                async_unregister_services(hass)
+                hass.data[_KEY_SERVICES_REGISTERED] = False
 
     return unload_ok
 

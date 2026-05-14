@@ -1,0 +1,203 @@
+# ============================================================================
+# ha_health_record services
+# ============================================================================
+
+# --- Query services (SupportsResponse.ONLY) --------------------------------
+
+get_members:
+  fields:
+
+get_records:
+  fields:
+    start_time:
+      required: true
+      selector:
+        datetime:
+    end_time:
+      required: true
+      selector:
+        datetime:
+
+export_csv:
+  fields:
+    member_id:
+      required: true
+      selector:
+        text:
+
+# --- Record logging / CRUD (SupportsResponse.OPTIONAL) ---------------------
+
+log_record:
+  fields:
+    member_id:
+      required: true
+      selector:
+        text:
+    record_type:
+      required: true
+      selector:
+        text:
+    value:
+      required: true
+      selector:
+        number:
+          mode: box
+          step: 0.1
+    note:
+      selector:
+        text:
+    timestamp:
+      selector:
+        text:
+
+update_record:
+  fields:
+    member_id:
+      required: true
+      selector:
+        text:
+    type_id:
+      required: true
+      selector:
+        text:
+    timestamp:
+      required: true
+      selector:
+        text:
+    record_id:
+      selector:
+        text:
+    value:
+      selector:
+        number:
+          mode: box
+          step: 0.1
+    note:
+      selector:
+        text:
+    new_timestamp:
+      selector:
+        text:
+
+delete_record:
+  fields:
+    member_id:
+      required: true
+      selector:
+        text:
+    type_id:
+      required: true
+      selector:
+        text:
+    timestamp:
+      required: true
+      selector:
+        text:
+    record_id:
+      selector:
+        text:
+
+# --- Record type management (SupportsResponse.OPTIONAL) --------------------
+
+add_record_type:
+  fields:
+    member_id:
+      required: true
+      selector:
+        text:
+    name:
+      required: true
+      selector:
+        text:
+    unit:
+      required: true
+      selector:
+        text:
+    default_value:
+      selector:
+        number:
+          mode: box
+          step: 0.1
+    default_value_mode:
+      selector:
+        select:
+          options:
+            - "fixed"
+            - "last_value"
+
+update_record_type:
+  fields:
+    member_id:
+      required: true
+      selector:
+        text:
+    type_id:
+      required: true
+      selector:
+        text:
+    name:
+      required: true
+      selector:
+        text:
+    unit:
+      required: true
+      selector:
+        text:
+    default_value:
+      selector:
+        number:
+          mode: box
+          step: 0.1
+    default_value_mode:
+      selector:
+        select:
+          options:
+            - "fixed"
+            - "last_value"
+
+delete_record_type:
+  fields:
+    member_id:
+      required: true
+      selector:
+        text:
+    type_id:
+      required: true
+      selector:
+        text:
+
+# --- Member management (SupportsResponse.OPTIONAL) -------------------------
+
+add_member:
+  fields:
+    name:
+      required: true
+      selector:
+        text:
+    member_id:
+      selector:
+        text:
+    note:
+      selector:
+        text:
+
+update_member:
+  fields:
+    member_id:
+      required: true
+      selector:
+        text:
+    name:
+      required: true
+      selector:
+        text:
+    note:
+      selector:
+        text:
+
+delete_member:
+  fields:
+    member_id:
+      required: true
+      selector:
+        text:
