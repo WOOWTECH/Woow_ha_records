@@ -192,4 +192,139 @@ export class HAServicesClient {
   async deleteMember(memberId: string): Promise<ServiceResult> {
     return this.call('delete_member', { member_id: memberId });
   }
+
+  // ─── Finance: Query services (SupportsResponse.ONLY) ────
+
+  async financeGetAccounts(): Promise<ServiceResult> {
+    return this.call('get_accounts');
+  }
+
+  async financeGetAccount(accountId: string): Promise<ServiceResult> {
+    return this.call('get_account', { account_id: accountId });
+  }
+
+  async financeGetChartData(accountId: string, months = 6): Promise<ServiceResult> {
+    return this.call('get_chart_data', { account_id: accountId, months });
+  }
+
+  async financeExportCsv(accountId: string): Promise<ServiceResult> {
+    return this.call('export_csv', { account_id: accountId });
+  }
+
+  // ─── Finance: Transaction CRUD (SupportsResponse.OPTIONAL)
+
+  async financeAddTransaction(
+    accountId: string,
+    amount: number,
+    note = '',
+    transactionType = 'manual',
+  ): Promise<ServiceResult> {
+    return this.call('add_transaction', {
+      account_id: accountId,
+      amount,
+      note,
+      transaction_type: transactionType,
+    });
+  }
+
+  async financeUpdateTransaction(
+    accountId: string,
+    transactionId: string,
+    updates: { amount?: number; note?: string } = {},
+  ): Promise<ServiceResult> {
+    return this.call('update_transaction', {
+      account_id: accountId,
+      transaction_id: transactionId,
+      ...updates,
+    });
+  }
+
+  async financeDeleteTransaction(
+    accountId: string,
+    transactionId: string,
+  ): Promise<ServiceResult> {
+    return this.call('delete_transaction', {
+      account_id: accountId,
+      transaction_id: transactionId,
+    });
+  }
+
+  // ─── Finance: Recurring Plans (SupportsResponse.OPTIONAL)
+
+  async financeAddPlan(
+    accountId: string,
+    title: string,
+    amount: number,
+    frequency: string,
+    day: number,
+    opts: { month?: number; active?: boolean } = {},
+  ): Promise<ServiceResult> {
+    return this.call('add_plan', {
+      account_id: accountId,
+      title,
+      amount,
+      frequency,
+      day,
+      ...(opts.month !== undefined ? { month: opts.month } : {}),
+      ...(opts.active !== undefined ? { active: opts.active } : {}),
+    });
+  }
+
+  async financeUpdatePlan(
+    accountId: string,
+    planId: string,
+    updates: Record<string, any> = {},
+  ): Promise<ServiceResult> {
+    return this.call('update_plan', {
+      account_id: accountId,
+      plan_id: planId,
+      ...updates,
+    });
+  }
+
+  async financeDeletePlan(
+    accountId: string,
+    planId: string,
+  ): Promise<ServiceResult> {
+    return this.call('delete_plan', {
+      account_id: accountId,
+      plan_id: planId,
+    });
+  }
+
+  // ─── Finance: Account Management (SupportsResponse.OPTIONAL)
+
+  async financeAddAccount(
+    name: string,
+    initialBalance = 0,
+  ): Promise<ServiceResult> {
+    return this.call('add_account', {
+      name,
+      initial_balance: initialBalance,
+    });
+  }
+
+  async financeUpdateAccount(
+    accountId: string,
+    updates: { name?: string; notes?: string } = {},
+  ): Promise<ServiceResult> {
+    return this.call('update_account', {
+      account_id: accountId,
+      ...updates,
+    });
+  }
+
+  async financeDeleteAccount(accountId: string): Promise<ServiceResult> {
+    return this.call('delete_account', { account_id: accountId });
+  }
+
+  async financeAdjustBalance(
+    accountId: string,
+    newBalance: number,
+  ): Promise<ServiceResult> {
+    return this.call('adjust_balance', {
+      account_id: accountId,
+      new_balance: newBalance,
+    });
+  }
 }

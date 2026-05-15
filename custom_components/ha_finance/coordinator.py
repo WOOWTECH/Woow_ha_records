@@ -358,15 +358,18 @@ class FinanceCoordinator(DataUpdateCoordinator[FinanceData]):
 
     async def async_update_recurring_plan(
         self, plan_id: str, **kwargs: Any
-    ) -> None:
-        """Update a recurring plan."""
+    ) -> bool:
+        """Update a recurring plan.
+
+        Returns True if the plan was found and updated, False otherwise.
+        """
         account = self.account
         if account is None:
-            return
+            return False
 
         plan = account.recurring_plans.get(plan_id)
         if plan is None:
-            return
+            return False
 
         for key, value in kwargs.items():
             if hasattr(plan, key):
@@ -380,6 +383,7 @@ class FinanceCoordinator(DataUpdateCoordinator[FinanceData]):
 
         await self.store.async_save()
         await self.async_refresh()
+        return True
 
     async def async_remove_recurring_plan(self, plan_id: str) -> None:
         """Remove a recurring plan."""

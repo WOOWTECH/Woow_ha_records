@@ -476,7 +476,16 @@ async def handle_update_plan(call: ServiceCall) -> ServiceResponse:
             setattr(plan, key, value)
         await store.async_save()
     else:
-        await coordinator.async_update_recurring_plan(plan_id, **update_fields)
+        updated = await coordinator.async_update_recurring_plan(
+            plan_id, **update_fields
+        )
+        if not updated:
+            raise ServiceValidationError(
+                f"Plan '{plan_id}' not found",
+                translation_domain=DOMAIN,
+                translation_key="plan_not_found",
+                translation_placeholders={"plan_id": plan_id},
+            )
 
     return {"success": True}
 
@@ -501,9 +510,24 @@ async def handle_delete_plan(call: ServiceCall) -> ServiceResponse:
                 translation_key="account_not_found",
                 translation_placeholders={"account_id": account_id},
             )
+        if plan_id not in account.recurring_plans:
+            raise ServiceValidationError(
+                f"Plan '{plan_id}' not found",
+                translation_domain=DOMAIN,
+                translation_key="plan_not_found",
+                translation_placeholders={"plan_id": plan_id},
+            )
         account.remove_recurring_plan(plan_id)
         await store.async_save()
     else:
+        account = coordinator.account
+        if account is None or plan_id not in account.recurring_plans:
+            raise ServiceValidationError(
+                f"Plan '{plan_id}' not found",
+                translation_domain=DOMAIN,
+                translation_key="plan_not_found",
+                translation_placeholders={"plan_id": plan_id},
+            )
         await coordinator.async_remove_recurring_plan(plan_id)
 
     return {"success": True}
@@ -526,6 +550,18 @@ async def handle_add_account(call: ServiceCall) -> ServiceResponse:
             translation_domain=DOMAIN,
             translation_key="invalid_name",
         )
+
+    # Check for duplicate name (case-insensitive) in existing accounts
+    store = _get_store(hass)
+    await store.async_load()
+    for existing in store.data.accounts.values():
+        if existing.name.lower() == name.lower():
+            raise ServiceValidationError(
+                f"Account with name '{name}' already exists",
+                translation_domain=DOMAIN,
+                translation_key="duplicate_name",
+                translation_placeholders={"name": name},
+            )
 
     try:
         result = await hass.config_entries.flow.async_init(
