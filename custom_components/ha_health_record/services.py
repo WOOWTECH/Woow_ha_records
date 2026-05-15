@@ -43,6 +43,8 @@ from .const import (
 )
 from .coordinator import HealthRecordCoordinator
 
+from homeassistant.util import dt as dt_util
+
 _LOGGER = logging.getLogger(__name__)
 
 KEY_COORDINATOR_MAP = f"{DOMAIN}_coordinator_map"
@@ -104,9 +106,13 @@ def _valid_float(value: Any) -> float:
 
 
 def _parse_iso(value: str, field: str = "timestamp") -> datetime:
-    """Parse ISO 8601 string, raise ServiceValidationError on failure."""
+    """Parse ISO 8601 string, raise ServiceValidationError on failure.
+
+    Always returns a timezone-aware datetime to avoid naive/aware comparison bugs.
+    """
     try:
-        return datetime.fromisoformat(value.replace("Z", "+00:00"))
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        return dt_util.as_utc(parsed)
     except (ValueError, AttributeError) as exc:
         raise ServiceValidationError(
             f"Invalid datetime for '{field}': {value!r}",

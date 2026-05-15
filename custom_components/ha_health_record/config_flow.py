@@ -57,6 +57,7 @@ class HaHealthRecordConfigFlow(ConfigFlow, domain=DOMAIN):
                     data={
                         CONF_MEMBER_ID: sanitized_id,
                         CONF_MEMBER_NAME: user_input[CONF_MEMBER_NAME],
+                        "note": user_input.get("note", ""),
                     },
                     options={
                         CONF_RECORD_SETS: [],

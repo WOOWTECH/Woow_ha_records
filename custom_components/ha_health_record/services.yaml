@@ -5,7 +5,7 @@
 # --- Query services (SupportsResponse.ONLY) --------------------------------
 
 get_members:
-  fields:
+  fields: {}
 
 get_records:
   fields:

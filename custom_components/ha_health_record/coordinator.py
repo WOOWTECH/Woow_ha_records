@@ -326,7 +326,11 @@ class HealthRecordCoordinator:
                 record_time = dt_util.parse_datetime(record["timestamp"])
             except (ValueError, TypeError):
                 continue
-            if record_time is not None and (latest_ts is None or record_time > latest_ts):
+            if record_time is None:
+                continue
+            # Ensure timezone-aware for safe comparison
+            record_time = dt_util.as_utc(record_time)
+            if latest_ts is None or record_time > latest_ts:
                 latest_ts = record_time
                 latest_value = record.get("value")
 
@@ -393,7 +397,11 @@ class HealthRecordCoordinator:
         for record in self.records:
             try:
                 record_time = dt_util.parse_datetime(record["timestamp"])
-                if record_time and start_time <= record_time <= end_time:
+                if record_time is None:
+                    continue
+                # Ensure timezone-aware for safe comparison
+                record_time = dt_util.as_utc(record_time)
+                if start_time <= record_time <= end_time:
                     type_id = record["record_type"]
                     rs = self.record_sets.get(type_id)
                     entry = {

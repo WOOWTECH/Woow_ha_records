@@ -6,7 +6,7 @@ import { type Page, type BrowserContext } from '@playwright/test';
 
 const HA_BASE = process.env.HA_BASE_URL || 'http://localhost:18125';
 const HA_USER = process.env.HA_USERNAME || 'admin';
-const HA_PASS = process.env.HA_PASSWORD || 'admin123';
+const HA_PASS = process.env.HA_PASSWORD || 'admin';
 
 export interface HATokens {
   access_token: string;

@@ -12,7 +12,7 @@ export default defineConfig({
     ['list'],
   ],
   use: {
-    baseURL: 'http://localhost:18125',
+    baseURL: process.env.HA_BASE_URL || 'http://localhost:18125',
     headless: true,
     viewport: { width: 1280, height: 900 },
     actionTimeout: 15_000,
