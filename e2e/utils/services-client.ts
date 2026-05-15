@@ -327,4 +327,76 @@ export class HAServicesClient {
       new_balance: newBalance,
     });
   }
+
+  // ─── Asset Record: Query services (SupportsResponse.ONLY) ─
+
+  async assetListAssets(): Promise<ServiceResult> {
+    return this.call('list_assets');
+  }
+
+  async assetGetAsset(assetId: string): Promise<ServiceResult> {
+    return this.call('get_asset', { asset_id: assetId });
+  }
+
+  async assetListCategories(): Promise<ServiceResult> {
+    return this.call('list_categories');
+  }
+
+  async assetExportCsv(): Promise<ServiceResult> {
+    return this.call('export_csv');
+  }
+
+  // ─── Asset Record: Asset CRUD (SupportsResponse.OPTIONAL) ─
+
+  async assetCreateAsset(
+    name: string,
+    opts: {
+      brand?: string;
+      category_id?: string;
+      value?: number;
+      purchase_at?: string;
+      warranty_until?: string;
+      manual_md?: string;
+      maintenance_md?: string;
+    } = {},
+  ): Promise<ServiceResult> {
+    return this.call('create_asset', { name, ...opts });
+  }
+
+  async assetUpdateAsset(
+    assetId: string,
+    updates: {
+      name?: string;
+      brand?: string;
+      category_id?: string;
+      value?: number;
+      purchase_at?: string;
+      warranty_until?: string;
+      manual_md?: string;
+      maintenance_md?: string;
+    } = {},
+  ): Promise<ServiceResult> {
+    return this.call('update_asset', { asset_id: assetId, ...updates });
+  }
+
+  async assetDeleteAsset(assetId: string): Promise<ServiceResult> {
+    return this.call('delete_asset', { asset_id: assetId });
+  }
+
+  // ─── Asset Record: Category CRUD (SupportsResponse.OPTIONAL)
+
+  async assetCreateCategory(name: string): Promise<ServiceResult> {
+    return this.call('create_category', { name });
+  }
+
+  async assetUpdateCategory(
+    categoryId: string,
+    name: string,
+  ): Promise<ServiceResult> {
+    return this.call('update_category', { category_id: categoryId, name });
+  }
+
+  async assetDeleteCategory(categoryId: string): Promise<ServiceResult> {
+    return this.call('delete_category', { category_id: categoryId });
+  }
 }

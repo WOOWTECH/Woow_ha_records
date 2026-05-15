@@ -1,0 +1,131 @@
+# ============================================================================
+# ha_asset_record services — 10 services covering all asset functionality
+#
+# Query services use SupportsResponse.ONLY (caller must request response).
+# Write services use SupportsResponse.OPTIONAL (response is optional).
+# ============================================================================
+
+# --- Query services (SupportsResponse.ONLY) --------------------------------
+
+list_assets:
+  fields: {}
+
+get_asset:
+  fields:
+    asset_id:
+      required: true
+      selector:
+        text:
+
+list_categories:
+  fields: {}
+
+export_csv:
+  fields: {}
+
+# --- Asset CRUD (SupportsResponse.OPTIONAL) --------------------------------
+
+create_asset:
+  fields:
+    name:
+      required: true
+      selector:
+        text:
+    brand:
+      selector:
+        text:
+    category_id:
+      selector:
+        text:
+    value:
+      selector:
+        number:
+          min: 0
+          max: 99999999
+          mode: box
+          step: 0.01
+    purchase_at:
+      selector:
+        text:
+    warranty_until:
+      selector:
+        text:
+    manual_md:
+      selector:
+        text:
+          multiline: true
+    maintenance_md:
+      selector:
+        text:
+          multiline: true
+
+update_asset:
+  fields:
+    asset_id:
+      required: true
+      selector:
+        text:
+    name:
+      selector:
+        text:
+    brand:
+      selector:
+        text:
+    category_id:
+      selector:
+        text:
+    value:
+      selector:
+        number:
+          min: 0
+          max: 99999999
+          mode: box
+          step: 0.01
+    purchase_at:
+      selector:
+        text:
+    warranty_until:
+      selector:
+        text:
+    manual_md:
+      selector:
+        text:
+          multiline: true
+    maintenance_md:
+      selector:
+        text:
+          multiline: true
+
+delete_asset:
+  fields:
+    asset_id:
+      required: true
+      selector:
+        text:
+
+# --- Category CRUD (SupportsResponse.OPTIONAL) -----------------------------
+
+create_category:
+  fields:
+    name:
+      required: true
+      selector:
+        text:
+
+update_category:
+  fields:
+    category_id:
+      required: true
+      selector:
+        text:
+    name:
+      required: true
+      selector:
+        text:
+
+delete_category:
+  fields:
+    category_id:
+      required: true
+      selector:
+        text:

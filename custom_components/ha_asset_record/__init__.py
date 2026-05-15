@@ -52,6 +52,7 @@ from homeassistant.helpers import device_registry as dr
 from .const import DOMAIN, PLATFORMS
 from .coordinator import AssetCoordinator
 from .panel import async_register_panel, unregister_panel
+from .services import async_register_services, async_unregister_services
 from .websocket import async_register_websocket_commands
 
 _LOGGER = logging.getLogger(__name__)
@@ -82,9 +83,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: AssetConfigEntry) -> boo
 
     entry.runtime_data = coordinator
 
-    # Register websocket commands and panel (only once)
+    # Register websocket commands, services, and panel (only once)
     if not hass.data.get(DATA_PANEL_REGISTERED):
         async_register_websocket_commands(hass)
+        async_register_services(hass)
         await async_register_panel(hass)
         hass.data[DATA_PANEL_REGISTERED] = True
 
@@ -109,6 +111,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: AssetConfigEntry) -> bo
             if hass.data.get(DATA_PANEL_REGISTERED):
                 # [M-14] unregister_panel is synchronous (no awaits)
                 unregister_panel(hass)
+                async_unregister_services(hass)
             # [L-04] Clean up tracking keys from hass.data
             hass.data.pop(DATA_PANEL_REGISTERED, None)
             hass.data.pop(DOMAIN, None)

@@ -232,6 +232,18 @@ export class HAWebSocketClient {
     return this.sendCommand({ type: 'ha_asset_record/delete', asset_id: assetId });
   }
 
+  async assetCreateCategory(name: string) {
+    return this.sendCommand({ type: 'ha_asset_record/create_category', name });
+  }
+
+  async assetUpdateCategory(categoryId: string, name: string) {
+    return this.sendCommand({ type: 'ha_asset_record/update_category', category_id: categoryId, name });
+  }
+
+  async assetDeleteCategory(categoryId: string) {
+    return this.sendCommand({ type: 'ha_asset_record/delete_category', category_id: categoryId });
+  }
+
   // ─── Note Record Helpers ──────────────────────────────────
 
   async noteGetData() {
