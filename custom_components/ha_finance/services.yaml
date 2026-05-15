@@ -1,0 +1,243 @@
+# ============================================================================
+# ha_finance services — 14 services covering all finance functionality
+#
+# Query services use SupportsResponse.ONLY (caller must request response).
+# Write services use SupportsResponse.OPTIONAL (response is optional).
+# ============================================================================
+
+# --- Query services (SupportsResponse.ONLY) --------------------------------
+
+get_accounts:
+  fields: {}
+
+get_account:
+  fields:
+    account_id:
+      required: true
+      selector:
+        text:
+
+get_chart_data:
+  fields:
+    account_id:
+      required: true
+      selector:
+        text:
+    months:
+      selector:
+        number:
+          min: 1
+          max: 24
+          mode: box
+          step: 1
+
+export_csv:
+  fields:
+    account_id:
+      required: true
+      selector:
+        text:
+
+# --- Transaction CRUD (SupportsResponse.OPTIONAL) --------------------------
+
+add_transaction:
+  fields:
+    account_id:
+      required: true
+      selector:
+        text:
+    amount:
+      required: true
+      selector:
+        number:
+          mode: box
+          step: 0.01
+    note:
+      selector:
+        text:
+    transaction_type:
+      selector:
+        select:
+          options:
+            - "manual"
+            - "recurring"
+            - "adjustment"
+
+update_transaction:
+  fields:
+    account_id:
+      required: true
+      selector:
+        text:
+    transaction_id:
+      required: true
+      selector:
+        text:
+    amount:
+      selector:
+        number:
+          mode: box
+          step: 0.01
+    note:
+      selector:
+        text:
+
+delete_transaction:
+  fields:
+    account_id:
+      required: true
+      selector:
+        text:
+    transaction_id:
+      required: true
+      selector:
+        text:
+
+# --- Recurring Plans (SupportsResponse.OPTIONAL) ---------------------------
+
+add_plan:
+  fields:
+    account_id:
+      required: true
+      selector:
+        text:
+    title:
+      required: true
+      selector:
+        text:
+    amount:
+      required: true
+      selector:
+        number:
+          mode: box
+          step: 0.01
+    frequency:
+      required: true
+      selector:
+        select:
+          options:
+            - "daily"
+            - "weekly"
+            - "monthly"
+            - "yearly"
+    day:
+      required: true
+      selector:
+        number:
+          min: 1
+          max: 28
+          mode: box
+          step: 1
+    month:
+      selector:
+        number:
+          min: 1
+          max: 12
+          mode: box
+          step: 1
+    active:
+      selector:
+        boolean:
+
+update_plan:
+  fields:
+    account_id:
+      required: true
+      selector:
+        text:
+    plan_id:
+      required: true
+      selector:
+        text:
+    title:
+      selector:
+        text:
+    amount:
+      selector:
+        number:
+          mode: box
+          step: 0.01
+    frequency:
+      selector:
+        select:
+          options:
+            - "daily"
+            - "weekly"
+            - "monthly"
+            - "yearly"
+    day:
+      selector:
+        number:
+          min: 1
+          max: 28
+          mode: box
+          step: 1
+    month:
+      selector:
+        number:
+          min: 1
+          max: 12
+          mode: box
+          step: 1
+    active:
+      selector:
+        boolean:
+
+delete_plan:
+  fields:
+    account_id:
+      required: true
+      selector:
+        text:
+    plan_id:
+      required: true
+      selector:
+        text:
+
+# --- Account Management (SupportsResponse.OPTIONAL) ------------------------
+
+add_account:
+  fields:
+    name:
+      required: true
+      selector:
+        text:
+    initial_balance:
+      selector:
+        number:
+          mode: box
+          step: 0.01
+
+update_account:
+  fields:
+    account_id:
+      required: true
+      selector:
+        text:
+    name:
+      selector:
+        text:
+    notes:
+      selector:
+        text:
+          multiline: true
+
+delete_account:
+  fields:
+    account_id:
+      required: true
+      selector:
+        text:
+
+adjust_balance:
+  fields:
+    account_id:
+      required: true
+      selector:
+        text:
+    new_balance:
+      required: true
+      selector:
+        number:
+          mode: box
+          step: 0.01

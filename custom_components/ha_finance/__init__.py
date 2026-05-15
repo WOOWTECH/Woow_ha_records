@@ -66,13 +66,15 @@ from homeassistant.helpers.typing import ConfigType
 from .const import CONF_ACCOUNT_ID, CONF_ACCOUNT_NAME, CONF_INITIAL_BALANCE, DOMAIN
 from .coordinator import FinanceCoordinator
 from .models import Account
-from .panel import async_setup_panel, async_remove_panel
+from .panel import async_setup_panel
+from .services import async_register_services
 from .store import FinanceStore
 
 _LOGGER = logging.getLogger(__name__)
 
 # Keys for metadata stored in hass.data[DOMAIN]
 _PANEL_REGISTERED_KEY = "_panel_registered"
+_SERVICES_REGISTERED_KEY = "_services_registered"
 _STORE_KEY = "store"
 
 PLATFORMS_LIST: list[Platform] = [
@@ -98,6 +100,11 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 
     # Initialize shared store
     _get_or_create_store(hass)
+
+    # Register HA services (once, in async_setup so they're available
+    # even before any config entries exist — needed for add_account)
+    async_register_services(hass)
+    hass.data[DOMAIN][_SERVICES_REGISTERED_KEY] = True
 
     return True
 
@@ -149,14 +156,10 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if unload_ok := await hass.config_entries.async_unload_platforms(entry, PLATFORMS_LIST):
         hass.data[DOMAIN].pop(entry.entry_id)
 
-    # Remove panel if no more config entries
-    remaining_entries = [
-        k for k in hass.data.get(DOMAIN, {}).keys()
-        if k not in (_PANEL_REGISTERED_KEY, _STORE_KEY)
-    ]
-    if not remaining_entries and hass.data[DOMAIN].get(_PANEL_REGISTERED_KEY):
-        await async_remove_panel(hass)
-        hass.data[DOMAIN][_PANEL_REGISTERED_KEY] = False
+    # Note: panel and services are registered in async_setup (not
+    # async_setup_entry), so they persist for the HA lifetime and are
+    # NOT torn down when the last entry is removed.  This ensures
+    # add_account remains callable even with zero accounts.
 
     return unload_ok
 
