@@ -48,6 +48,7 @@ from homeassistant.core import HomeAssistant
 
 from .const import DOMAIN, PLATFORMS
 from .panel import async_register_panel, async_unregister_panel
+from .services import async_register_services, async_unregister_services
 from .store import HaNoteRecordStore
 from .websocket_api import async_register_websocket_api
 
@@ -73,9 +74,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaNoteRecordConfigEntry)
     entry.runtime_data = store
     hass.data[DOMAIN]["store"] = store
 
-    # Register WebSocket API (once, idempotent)
+    # Register WebSocket API and services (once, idempotent)
     if not hass.data.get(DATA_WS_REGISTERED):
         async_register_websocket_api(hass)
+        async_register_services(hass)
         hass.data[DATA_WS_REGISTERED] = True
 
     # Register panel (only once) — set flag before await to prevent race
@@ -94,15 +96,17 @@ async def async_unload_entry(hass: HomeAssistant, entry: HaNoteRecordConfigEntry
     """Unload a config entry."""
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
 
-    # Unregister panel if this is the last entry
+    # Unregister panel and services if this is the last entry
     if unload_ok:
         remaining_entries = [
             e for e in hass.config_entries.async_entries(DOMAIN)
             if e.entry_id != entry.entry_id
         ]
-        if not remaining_entries and hass.data.get(DATA_PANEL_REGISTERED):
-            await async_unregister_panel(hass)
-            hass.data[DATA_PANEL_REGISTERED] = False
+        if not remaining_entries:
+            if hass.data.get(DATA_PANEL_REGISTERED):
+                await async_unregister_panel(hass)
+                hass.data[DATA_PANEL_REGISTERED] = False
+            async_unregister_services(hass)
 
     # Clean up hass.data
     if DOMAIN in hass.data:

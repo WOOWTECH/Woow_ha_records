@@ -1,0 +1,84 @@
+# ============================================================================
+# ha_note_record services — 9 services covering all note functionality
+#
+# Query services use SupportsResponse.ONLY (caller must request response).
+# Write services use SupportsResponse.OPTIONAL (response is optional).
+# ============================================================================
+
+# --- Query services (SupportsResponse.ONLY) --------------------------------
+
+list_notes:
+  fields: {}
+
+get_note:
+  fields:
+    note_id:
+      required: true
+      selector:
+        text:
+
+list_categories:
+  fields: {}
+
+export_markdown:
+  fields: {}
+
+# --- Note CRUD (SupportsResponse.OPTIONAL) ---------------------------------
+
+create_note:
+  fields:
+    category_id:
+      required: true
+      selector:
+        text:
+    title:
+      required: true
+      selector:
+        text:
+    content:
+      selector:
+        text:
+          multiline: true
+    pinned:
+      selector:
+        boolean:
+
+update_note:
+  fields:
+    note_id:
+      required: true
+      selector:
+        text:
+    title:
+      selector:
+        text:
+    content:
+      selector:
+        text:
+          multiline: true
+    pinned:
+      selector:
+        boolean:
+
+delete_note:
+  fields:
+    note_id:
+      required: true
+      selector:
+        text:
+
+# --- Category CRUD (SupportsResponse.OPTIONAL) -----------------------------
+
+create_category:
+  fields:
+    name:
+      required: true
+      selector:
+        text:
+
+delete_category:
+  fields:
+    category_id:
+      required: true
+      selector:
+        text:

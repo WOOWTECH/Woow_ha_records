@@ -399,4 +399,57 @@ export class HAServicesClient {
   async assetDeleteCategory(categoryId: string): Promise<ServiceResult> {
     return this.call('delete_category', { category_id: categoryId });
   }
+
+  // ─── Note Record: Query services (SupportsResponse.ONLY) ──
+
+  async noteListNotes(): Promise<ServiceResult> {
+    return this.call('list_notes');
+  }
+
+  async noteGetNote(noteId: string): Promise<ServiceResult> {
+    return this.call('get_note', { note_id: noteId });
+  }
+
+  async noteListCategories(): Promise<ServiceResult> {
+    return this.call('list_categories');
+  }
+
+  async noteExportMarkdown(): Promise<ServiceResult> {
+    return this.call('export_markdown');
+  }
+
+  // ─── Note Record: Note CRUD (SupportsResponse.OPTIONAL) ───
+
+  async noteCreateNote(
+    categoryId: string,
+    title: string,
+    opts: { content?: string; pinned?: boolean } = {},
+  ): Promise<ServiceResult> {
+    return this.call('create_note', {
+      category_id: categoryId,
+      title,
+      ...opts,
+    });
+  }
+
+  async noteUpdateNote(
+    noteId: string,
+    updates: { title?: string; content?: string; pinned?: boolean } = {},
+  ): Promise<ServiceResult> {
+    return this.call('update_note', { note_id: noteId, ...updates });
+  }
+
+  async noteDeleteNote(noteId: string): Promise<ServiceResult> {
+    return this.call('delete_note', { note_id: noteId });
+  }
+
+  // ─── Note Record: Category CRUD (SupportsResponse.OPTIONAL)
+
+  async noteCreateCategory(name: string): Promise<ServiceResult> {
+    return this.call('create_category', { name });
+  }
+
+  async noteDeleteCategory(categoryId: string): Promise<ServiceResult> {
+    return this.call('delete_category', { category_id: categoryId });
+  }
 }
