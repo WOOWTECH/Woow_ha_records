@@ -305,9 +305,15 @@ async def handle_update_record(call: ServiceCall) -> ServiceResponse:
         return {"success": True}
 
     raise ServiceValidationError(
-        "Record not found",
+        f"Record not found for member '{member_id}', type '{type_id}', "
+        f"timestamp '{timestamp}'" + (f", record_id '{record_id}'" if record_id else ""),
         translation_domain=DOMAIN,
         translation_key="record_not_found",
+        translation_placeholders={
+            "member_id": member_id,
+            "type_id": type_id,
+            "timestamp": timestamp,
+        },
     )
 
 
@@ -325,9 +331,15 @@ async def handle_delete_record(call: ServiceCall) -> ServiceResponse:
         return {"success": True}
 
     raise ServiceValidationError(
-        "Record not found",
+        f"Record not found for member '{member_id}', type '{type_id}', "
+        f"timestamp '{timestamp}'" + (f", record_id '{record_id}'" if record_id else ""),
         translation_domain=DOMAIN,
         translation_key="record_not_found",
+        translation_placeholders={
+            "member_id": member_id,
+            "type_id": type_id,
+            "timestamp": timestamp,
+        },
     )
 
 

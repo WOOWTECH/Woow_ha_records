@@ -50,16 +50,36 @@ _LOGGER = logging.getLogger(__name__)
 
 def _get_store(hass: HomeAssistant):
     """Get the shared finance store from hass.data."""
-    from .store import FinanceStore
-
     domain_data = hass.data.get(DOMAIN, {})
     store = domain_data.get("store")
     if store is not None:
         return store
-    # Fallback: create store if not yet initialized
-    store = FinanceStore(hass)
-    hass.data.setdefault(DOMAIN, {})["store"] = store
-    return store
+    raise ServiceValidationError(
+        "Finance integration not configured — no store available",
+        translation_domain=DOMAIN,
+        translation_key="not_configured",
+    )
+
+
+def _valid_amount(value: Any) -> float:
+    """Validate that value is a finite number, reject NaN/Infinity."""
+    import math
+
+    try:
+        fval = float(value)
+    except (TypeError, ValueError) as exc:
+        raise ServiceValidationError(
+            f"Invalid amount: {value!r}",
+            translation_domain=DOMAIN,
+            translation_key="invalid_amount",
+        ) from exc
+    if not math.isfinite(fval):
+        raise ServiceValidationError(
+            f"Amount must be a finite number, got {value!r}",
+            translation_domain=DOMAIN,
+            translation_key="invalid_amount",
+        )
+    return fval
 
 
 def _get_coordinator(
@@ -244,7 +264,7 @@ async def handle_add_transaction(call: ServiceCall) -> ServiceResponse:
     """Add a transaction (income/expense) to an account."""
     hass = call.hass
     account_id = call.data["account_id"]
-    amount = call.data["amount"]
+    amount = _valid_amount(call.data["amount"])
     note = call.data.get("note", "")
     transaction_type = call.data.get("transaction_type", "manual")
 
@@ -319,7 +339,7 @@ async def handle_update_transaction(call: ServiceCall) -> ServiceResponse:
     # Update balance if amount changed
     if "amount" in call.data:
         old_amount = transaction.amount
-        new_amount = call.data["amount"]
+        new_amount = _valid_amount(call.data["amount"])
         account.balance += (new_amount - old_amount)
         transaction.amount = new_amount
 
@@ -392,7 +412,7 @@ async def handle_add_plan(call: ServiceCall) -> ServiceResponse:
     hass = call.hass
     account_id = call.data["account_id"]
     title = call.data["title"]
-    amount = call.data["amount"]
+    amount = _valid_amount(call.data["amount"])
     frequency = call.data["frequency"]
     day = call.data["day"]
     month = call.data.get("month", 1)
@@ -449,6 +469,8 @@ async def handle_update_plan(call: ServiceCall) -> ServiceResponse:
     for field in ("title", "amount", "frequency", "day", "month", "active"):
         if field in call.data:
             update_fields[field] = call.data[field]
+    if "amount" in update_fields:
+        update_fields["amount"] = _valid_amount(update_fields["amount"])
 
     coordinator = get_coordinator_for_account(hass, account_id)
 
@@ -542,7 +564,7 @@ async def handle_add_account(call: ServiceCall) -> ServiceResponse:
     """Create a new financial account via config flow."""
     hass = call.hass
     name = call.data["name"].strip()
-    initial_balance = call.data.get("initial_balance", 0.0)
+    initial_balance = _valid_amount(call.data.get("initial_balance", 0.0))
 
     if not name:
         raise ServiceValidationError(
@@ -704,7 +726,7 @@ async def handle_adjust_balance(call: ServiceCall) -> ServiceResponse:
     """Set the absolute balance for an account."""
     hass = call.hass
     account_id = call.data["account_id"]
-    new_balance = call.data["new_balance"]
+    new_balance = _valid_amount(call.data["new_balance"])
 
     coordinator = get_coordinator_for_account(hass, account_id)
     if coordinator is None:
