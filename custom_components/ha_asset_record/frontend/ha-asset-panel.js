@@ -200,6 +200,9 @@ class HaAssetPanel extends LitElement {
         height: 100%;
         background: var(--primary-background-color);
       }
+      *, *::before, *::after {
+        box-sizing: border-box;
+      }
 
       .container {
         padding: 16px;
@@ -301,7 +304,7 @@ class HaAssetPanel extends LitElement {
         font-weight: 500;
       }
       .tab-item-count {
-        font-size: 11px;
+        font-size: 12px;
         color: var(--secondary-text-color);
         margin-left: 4px;
       }
@@ -432,7 +435,7 @@ class HaAssetPanel extends LitElement {
       table {
         width: 100%;
         border-collapse: collapse;
-        min-width: 600px;
+        min-width: 500px;
       }
 
       th, td {
@@ -476,26 +479,112 @@ class HaAssetPanel extends LitElement {
         border-bottom: none;
       }
 
-      /* Mobile responsive - card layout */
+      /* Mobile responsive */
       @media (max-width: 600px) {
+        /* Top bar touch targets */
+        .top-bar-sidebar-btn {
+          width: 44px;
+          height: 44px;
+        }
+        .top-bar-action-btn {
+          width: 44px;
+          height: 44px;
+        }
+        .top-bar {
+          margin: -16px -16px 12px -16px;
+        }
+
+        /* Search row wrapping */
+        .search-row {
+          flex-wrap: wrap;
+          height: auto;
+          padding: 8px 16px;
+        }
+        .search-row-input-wrapper {
+          height: 44px;
+          min-width: 0;
+          flex: 1 1 100%;
+        }
+        .search-row-input {
+          font-size: 16px;
+        }
+
+        /* Sort controls */
+        .sort-btn {
+          min-height: 44px;
+          height: 44px;
+        }
+        .sort-dropdown-item {
+          padding: 12px 16px;
+          min-height: 44px;
+        }
+
+        /* Tab bar with scroll indicator */
+        .tab-bar {
+          -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 20px, #000 calc(100% - 20px), transparent 100%);
+          mask-image: linear-gradient(90deg, transparent 0, #000 20px, #000 calc(100% - 20px), transparent 100%);
+          padding: 0 20px;
+          scrollbar-width: none;
+          -webkit-overflow-scrolling: touch;
+        }
+        .tab-bar::-webkit-scrollbar {
+          display: none;
+        }
+        .tab-item {
+          min-height: 44px;
+          padding: 12px 14px;
+          display: flex;
+          align-items: center;
+        }
+        .tab-add-btn {
+          min-width: 44px;
+          min-height: 44px;
+          width: 44px;
+          height: 44px;
+        }
+
+        /* Tab context menu */
+        .tab-context-menu-item {
+          min-height: 44px;
+          padding: 12px 16px;
+          display: flex;
+          align-items: center;
+        }
+
+        /* Error banner close */
+        .error-banner-close {
+          min-width: 44px;
+          min-height: 44px;
+          padding: 10px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        /* Table to card layout */
         table {
           min-width: unset;
         }
-
         thead {
           display: none;
         }
-
+        .table-container {
+          box-shadow: none;
+          background: transparent;
+          border-radius: 0;
+        }
         tbody tr {
           display: block;
           padding: 12px 16px;
-          border-bottom: 1px solid var(--divider-color);
+          margin-bottom: 8px;
+          background: var(--card-background-color);
+          border-radius: 8px;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+          border-bottom: none;
         }
-
         tbody tr:last-child {
           border-bottom: none;
         }
-
         tbody td {
           display: flex;
           justify-content: space-between;
@@ -504,7 +593,6 @@ class HaAssetPanel extends LitElement {
           border-bottom: none;
           white-space: normal;
         }
-
         tbody td::before {
           content: attr(data-label);
           font-weight: 500;
@@ -513,18 +601,96 @@ class HaAssetPanel extends LitElement {
           min-width: 80px;
           margin-right: 8px;
         }
-
-        /* Name row styling */
         tbody td:first-child {
           font-weight: 500;
           font-size: 16px;
           padding-bottom: 8px;
           border-bottom: 1px solid var(--divider-color);
           margin-bottom: 8px;
+          max-width: unset;
+          min-width: unset;
         }
-
         tbody td:first-child::before {
           display: none;
+        }
+        th:first-child, td:first-child {
+          max-width: unset;
+          min-width: unset;
+        }
+
+        /* Dialog full-screen on mobile */
+        .dialog {
+          width: 100%;
+          max-width: 100%;
+          height: 100vh;
+          max-height: 100vh;
+          border-radius: 0;
+          display: flex;
+          flex-direction: column;
+        }
+        .dialog-content {
+          flex: 1;
+          overflow-y: auto;
+          -webkit-overflow-scrolling: touch;
+        }
+        .dialog-close {
+          padding: 10px;
+          min-width: 44px;
+          min-height: 44px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .dialog-footer {
+          flex-wrap: wrap;
+          gap: 12px;
+          padding: 12px 16px;
+        }
+        .dialog-footer-left {
+          flex: 1 1 auto;
+        }
+        .dialog-footer-right {
+          flex: 1 1 auto;
+          justify-content: flex-end;
+        }
+
+        /* Form inputs - 44px touch targets + iOS zoom prevention */
+        .form-group label {
+          margin-bottom: 8px;
+        }
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+          min-height: 44px;
+          font-size: 16px;
+          padding: 10px 12px;
+        }
+        .form-group textarea {
+          min-height: 100px;
+        }
+
+        /* All buttons - 44px min-height */
+        .btn {
+          min-height: 44px;
+          font-size: 15px;
+          padding: 10px 16px;
+        }
+
+        /* Summary */
+        .summary {
+          gap: 16px;
+          flex-wrap: wrap;
+          padding: 12px 16px;
+        }
+        .summary-item {
+          min-width: 0;
+          flex: 1 1 auto;
+        }
+        .summary-value {
+          font-size: 18px;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
         }
       }
 
@@ -564,6 +730,9 @@ class HaAssetPanel extends LitElement {
         font-size: 20px;
         font-weight: 500;
         color: var(--primary-text-color);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
 
       .empty-state {

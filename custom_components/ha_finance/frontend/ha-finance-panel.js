@@ -1042,7 +1042,7 @@ class HaFinancePanel extends LitElement {
 
       @media (max-width: 600px) {
         :host {
-          padding: 8px;
+          padding: 12px;
         }
 
         .header {
@@ -1050,124 +1050,340 @@ class HaFinancePanel extends LitElement {
           align-items: stretch;
         }
 
+        /* Top bar buttons 44px touch targets */
+        .top-bar-sidebar-btn,
+        .top-bar-action-btn {
+          width: 44px;
+          height: 44px;
+        }
+
+        /* Icon buttons 44px */
+        .icon-btn {
+          width: 44px;
+          height: 44px;
+        }
+
+        /* Tabs 44px touch targets with scroll indicator */
+        .tab {
+          min-height: 44px;
+          display: inline-flex;
+          align-items: center;
+          white-space: nowrap;
+          flex-shrink: 0;
+          padding: 8px 14px;
+        }
+        .tabs {
+          overflow-x: auto;
+          -webkit-overflow-scrolling: touch;
+          flex-wrap: nowrap;
+          scrollbar-width: none;
+          mask-image: linear-gradient(to right, transparent 0, black 8px, black calc(100% - 24px), transparent 100%);
+          -webkit-mask-image: linear-gradient(to right, transparent 0, black 8px, black calc(100% - 24px), transparent 100%);
+        }
+        .tabs::-webkit-scrollbar {
+          display: none;
+        }
+
+        /* All .btn 44px min-height */
+        .btn {
+          min-height: 44px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        /* btn-small 44px touch targets */
+        .btn-small {
+          min-height: 44px;
+          min-width: 44px;
+          padding: 6px 12px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        /* Filter bar layout */
         .filter-bar {
           flex-direction: column;
           align-items: stretch;
           gap: 8px;
         }
-
         .filter-bar input,
         .filter-bar select {
           width: 100%;
           box-sizing: border-box;
+          min-height: 44px;
+          font-size: 16px;
         }
-
         .filter-bar .filter-type-row {
           display: flex;
           gap: 8px;
           align-items: center;
         }
-
         .filter-bar .filter-type-row label {
           white-space: nowrap;
           flex-shrink: 0;
         }
-
         .filter-bar .filter-type-row select {
           flex: 1;
         }
-
         .filter-bar .date-range {
           display: flex;
           gap: 8px;
           align-items: center;
           width: 100%;
         }
+        .filter-bar .date-separator {
+          flex-shrink: 0;
+        }
+        /* Export + Add buttons side by side */
+        .filter-bar > .btn {
+          flex: 1;
+          min-width: 0;
+          text-align: center;
+        }
 
+        /* Date picker clear button fix */
+        .date-picker-clear {
+          position: absolute;
+          top: 50%;
+          right: 4px;
+          transform: translateY(-50%);
+          min-width: 44px;
+          min-height: 44px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 0;
+          font-size: 18px;
+        }
+
+        /* Date picker trigger 44px */
         .date-picker-wrapper {
           flex: 1;
           min-width: 0;
         }
-
         .date-picker-trigger {
           width: 100%;
           min-width: 0;
-          font-size: 13px;
-          padding: 6px 8px;
+          min-height: 44px;
+          font-size: 14px;
+          padding: 6px 30px 6px 8px;
+          box-sizing: border-box;
         }
 
+        /* Date picker dropdown fixed + centered */
         .date-picker-dropdown {
-          left: auto;
-          right: 0;
+          position: fixed;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          z-index: 300;
+          margin-top: 0;
+          max-height: 80vh;
+          overflow-y: auto;
+          width: calc(100vw - 32px);
+          max-width: 320px;
+          box-sizing: border-box;
+        }
+        .date-picker-dropdown .calendar-widget {
+          min-width: unset;
+          width: 100%;
         }
 
-        .filter-bar .date-separator {
-          flex-shrink: 0;
+        /* Account selector */
+        .account-selector {
+          min-width: unset;
+          width: 100%;
         }
 
+        /* Transaction table to card layout */
         table {
+          min-width: unset;
           font-size: 14px;
         }
-
-        th, td {
-          padding: 8px;
+        thead {
+          display: none;
+        }
+        tbody tr {
+          display: block;
+          padding: 12px 0;
+          border-bottom: 1px solid var(--divider-color);
+        }
+        tbody tr:last-child {
+          border-bottom: none;
+        }
+        tbody td {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 4px 0;
+          border-bottom: none;
+          white-space: normal;
+          word-break: break-word;
+        }
+        tbody td:first-child {
+          font-weight: 500;
+          font-size: 13px;
+          color: var(--secondary-text-color);
+          padding-bottom: 6px;
+        }
+        tbody td:nth-child(2) {
+          font-size: 16px;
+          font-weight: 600;
+        }
+        th {
+          font-size: 13px;
         }
 
-        /* RDA mobile layout */
+        /* Type badge font */
+        .type-badge {
+          font-size: 12px;
+        }
+
+        /* Account switcher with scroll indicator */
         .account-switcher-row {
-          padding: 0 8px 16px 8px;
+          padding: 0 12px 16px 12px;
           overflow-x: auto;
           flex-wrap: nowrap;
           -webkit-overflow-scrolling: touch;
+          scrollbar-width: none;
+          mask-image: linear-gradient(to right, transparent 0, black 12px, black calc(100% - 24px), transparent 100%);
+          -webkit-mask-image: linear-gradient(to right, transparent 0, black 12px, black calc(100% - 24px), transparent 100%);
         }
-
+        .account-switcher-row::-webkit-scrollbar {
+          display: none;
+        }
         .account-card {
           min-width: 130px;
           flex-shrink: 0;
           padding: 10px 14px;
         }
-
         .account-card-avatar {
           width: 36px;
           height: 36px;
           font-size: 16px;
         }
-
         .add-account-card {
           min-width: 100px;
           flex-shrink: 0;
           padding: 10px 14px;
         }
 
-        .tabs {
-          overflow-x: auto;
-          -webkit-overflow-scrolling: touch;
-          flex-wrap: nowrap;
-        }
-
-        .tab {
-          white-space: nowrap;
-          flex-shrink: 0;
-        }
-
         .balance-card {
           padding: 12px;
         }
-
         .balance-amount {
           font-size: 28px;
         }
-
         .content-card {
           padding: 12px;
         }
-
         .top-bar {
-          margin: -8px -8px 8px -8px;
+          margin: -12px -12px 8px -12px;
+        }
+        .search-row {
+          margin: 0 -12px 8px -12px;
         }
 
-        .search-row {
-          margin: 0 -8px 8px -8px;
+        /* Modal full-screen on mobile */
+        .modal-overlay {
+          align-items: stretch;
+          justify-content: stretch;
+        }
+        .modal {
+          min-width: auto;
+          width: 100%;
+          max-width: 100%;
+          height: 100%;
+          max-height: 100%;
+          border-radius: 0;
+          padding: 16px;
+          box-sizing: border-box;
+          display: flex;
+          flex-direction: column;
+        }
+        .modal form {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          overflow-y: auto;
+        }
+
+        /* Form inputs 44px + font-size 16px (prevents iOS zoom) */
+        .form-group input,
+        .form-group select {
+          min-height: 44px;
+          font-size: 16px;
+        }
+
+        /* Calendar widget in modal */
+        .calendar-widget {
+          min-width: unset;
+          width: 100%;
+          box-sizing: border-box;
+          padding: 8px;
+        }
+        .calendar-header button {
+          width: 44px;
+          height: 44px;
+        }
+        .calendar-day {
+          min-width: 36px;
+          min-height: 36px;
+        }
+
+        /* Chart responsive */
+        .chart-container {
+          height: 200px;
+        }
+        .chart-bar {
+          width: 16px;
+        }
+        .chart-bars {
+          gap: 2px;
+          height: 140px;
+        }
+        .chart-label {
+          font-size: 12px;
+          max-width: 48px;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        /* Plan card mobile */
+        .plan-header {
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 4px;
+        }
+
+        /* Account management mobile */
+        .account-info-header {
+          flex-direction: column;
+          text-align: center;
+          gap: 12px;
+        }
+
+        /* iOS auto-zoom prevention for remaining inputs */
+        .search-row-input {
+          font-size: 16px;
+        }
+        .confirm-input {
+          font-size: 16px;
+          min-height: 44px;
+        }
+        .account-notes-input {
+          font-size: 16px;
+          min-height: 44px;
+        }
+
+        /* Account menu items touch target */
+        .account-menu-item {
+          min-height: 44px;
+          display: flex;
+          align-items: center;
         }
       }
     `;

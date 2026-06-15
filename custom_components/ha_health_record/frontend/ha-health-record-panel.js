@@ -1069,6 +1069,9 @@ class HaHealthRecordPanel extends HTMLElement {
         min-height: 100vh;
         font-family: var(--paper-font-body1_-_font-family, Roboto, sans-serif);
       }
+      *, *::before, *::after {
+        box-sizing: border-box;
+      }
 
       /* TOP BAR */
       .top-bar {
@@ -1925,21 +1928,38 @@ class HaHealthRecordPanel extends HTMLElement {
         .top-bar {
           margin: -8px -8px 8px -8px;
         }
+        .top-bar-sidebar-btn {
+          width: 44px;
+          height: 44px;
+        }
+        .top-bar-actions button {
+          min-width: 44px;
+          min-height: 44px;
+        }
         .search-row {
           margin: 0 -8px 8px -8px;
           flex-wrap: wrap;
           height: auto;
           padding: 8px;
         }
+        .search-row-input-wrapper {
+          height: 44px;
+        }
+        .search-row-input {
+          font-size: 16px;
+        }
         .filter-bar {
           margin: 0 -8px 8px -8px;
           padding: 8px;
+          flex-wrap: wrap;
+          gap: 8px;
         }
         .filter-bar .date-range {
           display: flex;
           gap: 8px;
           align-items: center;
           width: 100%;
+          flex-shrink: 0;
         }
         .date-picker-wrapper {
           flex: 1;
@@ -1948,15 +1968,112 @@ class HaHealthRecordPanel extends HTMLElement {
         .date-picker-trigger {
           width: 100%;
           min-width: 0;
-          font-size: 13px;
-          padding: 6px 8px;
+          font-size: 16px;
+          padding: 8px 10px;
+          min-height: 44px;
         }
         .date-picker-dropdown {
-          left: auto;
-          right: 0;
+          position: fixed;
+          left: 50%;
+          top: 50%;
+          transform: translate(-50%, -50%);
+          right: auto;
+          margin-top: 0;
+          z-index: 300;
+          max-height: 90vh;
+          overflow-y: auto;
         }
         .filter-bar .date-separator {
           flex-shrink: 0;
+        }
+        .date-picker-clear {
+          min-width: 44px;
+          min-height: 44px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 20px;
+          padding: 0;
+        }
+        .add-record-btn {
+          width: 100%;
+          margin-left: 0;
+          flex-shrink: 1;
+          min-height: 44px;
+          justify-content: center;
+        }
+        .tab {
+          min-height: 44px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 8px 16px;
+        }
+        .quick-filter-btn {
+          min-height: 44px;
+          min-width: 44px;
+          font-size: 13px;
+          padding: 8px 14px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .btn {
+          min-height: 44px;
+          padding: 10px 16px;
+          font-size: 14px;
+        }
+        .btn-icon {
+          min-height: 44px;
+          min-width: 44px;
+          padding: 8px 12px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .dialog {
+          width: 100%;
+          max-width: 100%;
+          height: 100vh;
+          height: 100dvh;
+          max-height: 100vh;
+          max-height: 100dvh;
+          border-radius: 0;
+          overflow-y: auto;
+          padding: 16px;
+          padding-bottom: max(16px, env(safe-area-inset-bottom));
+          box-sizing: border-box;
+          display: flex;
+          flex-direction: column;
+        }
+        .dialog-content {
+          flex: 1;
+          overflow-y: auto;
+          -webkit-overflow-scrolling: touch;
+        }
+        .calendar-header button {
+          width: 44px;
+          height: 44px;
+        }
+        .calendar-day {
+          min-width: 36px;
+          min-height: 36px;
+        }
+        .settings-section-header {
+          min-height: 44px;
+          display: flex;
+          align-items: center;
+        }
+        .dialog-field input,
+        .dialog-field select,
+        .dialog-field textarea {
+          font-size: 16px;
+          min-height: 44px;
+        }
+        .edit-field input,
+        .edit-field select {
+          font-size: 16px;
+          min-height: 44px;
         }
         .member-switcher-row {
           padding: 0 8px 16px 8px;
@@ -1990,8 +2107,11 @@ class HaHealthRecordPanel extends HTMLElement {
         .overview-latest-value {
           font-size: 13px;
         }
+        .overview-latest-title {
+          font-size: 12px;
+        }
         .overview-latest-unit {
-          font-size: 11px;
+          font-size: 12px;
         }
       }
     `;

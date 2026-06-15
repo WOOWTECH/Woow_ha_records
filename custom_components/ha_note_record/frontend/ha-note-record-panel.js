@@ -325,9 +325,11 @@ class HaNoteRecordPanel extends LitElement {
         overflow: hidden;
       }
 
-      .note-card:hover {
-        box-shadow: 0 4px 8px rgba(0,0,0,0.15);
-        transform: translateY(-2px);
+      @media (hover: hover) {
+        .note-card:hover {
+          box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+          transform: translateY(-2px);
+        }
       }
 
       .note-card.pinned {
@@ -364,6 +366,8 @@ class HaNoteRecordPanel extends LitElement {
         max-height: 100px;
         overflow: hidden;
         position: relative;
+        overflow-wrap: break-word;
+        word-break: break-word;
       }
 
       .note-card-content::after {
@@ -525,6 +529,8 @@ class HaNoteRecordPanel extends LitElement {
         color: var(--primary-text-color);
         font-size: 14px;
         line-height: 1.6;
+        overflow-wrap: break-word;
+        word-break: break-word;
       }
 
       .preview-content h1,
@@ -633,15 +639,124 @@ class HaNoteRecordPanel extends LitElement {
       @media (max-width: 600px) {
         :host {
           padding: 8px;
+          padding-bottom: max(8px, env(safe-area-inset-bottom));
+        }
+
+        /* Fix negative margin overflow: host is 8px, not 16px */
+        .top-bar {
+          margin: -8px -8px 16px -8px;
+          padding: 0 8px;
+        }
+        .search-row {
+          margin: 0 -8px 16px -8px;
+          padding: 0 8px;
+        }
+
+        /* Sidebar button 44px touch target */
+        .top-bar-sidebar-btn {
+          width: 44px;
+          height: 44px;
+        }
+
+        /* Search input iOS auto-zoom prevention + 44px height */
+        .search-row-input {
+          font-size: 16px;
+        }
+        .search-row-input-wrapper {
+          height: 44px;
+        }
+
+        /* Tab scrollbar hiding + momentum scroll */
+        .tabs-container {
+          -webkit-overflow-scrolling: touch;
+          scrollbar-width: none;
+          -ms-overflow-style: none;
+        }
+        .tabs-container::-webkit-scrollbar {
+          display: none;
+        }
+
+        /* Category tab 44px touch target */
+        .category-tab {
+          min-height: 44px;
+          display: inline-flex;
+          align-items: center;
+        }
+
+        /* Add-tab button 44px */
+        .add-tab-btn {
+          min-width: 44px;
+          min-height: 44px;
+        }
+
+        /* Delete-category button 44px */
+        .tab-action-btn {
+          min-width: 44px;
+          min-height: 44px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 10px;
         }
 
         .notes-grid {
           grid-template-columns: 1fr;
         }
 
+        /* Empty state less padding on mobile */
+        .empty-state {
+          padding: 24px 16px;
+        }
+
+        /* Dialog full-screen on mobile */
         .dialog {
-          width: 95%;
-          max-height: 95vh;
+          width: 100%;
+          max-width: 100%;
+          height: 100%;
+          max-height: 100%;
+          border-radius: 0;
+        }
+        .dialog-overlay {
+          align-items: stretch;
+        }
+
+        /* Dialog close button 44px */
+        .dialog-close {
+          padding: 10px;
+          min-width: 44px;
+          min-height: 44px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        /* Form inputs: 16px to prevent iOS auto-zoom */
+        .form-group input,
+        .form-group textarea {
+          font-size: 16px;
+        }
+
+        /* Checkbox touch target */
+        .form-group-checkbox {
+          min-height: 44px;
+        }
+
+        /* Dialog footer wrapping */
+        .dialog-footer {
+          flex-wrap: wrap;
+          gap: 8px;
+          padding-bottom: max(16px, env(safe-area-inset-bottom));
+        }
+        .dialog-footer-left,
+        .dialog-footer-right {
+          flex-wrap: wrap;
+          gap: 8px;
+        }
+
+        /* All buttons 44px min-height */
+        .btn {
+          min-height: 44px;
+          box-sizing: border-box;
         }
       }
     `;
