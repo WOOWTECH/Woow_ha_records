@@ -1,0 +1,86 @@
+# Disposable Home Assistant instance for retention E2E testing.
+# Deploy:   see e2e/k3s/onboard.sh header for the full sequence
+# Teardown: kubectl delete namespace ha-records-test
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ha-records-test
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ha-config
+  namespace: ha-records-test
+spec:
+  accessModes: ["ReadWriteOnce"]
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: homeassistant
+  namespace: ha-records-test
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate   # RWO PVC: old pod must release before new pod starts
+  selector:
+    matchLabels:
+      app: homeassistant
+  template:
+    metadata:
+      labels:
+        app: homeassistant
+    spec:
+      initContainers:
+        - name: fetch-components
+          image: alpine/git:latest
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -e
+              rm -rf /tmp/repo
+              git clone --depth 1 -b fix/permanent-retention \
+                "https://${GIT_USER}:${GIT_TOKEN}@github.com/WOOWTECH/Woow_ha_records.git" /tmp/repo
+              mkdir -p /config/custom_components
+              cp -r /tmp/repo/custom_components/. /config/custom_components/
+          envFrom:
+            - secretRef:
+                name: repo-credentials
+          volumeMounts:
+            - name: config
+              mountPath: /config
+      containers:
+        - name: homeassistant
+          image: ghcr.io/home-assistant/home-assistant:2025.1
+          ports:
+            - containerPort: 8123
+          volumeMounts:
+            - name: config
+              mountPath: /config
+          readinessProbe:
+            httpGet:
+              path: /manifest.json
+              port: 8123
+            initialDelaySeconds: 30
+            periodSeconds: 5
+            failureThreshold: 24
+      volumes:
+        - name: config
+          persistentVolumeClaim:
+            claimName: ha-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: homeassistant
+  namespace: ha-records-test
+spec:
+  selector:
+    app: homeassistant
+  ports:
+    - port: 8123
+      targetPort: 8123
