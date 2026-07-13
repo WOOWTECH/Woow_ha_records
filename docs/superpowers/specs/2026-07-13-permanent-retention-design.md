@@ -48,8 +48,9 @@ Alternatives rejected:
 | `const.py` | Delete `EVENT_TRANSACTIONS_TRIMMED` (line 36) and `DEFAULT_MAX_TRANSACTIONS` (line 41) |
 | `models.py` | `Account.add_transaction()`: remove `max_transactions` parameter and trim block; return type `bool` → `None` |
 | `coordinator.py` | Remove `max_transactions=` argument and `if trimmed:` branches at the 3 call sites (lines 147, 250, 304); delete `_fire_trimmed_event()` (lines 273-286); remove unused imports |
-| `__init__.py` | Remove event mention from module docstring (line 48) |
+| `__init__.py` | Remove event mention (line 48) and `max_transactions -- 1000` configuration default (line 54) from module docstring |
 | `panel.py` | Remove event mention from docstring (line 61) |
+| `manifest.json` | Update `description` (line 4): event count and `transactions_trimmed` name are stale after removal |
 
 ### `ha_health_record`
 
@@ -64,14 +65,14 @@ Alternatives rejected:
 | File | Change |
 |---|---|
 | `tests/ha_finance/test_models.py` | Replace the trimming test (~line 123, self-labelled "BUG") with an inverse test: add 1001+ transactions, assert **all retained** and balance correct |
-| `tests/ha_health_record/test_coordinator.py` | Replace `test_prune_records_at_max` (lines 254-274) with an inverse test: exceed 10,000 records, assert **all retained** and no event fired |
+| `tests/ha_health_record/test_coordinator.py` | Replace `test_prune_records_at_max` (lines 254-276) with an inverse test: exceed 10,000 records, assert **all retained** and no event fired. **Also remove the `MAX_RECORDS` import (line 14)** — if forgotten, pytest collection fails for the whole file once the constant is deleted |
 
 ### Documentation
 
 | File | Change |
 |---|---|
-| `README.md` | Remove 3 mentions of trimmed/pruned events and limits (lines ~148, 370, 1374, 1399, 1572); state that records are kept permanently |
-| `README_zh-TW.md` | Same 3 mentions (mirrored lines) |
+| `README.md` | Remove **all** mentions of trimmed/pruned events and limits (known: lines ~148, 320, 370, 1374, 1399, 1572 — grep for `trimmed`/`pruned`/`1000`/`10,000` to catch any others); state that records are kept permanently |
+| `README_zh-TW.md` | Same mentions (mirrored lines, including 320 「自動修剪」) |
 | `docs/ha_finance_services_guide.md` | Remove the `ha_finance_transactions_trimmed` row (line 429) |
 
 ## Merge Gate: k3s E2E Test
