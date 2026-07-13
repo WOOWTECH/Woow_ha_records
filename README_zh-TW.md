@@ -91,6 +91,8 @@
 
 所有資料儲存在 Home Assistant 本地的 `.storage/` 目錄。無雲端服務、無外部資料庫、無訂閱費用。每個元件使用 Home Assistant 的 `Store` 類別進行原子寫入。
 
+- **記錄永久保留** — 財務交易與健康紀錄不會被自動修剪，完整歷史全數保留（v1.1.0 起）。
+
 ---
 
 ## 指令索引
@@ -2342,6 +2344,18 @@ npx playwright test
 - 已安裝並設定四個元件
 - Google Chrome 或 Chromium 瀏覽器
 
+### k3s E2E 測試工具（`e2e/k3s/`）
+
+在本地 k3s 叢集上建立可拋棄式 Home Assistant 實例，作為資料保留變更的發布把關：
+
+| 檔案 | 用途 |
+|---|---|
+| `ha-test.yaml` | Namespace + PVC + Deployment（initContainer 複製指定分支）+ Service |
+| `onboard.sh` | 自動完成全新 HA 的初始化（建立擁有者帳號、儲存 refresh token） |
+| `token.sh` | 以已儲存的 refresh token 換取新的 access token |
+| `bootstrap.sh` | 透過 config-flow REST API 建立第一個 ha_finance / ha_health_record 設定項目 |
+| `retention_test.py` | 寫入 1,100 筆交易 + 10,100 筆記錄，驗證全數保留（含 Pod 重啟後） |
+
 ---
 
 ## 專案結構
@@ -2402,6 +2416,7 @@ Woow_ha_records/
 ├── e2e/                         # E2E 瀏覽器測試（143 項）
 │   ├── tests/
 │   ├── utils/
+│   ├── k3s/                     # 可拋棄式 k3s HA E2E 測試工具
 │   └── playwright.config.ts
 │
 ├── docs/
@@ -2448,10 +2463,10 @@ npx playwright test
 
 | 元件 | 版本 | 網域 |
 |------|------|------|
-| 健康記錄 | 1.0.0 | `ha_health_record` |
-| 資產記錄 | 1.0.0 | `ha_asset_record` |
-| 筆記記錄 | 1.0.1 | `ha_note_record` |
-| 財務記錄 | 1.0.1 | `ha_finance` |
+| 健康記錄 | 1.1.0 | `ha_health_record` |
+| 資產記錄 | 1.0.2 | `ha_asset_record` |
+| 筆記記錄 | 1.0.2 | `ha_note_record` |
+| 財務記錄 | 1.1.0 | `ha_finance` |
 
 ---
 

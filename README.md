@@ -91,6 +91,8 @@ When first connecting, discover available data in this order:
 
 All data is stored locally in Home Assistant's `.storage/` directory. No cloud services, no external databases, no subscriptions. Each component uses Home Assistant's `Store` class with atomic writes.
 
+- **Permanent record retention** — finance transactions and health records are never auto-trimmed; all history is kept (since v1.1.0).
+
 ---
 
 ## Command Index
@@ -2342,6 +2344,18 @@ npx playwright test
 - All four components installed and configured
 - Google Chrome or Chromium browser
 
+### k3s E2E Harness (`e2e/k3s/`)
+
+Disposable Home Assistant instance on a local k3s cluster, used as the release gate for data-retention changes:
+
+| File | Purpose |
+|---|---|
+| `ha-test.yaml` | Namespace + PVC + Deployment (initContainer clones the branch) + Service |
+| `onboard.sh` | Automates fresh-HA onboarding (creates owner user, saves refresh token) |
+| `token.sh` | Mints a fresh access token from the saved refresh token |
+| `bootstrap.sh` | Creates the first ha_finance / ha_health_record config entries via the config-flow REST API |
+| `retention_test.py` | Seeds 1,100 transactions + 10,100 records and verifies all are retained (also after pod restart) |
+
 ---
 
 ## Project Structure
@@ -2402,6 +2416,7 @@ Woow_ha_records/
 ├── e2e/                         # E2E browser tests (143 tests)
 │   ├── tests/
 │   ├── utils/
+│   ├── k3s/                     # Disposable k3s HA E2E harness
 │   └── playwright.config.ts
 │
 ├── docs/
@@ -2448,10 +2463,10 @@ npx playwright test
 
 | Component | Version | Domain |
 |-----------|---------|--------|
-| Health Record | 1.0.0 | `ha_health_record` |
-| Asset Record | 1.0.0 | `ha_asset_record` |
-| Note Record | 1.0.1 | `ha_note_record` |
-| Finance Record | 1.0.1 | `ha_finance` |
+| Health Record | 1.1.0 | `ha_health_record` |
+| Asset Record | 1.0.2 | `ha_asset_record` |
+| Note Record | 1.0.2 | `ha_note_record` |
+| Finance Record | 1.1.0 | `ha_finance` |
 
 ---
 
