@@ -145,7 +145,6 @@
 | 事件 | 載荷 | 觸發條件 |
 |------|------|----------|
 | `ha_health_record_record_logged` | `member_id`, `member_name`, `record_type`, `record_name`, `value`, `unit`, `note`, `timestamp` | `log_record` 成功後觸發 |
-| `ha_health_record_records_pruned` | `member_id`, `member_name`, `pruned_count`, `max_records` | 記錄超過 10,000 筆時修剪最舊記錄 |
 
 ### 實體模式
 
@@ -317,7 +316,7 @@
 
 ### ha_health_record/log_record
 
-記錄一筆健康數據。觸發 `ha_health_record_record_logged` 事件。更新該記錄類型的感測器實體。每位成員超過 10,000 筆記錄時自動修剪（移除最舊記錄）。
+記錄一筆健康數據。觸發 `ha_health_record_record_logged` 事件。更新該記錄類型的感測器實體。記錄永久保留。
 
 **驗證：** Admin
 
@@ -367,7 +366,6 @@
 **副作用：**
 - 觸發事件 `ha_health_record_record_logged`
 - 更新 `sensor.{member_id}_{type_id}_record` 實體狀態
-- 記錄超過 10,000 筆時可能觸發 `ha_health_record_records_pruned`
 
 ---
 
@@ -1371,7 +1369,6 @@
 | `ha_finance_recurring_executed` | `account`, `plan_id`, `title`, `amount` | 定期計畫在午夜執行時觸發 |
 | `ha_finance_balance_adjusted` | `account`, `old_balance`, `new_balance`, `diff` | 手動調整餘額後觸發 |
 | `ha_finance_low_balance` | `account`, `balance`, `threshold` | 餘額降至閾值以下時觸發（預設：1000） |
-| `ha_finance_transactions_trimmed` | `account`, `account_name`, `max_transactions` | 交易超過 1000 筆移除最舊記錄時觸發 |
 
 ### 實體模式
 
@@ -1396,7 +1393,6 @@
 | 常數 | 值 | 說明 |
 |------|-----|------|
 | `DEFAULT_LOW_BALANCE_THRESHOLD` | 1000.0 | 餘額低於此值觸發低餘額事件 |
-| `DEFAULT_MAX_TRANSACTIONS` | 1000 | 每個帳戶自動修剪前的最大交易數 |
 | `DEFAULT_CURRENCY` | "NTD" | 預設貨幣單位 |
 | 交易類型 | `manual`, `recurring`, `adjustment` | 區分交易建立方式 |
 | 頻率選項 | `daily`, `weekly`, `monthly`, `yearly` | 定期計畫頻率 |
@@ -1569,7 +1565,6 @@
 - 更新帳戶餘額
 - 觸發 `ha_finance_transaction_added` 事件
 - 餘額降至閾值以下時可能觸發 `ha_finance_low_balance`
-- 交易超過 1000 筆時可能觸發 `ha_finance_transactions_trimmed`
 
 ---
 

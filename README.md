@@ -145,7 +145,6 @@ Track health metrics (weight, temperature, feeding, sleep, etc.) for multiple fa
 | Event | Payload | Trigger |
 |-------|---------|---------|
 | `ha_health_record_record_logged` | `member_id`, `member_name`, `record_type`, `record_name`, `value`, `unit`, `note`, `timestamp` | Fired after `log_record` succeeds |
-| `ha_health_record_records_pruned` | `member_id`, `member_name`, `pruned_count`, `max_records` | Fired when records exceed 10,000 and oldest are pruned |
 
 ### Entity Patterns
 
@@ -317,7 +316,7 @@ Export all records for a specific member as CSV content. CSV columns: `timestamp
 
 ### ha_health_record/log_record
 
-Log a health record entry for a member. Fires `ha_health_record_record_logged` event. Updates the sensor entity for that record type. Records exceeding 10,000 per member are auto-pruned (oldest removed).
+Log a health record entry for a member. Fires `ha_health_record_record_logged` event. Updates the sensor entity for that record type. Records are kept permanently.
 
 **Auth:** Admin
 
@@ -367,7 +366,6 @@ Log a health record entry for a member. Fires `ha_health_record_record_logged` e
 **Side Effects:**
 - Fires event `ha_health_record_record_logged`
 - Updates `sensor.{member_id}_{type_id}_record` entity state
-- May fire `ha_health_record_records_pruned` if records exceed 10,000
 
 ---
 
@@ -1371,7 +1369,6 @@ Multi-account financial tracking with transactions, recurring plans, and visuali
 | `ha_finance_recurring_executed` | `account`, `plan_id`, `title`, `amount` | When a recurring plan executes at midnight |
 | `ha_finance_balance_adjusted` | `account`, `old_balance`, `new_balance`, `diff` | After manual balance adjustment |
 | `ha_finance_low_balance` | `account`, `balance`, `threshold` | When balance drops below threshold (default: 1000) |
-| `ha_finance_transactions_trimmed` | `account`, `account_name`, `max_transactions` | When transactions exceed 1000 and oldest are removed |
 
 ### Entity Patterns
 
@@ -1396,7 +1393,6 @@ For each recurring plan in an account:
 | Constant | Value | Description |
 |----------|-------|-------------|
 | `DEFAULT_LOW_BALANCE_THRESHOLD` | 1000.0 | Balance below this fires low balance event |
-| `DEFAULT_MAX_TRANSACTIONS` | 1000 | Max transactions per account before auto-trimming |
 | `DEFAULT_CURRENCY` | "NTD" | Default currency unit |
 | Transaction types | `manual`, `recurring`, `adjustment` | Distinguishes how transaction was created |
 | Frequency options | `daily`, `weekly`, `monthly`, `yearly` | Recurring plan frequencies |
@@ -1569,7 +1565,6 @@ Add a financial transaction. Positive amounts = income, negative = expense. Fire
 - Updates account balance
 - Fires `ha_finance_transaction_added` event
 - May fire `ha_finance_low_balance` if balance drops below threshold
-- May fire `ha_finance_transactions_trimmed` if transactions exceed 1000
 
 ---
 
