@@ -13,13 +13,11 @@ from homeassistant.util import dt as dt_util
 
 from .const import (
     DEFAULT_LOW_BALANCE_THRESHOLD,
-    DEFAULT_MAX_TRANSACTIONS,
     DOMAIN,
     EVENT_BALANCE_ADJUSTED,
     EVENT_LOW_BALANCE,
     EVENT_RECURRING_EXECUTED,
     EVENT_TRANSACTION_ADDED,
-    EVENT_TRANSACTIONS_TRIMMED,
     FREQUENCY_DAILY,
     FREQUENCY_MONTHLY,
     FREQUENCY_WEEKLY,
@@ -144,14 +142,11 @@ class FinanceCoordinator(DataUpdateCoordinator[FinanceData]):
             transaction_type=TRANSACTION_RECURRING,
             plan_id=plan.id,
         )
-        trimmed = account.add_transaction(transaction, max_transactions=DEFAULT_MAX_TRANSACTIONS)
+        account.add_transaction(transaction)
         plan.last_executed = dt_util.now().isoformat()
         plan.next_date = self._calculate_next_date(
             plan, dt_util.now().date() + timedelta(days=1)
         ).isoformat()
-
-        if trimmed:
-            self._fire_trimmed_event(account)
 
         # Fire event
         self.hass.bus.async_fire(
@@ -247,11 +242,8 @@ class FinanceCoordinator(DataUpdateCoordinator[FinanceData]):
             note=note,
             transaction_type=transaction_type,
         )
-        trimmed = account.add_transaction(transaction, max_transactions=DEFAULT_MAX_TRANSACTIONS)
+        account.add_transaction(transaction)
         await self.store.async_save()
-
-        if trimmed:
-            self._fire_trimmed_event(account)
 
         # Fire event
         self.hass.bus.async_fire(
@@ -270,22 +262,6 @@ class FinanceCoordinator(DataUpdateCoordinator[FinanceData]):
         await self.async_refresh()
         return transaction
 
-    def _fire_trimmed_event(self, account: Account) -> None:
-        """Fire event when transactions are trimmed."""
-        _LOGGER.warning(
-            "Transactions trimmed for account %s (limit %d)",
-            account.id,
-            DEFAULT_MAX_TRANSACTIONS,
-        )
-        self.hass.bus.async_fire(
-            EVENT_TRANSACTIONS_TRIMMED,
-            {
-                "account": account.id,
-                "account_name": account.name,
-                "max_transactions": DEFAULT_MAX_TRANSACTIONS,
-            },
-        )
-
     async def async_adjust_balance(self, new_balance: float) -> None:
         """Adjust the account balance."""
         account = self.account
@@ -301,11 +277,8 @@ class FinanceCoordinator(DataUpdateCoordinator[FinanceData]):
                 note=NOTE_BALANCE_ADJUSTMENT,
                 transaction_type=TRANSACTION_ADJUSTMENT,
             )
-            trimmed = account.add_transaction(transaction, max_transactions=DEFAULT_MAX_TRANSACTIONS)
+            account.add_transaction(transaction)
             await self.store.async_save()
-
-            if trimmed:
-                self._fire_trimmed_event(account)
 
             # Fire event
             self.hass.bus.async_fire(

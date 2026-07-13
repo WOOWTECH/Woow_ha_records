@@ -119,21 +119,19 @@ class TestAccount:
 
         assert account.balance == 300.0
 
-    def test_add_transaction_trims_oldest(self):
-        """BUG: Transactions are silently trimmed when exceeding max."""
+    def test_add_transaction_never_trims(self):
+        """Transactions are kept permanently -- nothing is trimmed at any size."""
         account = Account(id="acc1", name="Test", balance=0.0)
-        max_tx = 5  # Use small number for test
 
-        for i in range(max_tx + 2):
+        total = 1001  # exceeds the old hard-coded 1000 limit
+        for i in range(total):
             tx = Transaction.create(amount=1.0, note=f"tx_{i}")
-            account.add_transaction(tx, max_transactions=max_tx)
+            account.add_transaction(tx)
 
-        # Only max_tx transactions should remain
-        assert len(account.transactions) == max_tx
-        # Balance includes ALL transactions (7 * 1.0 = 7.0)
-        assert account.balance == 7.0
-        # Oldest transactions were silently dropped
-        assert account.transactions[0].note == "tx_2"
+        assert len(account.transactions) == total
+        assert account.balance == float(total)
+        assert account.transactions[0].note == "tx_0"  # oldest still present
+        assert account.transactions[-1].note == f"tx_{total - 1}"
 
     def test_last_transaction(self):
         """Test last_transaction property."""

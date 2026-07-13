@@ -33,12 +33,10 @@ EVENT_TRANSACTION_ADDED: Final = "ha_finance_transaction_added"
 EVENT_RECURRING_EXECUTED: Final = "ha_finance_recurring_executed"
 EVENT_BALANCE_ADJUSTED: Final = "ha_finance_balance_adjusted"
 EVENT_LOW_BALANCE: Final = "ha_finance_low_balance"
-EVENT_TRANSACTIONS_TRIMMED: Final = "ha_finance_transactions_trimmed"
 
 # Defaults
 DEFAULT_BALANCE: Final = 0.0
 DEFAULT_LOW_BALANCE_THRESHOLD: Final = 1000.0
-DEFAULT_MAX_TRANSACTIONS: Final = 1000
 
 # Config keys for account settings
 CONF_LOW_BALANCE_THRESHOLD: Final = "low_balance_threshold"

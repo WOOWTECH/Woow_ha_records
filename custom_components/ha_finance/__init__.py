@@ -45,13 +45,11 @@ Events
 * ``ha_finance_recurring_executed``   -- a recurring plan was executed
 * ``ha_finance_balance_adjusted``     -- manual balance adjustment
 * ``ha_finance_low_balance``          -- balance dropped below threshold
-* ``ha_finance_transactions_trimmed`` -- old transactions pruned
 
 Configuration defaults
 ~~~~~~~~~~~~~~~~~~~~~~
 * ``currency``               -- ``NTD``
 * ``low_balance_threshold``  -- ``1000.0``
-* ``max_transactions``       -- ``1000``
 """
 from __future__ import annotations
 

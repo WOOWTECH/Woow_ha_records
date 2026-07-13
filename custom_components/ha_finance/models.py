@@ -160,26 +160,13 @@ class Account:
             return None
         return self.transactions[-1]
 
-    def add_transaction(
-        self, transaction: Transaction, max_transactions: int = 1000
-    ) -> bool:
+    def add_transaction(self, transaction: Transaction) -> None:
         """Add a transaction and update balance.
 
-        Args:
-            transaction: The transaction to add.
-            max_transactions: Maximum number of transactions to keep (default 1000).
-
-        Returns:
-            True if old transactions were trimmed, False otherwise.
+        Transactions are kept permanently; nothing is ever trimmed.
         """
         self.balance += transaction.amount
         self.transactions.append(transaction)
-
-        # Trim old transactions if exceeding limit
-        if len(self.transactions) > max_transactions:
-            self.transactions = self.transactions[-max_transactions:]
-            return True
-        return False
 
     def add_recurring_plan(self, plan: RecurringPlan) -> None:
         """Add a recurring plan."""

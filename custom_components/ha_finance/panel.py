@@ -58,7 +58,6 @@ The following events are fired on the HA event bus by this component:
     - ``ha_finance_recurring_executed`` -- A recurring plan produced a transaction.
     - ``ha_finance_balance_adjusted`` -- An account balance was adjusted.
     - ``ha_finance_low_balance`` -- An account balance dropped below threshold.
-    - ``ha_finance_transactions_trimmed`` -- Old transactions were pruned.
 
 Transaction Types
 -----------------
