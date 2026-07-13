@@ -20,9 +20,11 @@
 - Test deps: `requirements_test.txt` (pytest, pytest-asyncio, `pytest-homeassistant-custom-component==0.13.205`, `homeassistant==2025.1.4`, voluptuous). Requires Python ≥ 3.12.
 - The GitHub remote URL embeds credentials: `git remote get-url origin` gives `https://WOOWTECH:<token>@github.com/WOOWTECH/Woow_ha_records.git`. **Never write the token into any committed file.** Extract it into env vars when needed (Task 7/8 show how).
 - `ha_finance` stores ALL accounts in one file `.storage/ha_finance`; `ha_health_record` stores per member in `.storage/ha_health_record_<member_id>`.
-- Services used by E2E (all already exist, no new services needed):
-  - `ha_finance.add_account`, `ha_finance.add_transaction` (needs `account_id`, `amount`, `note`), `ha_finance.export_csv` (SupportsResponse.ONLY → call with `?return_response`)
-  - `ha_health_record.add_member`, `ha_health_record.add_record_type`, `ha_health_record.log_record`, `ha_health_record.get_records` (returns `{"records": [...]}` in a time range, `?return_response`)
+- Services used by E2E (verified against `services.py` on this branch):
+  - `ha_finance.add_transaction` (fields: `account_id`, `amount`, `note`); `ha_finance.get_account` (`?return_response`, returns `{"account": {"balance": ..., "transactions": [...]}}`)
+  - `ha_health_record.add_record_type` (fields: `member_id`, `name`, `unit`; `type_id` is auto-generated from `name`, e.g. "Feeding" → `feeding`); `ha_health_record.log_record`; `ha_health_record.get_records` (`?return_response`, returns `{"records": [...]}` in a time range)
+- **Chicken-and-egg on a fresh HA:** both integrations register their services only after a first config entry exists (`ha_health_record` has no `async_setup` at all). The E2E MUST bootstrap one config entry per domain via the config-flow REST API (`POST /api/config/config_entries/flow`) before calling any service. Both config flows accept explicit IDs: finance `{"account_name", "account_id", "initial_balance"}`, health `{"member_name", "member_id"}`.
+- **Token expiry:** an access token from the onboarding `authorization_code` exchange lives ~30 min — shorter than the E2E run. The harness persists the refresh token and mints fresh access tokens per phase.
 
 ---
 
@@ -329,6 +331,8 @@ Expected: PR URL printed. Report it to the user.
 **Files:**
 - Create: `e2e/k3s/ha-test.yaml`
 - Create: `e2e/k3s/onboard.sh`
+- Create: `e2e/k3s/token.sh`
+- Create: `e2e/k3s/bootstrap.sh`
 - Create: `e2e/k3s/retention_test.py`
 
 - [ ] **Step 1: Write the k8s manifest**
@@ -424,16 +428,18 @@ spec:
       targetPort: 8123
 ```
 
-- [ ] **Step 2: Write the onboarding script**
+- [ ] **Step 2: Write the onboarding + token scripts**
 
-Create `e2e/k3s/onboard.sh` (mode 755). Completes fresh-HA onboarding (owner user `admin`/`admin123`, matching `e2e/run-tests.sh` conventions) and prints an access token on stdout:
+Create `e2e/k3s/onboard.sh` (mode 755). Completes fresh-HA onboarding (owner user `admin`/`admin123`, matching `e2e/run-tests.sh` conventions), **saves the refresh token** to `/tmp/ha-records-test.refresh`, and prints an access token on stdout:
 
 ```bash
 #!/bin/bash
-# Complete onboarding on a FRESH Home Assistant and print an access token.
+# Complete onboarding on a FRESH Home Assistant.
+# Saves the refresh token to /tmp/ha-records-test.refresh and prints an access token.
 # Usage: HA_BASE_URL=http://localhost:18125 ./onboard.sh
 set -euo pipefail
 HA="${HA_BASE_URL:-http://localhost:18125}"
+REFRESH_FILE=/tmp/ha-records-test.refresh
 
 # 1. Create owner user -> auth code
 CODE=$(curl -sf -X POST "$HA/api/onboarding/users" \
@@ -441,12 +447,14 @@ CODE=$(curl -sf -X POST "$HA/api/onboarding/users" \
   -d "{\"client_id\":\"$HA/\",\"name\":\"Admin\",\"username\":\"admin\",\"password\":\"admin123\",\"language\":\"en\"}" \
   | python3 -c 'import sys,json;print(json.load(sys.stdin)["auth_code"])')
 
-# 2. Exchange auth code for access token
-TOKEN=$(curl -sf -X POST "$HA/auth/token" \
-  -d "grant_type=authorization_code&code=$CODE&client_id=$HA/" \
-  | python3 -c 'import sys,json;print(json.load(sys.stdin)["access_token"])')
+# 2. Exchange auth code for tokens; persist refresh token
+RESP=$(curl -sf -X POST "$HA/auth/token" \
+  -d "grant_type=authorization_code&code=$CODE&client_id=$HA/")
+TOKEN=$(echo "$RESP" | python3 -c 'import sys,json;print(json.load(sys.stdin)["access_token"])')
+echo "$RESP" | python3 -c 'import sys,json;print(json.load(sys.stdin)["refresh_token"])' > "$REFRESH_FILE"
+chmod 600 "$REFRESH_FILE"
 
-# 3. Finish remaining onboarding steps (idempotent-ish; ignore analytics failure)
+# 3. Finish remaining onboarding steps (ignore analytics failure)
 curl -sf -X POST "$HA/api/onboarding/core_config" \
   -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' -d '{}' >/dev/null
 curl -s  -X POST "$HA/api/onboarding/analytics" \
@@ -458,38 +466,104 @@ curl -sf -X POST "$HA/api/onboarding/integration" \
 echo "$TOKEN"
 ```
 
+Create `e2e/k3s/token.sh` (mode 755). Mints a fresh ~30-min access token from the saved refresh token — call it at the start of every Task 8 phase:
+
+```bash
+#!/bin/bash
+# Print a fresh access token using the refresh token saved by onboard.sh.
+set -euo pipefail
+HA="${HA_BASE_URL:-http://localhost:18125}"
+REFRESH=$(cat /tmp/ha-records-test.refresh)
+curl -sf -X POST "$HA/auth/token" \
+  -d "grant_type=refresh_token&refresh_token=$REFRESH&client_id=$HA/" \
+  | python3 -c 'import sys,json;print(json.load(sys.stdin)["access_token"])'
+```
+
+- [ ] **Step 2b: Write the bootstrap script (creates the first config entries)**
+
+Create `e2e/k3s/bootstrap.sh` (mode 755). On a fresh HA neither integration is loaded (config-flow-only; `ha_health_record` has no `async_setup`), so their services don't exist yet. This creates one config entry per domain via the config-flow REST API with **known, fixed IDs**, which loads the integrations and registers all services:
+
+```bash
+#!/bin/bash
+# Create the first ha_finance + ha_health_record config entries (fixed IDs).
+# Usage: HA_TOKEN=... ./bootstrap.sh
+set -euo pipefail
+HA="${HA_BASE_URL:-http://localhost:18125}"
+
+flow() {  # $1=handler  $2=user-step JSON
+  FLOW_ID=$(curl -sf -X POST "$HA/api/config/config_entries/flow" \
+    -H "Authorization: Bearer $HA_TOKEN" -H 'Content-Type: application/json' \
+    -d "{\"handler\":\"$1\",\"show_advanced_options\":false}" \
+    | python3 -c 'import sys,json;print(json.load(sys.stdin)["flow_id"])')
+  RESULT=$(curl -sf -X POST "$HA/api/config/config_entries/flow/$FLOW_ID" \
+    -H "Authorization: Bearer $HA_TOKEN" -H 'Content-Type: application/json' -d "$2")
+  TYPE=$(echo "$RESULT" | python3 -c 'import sys,json;print(json.load(sys.stdin).get("type",""))')
+  if [ "$TYPE" != "create_entry" ]; then
+    echo "Bootstrap failed for $1: $RESULT" >&2
+    exit 1
+  fi
+  echo "Created $1 entry."
+}
+
+flow ha_finance '{"account_name":"Retention Test","account_id":"retention_test_acct","initial_balance":0}'
+flow ha_health_record '{"member_name":"Retention Test","member_id":"retention_test_member"}'
+```
+
+(Field keys verified against `config_flow.py`: finance `account_name`/`account_id`/`initial_balance`; health `member_name`/`member_id` — both flows honor the explicit IDs.)
+
 - [ ] **Step 3: Write the retention test script**
 
-Create `e2e/k3s/retention_test.py` (mode 755). Python stdlib only. Two phases so the pod restart happens between them:
+Create `e2e/k3s/retention_test.py` (mode 755). Python stdlib only. Assumes `bootstrap.sh` already created the account/member entries with the fixed IDs. Two phases so the pod restart happens between them; auto-refreshes the access token on 401 using `/tmp/ha-records-test.refresh`:
 
 ```python
 #!/usr/bin/env python3
 """Retention E2E: prove no data loss past the old limits.
 
-Usage:
-  HA_TOKEN=... ./retention_test.py seed     # create data past old limits, verify counts
-  HA_TOKEN=... ./retention_test.py verify   # re-verify counts (run after pod restart)
+Usage (after onboard.sh + bootstrap.sh):
+  HA_TOKEN=... ./retention_test.py seed     # insert data past old limits, verify
+  HA_TOKEN=... ./retention_test.py verify   # re-verify counts (after pod restart)
 
-Env: HA_BASE_URL (default http://localhost:18125), HA_TOKEN (required)
+Env: HA_BASE_URL (default http://localhost:18125), HA_TOKEN (required).
+Auto-refreshes the token on 401 via /tmp/ha-records-test.refresh.
 Exit code 0 = all checks passed.
+NOT idempotent: re-running `seed` doubles the data. To retry, delete the
+namespace and redeploy first.
 """
 from __future__ import annotations
 
 import json
 import os
 import sys
+import urllib.error
+import urllib.parse
 import urllib.request
 
 HA = os.environ.get("HA_BASE_URL", "http://localhost:18125")
 TOKEN = os.environ["HA_TOKEN"]
+REFRESH_FILE = "/tmp/ha-records-test.refresh"
 
-FINANCE_TX = 1100     # old limit: 1000
+FINANCE_TX = 1100       # old limit: 1000
 HEALTH_RECORDS = 10100  # old limit: 10000
-ACCOUNT_ID = "retention_test_acct"
-MEMBER_ID = "retention_test_member"
+ACCOUNT_ID = "retention_test_acct"    # created by bootstrap.sh
+MEMBER_ID = "retention_test_member"   # created by bootstrap.sh
 
 
-def call(domain: str, service: str, data: dict, response: bool = False) -> dict:
+def _refresh_token() -> None:
+    global TOKEN
+    with open(REFRESH_FILE) as f:
+        refresh = f.read().strip()
+    data = urllib.parse.urlencode({
+        "grant_type": "refresh_token",
+        "refresh_token": refresh,
+        "client_id": f"{HA}/",
+    }).encode()
+    with urllib.request.urlopen(urllib.request.Request(f"{HA}/auth/token", data=data)) as r:
+        TOKEN = json.loads(r.read())["access_token"]
+    print("  (access token refreshed)")
+
+
+def call(domain: str, service: str, data: dict, response: bool = False,
+         _retried: bool = False) -> dict:
     qs = "?return_response" if response else ""
     req = urllib.request.Request(
         f"{HA}/api/services/{domain}/{service}{qs}",
@@ -500,17 +574,24 @@ def call(domain: str, service: str, data: dict, response: bool = False) -> dict:
         },
         method="POST",
     )
-    with urllib.request.urlopen(req, timeout=60) as r:
-        body = r.read()
+    try:
+        with urllib.request.urlopen(req, timeout=60) as r:
+            body = r.read()
+    except urllib.error.HTTPError as err:
+        if err.code == 401 and not _retried:
+            _refresh_token()
+            return call(domain, service, data, response, _retried=True)
+        print(f"HTTP {err.code} calling {domain}.{service}: {err.read().decode()[:500]}")
+        raise
     parsed = json.loads(body) if body else {}
     return parsed.get("service_response", parsed) if isinstance(parsed, dict) else parsed
 
 
-def finance_tx_count() -> int:
-    csv_resp = call("ha_finance", "export_csv", {"account_id": ACCOUNT_ID}, response=True)
-    csv_text = csv_resp.get("csv", "") if isinstance(csv_resp, dict) else ""
-    lines = [l for l in csv_text.strip().splitlines() if l.strip()]
-    return max(0, len(lines) - 1)  # minus header row
+def finance_state() -> tuple[int, float]:
+    """Return (transaction_count, balance) via ha_finance.get_account."""
+    resp = call("ha_finance", "get_account", {"account_id": ACCOUNT_ID}, response=True)
+    account = resp.get("account", {})
+    return len(account.get("transactions", [])), account.get("balance", -1.0)
 
 
 def health_record_count() -> int:
@@ -522,7 +603,7 @@ def health_record_count() -> int:
     return len(resp.get("records", []))
 
 
-def check(name: str, actual: int, expected: int) -> bool:
+def check(name: str, actual, expected) -> bool:
     ok = actual == expected
     print(f"{'PASS' if ok else 'FAIL'}  {name}: {actual} (expected {expected})")
     return ok
@@ -530,8 +611,6 @@ def check(name: str, actual: int, expected: int) -> bool:
 
 def seed() -> bool:
     print(f"== Seeding finance: {FINANCE_TX} transactions ==")
-    call("ha_finance", "add_account",
-         {"account_id": ACCOUNT_ID, "name": "Retention Test", "initial_balance": 0})
     for i in range(FINANCE_TX):
         call("ha_finance", "add_transaction",
              {"account_id": ACCOUNT_ID, "amount": 1.0, "note": f"tx_{i}"})
@@ -539,11 +618,9 @@ def seed() -> bool:
             print(f"  {i + 1}/{FINANCE_TX}")
 
     print(f"== Seeding health: {HEALTH_RECORDS} records ==")
-    call("ha_health_record", "add_member",
-         {"member_id": MEMBER_ID, "name": "Retention Test"})
+    # type_id is auto-generated from name: "Feeding" -> "feeding"
     call("ha_health_record", "add_record_type",
-         {"member_id": MEMBER_ID, "record_type": "feeding",
-          "name": "Feeding", "unit": "ml"})
+         {"member_id": MEMBER_ID, "name": "Feeding", "unit": "ml"})
     for i in range(HEALTH_RECORDS):
         call("ha_health_record", "log_record",
              {"member_id": MEMBER_ID, "record_type": "feeding", "value": float(i)})
@@ -554,7 +631,9 @@ def seed() -> bool:
 
 
 def verify() -> bool:
-    ok = check("finance transactions retained", finance_tx_count(), FINANCE_TX)
+    tx_count, balance = finance_state()
+    ok = check("finance transactions retained", tx_count, FINANCE_TX)
+    ok &= check("finance balance correct", balance, float(FINANCE_TX))
     ok &= check("health records retained", health_record_count(), HEALTH_RECORDS)
     return ok
 
@@ -565,12 +644,12 @@ if __name__ == "__main__":
     sys.exit(0 if passed else 1)
 ```
 
-**Note for implementer:** field names for `add_account`/`add_member`/`add_record_type`/`log_record` must match `custom_components/*/services.yaml` — verify them before running (e.g. `grep -A20 'add_member:' custom_components/ha_health_record/services.yaml`) and adjust the payload keys if they differ.
+(Response shapes verified against `services.py` on this branch: `get_account` → `{"account": {"balance", "transactions": [...]}}`; `get_records` → `{"records": [...]}`; `add_record_type` requires `member_id`/`name`/`unit` and generates `type_id` from `name`. The account/member are NOT created here — `bootstrap.sh` creates them via config flow because `ha_finance.add_account` auto-generates IDs and `ha_health_record.add_member` requires an existing entry to even be registered.)
 
 - [ ] **Step 4: Commit the harness**
 
 ```bash
-chmod +x e2e/k3s/onboard.sh e2e/k3s/retention_test.py
+chmod +x e2e/k3s/onboard.sh e2e/k3s/token.sh e2e/k3s/bootstrap.sh e2e/k3s/retention_test.py
 git add e2e/k3s/
 git commit -m "test(e2e): add disposable k3s HA retention test harness"
 git push
@@ -600,27 +679,32 @@ kubectl -n ha-records-test rollout status deployment/homeassistant --timeout=600
 
 Expected: `deployment "homeassistant" successfully rolled out`.
 
-- [ ] **Step 2: Port-forward and onboard**
+- [ ] **Step 2: Port-forward, onboard, bootstrap config entries**
+
+Port-forward PID goes to a file (shell job control does not survive separate command blocks):
 
 ```bash
 kubectl -n ha-records-test port-forward svc/homeassistant 18125:8123 >/tmp/pf.log 2>&1 &
+echo $! > /tmp/pf.pid
 sleep 3
 export HA_BASE_URL=http://localhost:18125
 export HA_TOKEN=$(bash e2e/k3s/onboard.sh)
 curl -sf -H "Authorization: Bearer $HA_TOKEN" $HA_BASE_URL/api/ && echo OK
+bash e2e/k3s/bootstrap.sh
 ```
 
-Expected: `{"message": "API running."}` then `OK`.
+Expected: `{"message": "API running."}`, `OK`, then `Created ha_finance entry.` and `Created ha_health_record entry.` — this loads both integrations and registers their services (they are config-flow-only; without an entry the services don't exist). Gate #2 partially verified here.
 
-- [ ] **Step 3: Check both components loaded cleanly (gate #2)**
+- [ ] **Step 3: Seed past the old limits (gates #3 and #4)**
 
-Component setup happens when the first config entry is created by `add_account`/`add_member` (services are registered at integration load). First create minimal entries, then check logs:
+Mint a fresh token first (the onboarding token may be near its ~30-min expiry):
 
 ```bash
+export HA_TOKEN=$(bash e2e/k3s/token.sh)
 python3 e2e/k3s/retention_test.py seed 2>&1 | tee /tmp/retention-seed.log
 ```
 
-Expected: final lines `PASS finance transactions retained: 1100` and `PASS health records retained: 10100`, exit 0. (Gates #3 and #4. Sequential REST calls: expect roughly 5-15 minutes for the 11,200 calls.)
+Expected: `PASS finance transactions retained: 1100`, `PASS finance balance correct: 1100.0`, `PASS health records retained: 10100`, exit 0. (Sequential REST calls: expect roughly 5-15 minutes for the 11,200 calls; the script auto-refreshes its token on 401. NOT idempotent — to retry after a partial failure, delete the namespace and restart from Step 1.)
 
 - [ ] **Step 4: Log check — no errors, no trim/prune mentions (gates #2 and #5)**
 
@@ -635,12 +719,15 @@ Expected: `CLEAN`. (The trim/prune code paths no longer exist, so the events can
 ```bash
 kubectl -n ha-records-test rollout restart deployment/homeassistant
 kubectl -n ha-records-test rollout status deployment/homeassistant --timeout=600s
-kill %1 2>/dev/null; kubectl -n ha-records-test port-forward svc/homeassistant 18125:8123 >/tmp/pf.log 2>&1 &
+kill $(cat /tmp/pf.pid) 2>/dev/null
+kubectl -n ha-records-test port-forward svc/homeassistant 18125:8123 >/tmp/pf.log 2>&1 &
+echo $! > /tmp/pf.pid
 sleep 5
+export HA_TOKEN=$(bash e2e/k3s/token.sh)   # fresh token; auth state persisted on PVC
 python3 e2e/k3s/retention_test.py verify
 ```
 
-Expected: both PASS lines again, exit 0. Note: the restart also re-runs onboarding? No — onboarding is already complete (persisted in `.storage` on the PVC); the same `HA_TOKEN` remains valid.
+Expected: all three PASS lines again, exit 0. Onboarding does not re-run — users/entries/records are all in `.storage` on the PVC, and the refresh token remains valid across restarts.
 
 - [ ] **Step 6: Frontend panel check (gate #7)**
 
@@ -655,7 +742,7 @@ Expected: tests pass. If the suite has environment problems unrelated to retenti
 
 - [ ] **Step 7: Write the report and attach to the PR**
 
-Compose `/tmp/retention-e2e-report.md` summarizing all 7 gate results (PASS/FAIL each, with counts and durations), then:
+Compose `/tmp/retention-e2e-report.md` summarizing all 7 gate results (PASS/FAIL each, with counts and durations). **The report must state explicitly** that gate #5 (zero trimmed/pruned events) is verified by log absence plus the fact that the event-firing code paths were deleted from the codebase — a live event listener is unnecessary since the events can no longer be constructed. Then:
 
 ```bash
 export GH_TOKEN=$(git -C /home/woowtechcluster1/Woow_ha_records remote get-url origin | sed -E 's#https://[^:]+:([^@]+)@.*#\1#')
@@ -669,8 +756,9 @@ gh pr comment --repo WOOWTECH/Woow_ha_records fix/permanent-retention --body-fil
 - [ ] **Step 1: Teardown ONLY after user confirms** they don't want to inspect the instance:
 
 ```bash
-kill %1 2>/dev/null  # stop port-forward
+kill $(cat /tmp/pf.pid) 2>/dev/null  # stop port-forward
 kubectl delete namespace ha-records-test
+rm -f /tmp/ha-records-test.refresh /tmp/pf.pid
 ```
 
 - [ ] **Step 2: Report to user**: PR URL, E2E report summary, reminder that merging is the user's call (per spec, the agent never merges).
