@@ -116,6 +116,15 @@ const sharedStylesLit = `
     height: 100%;
   }
   .search-row-input::placeholder { color: var(--secondary-text-color); }
+
+  /* ACTION ROW (add button + sort, below search) */
+  .action-row {
+    display: flex;
+    align-items: center;
+    padding: 8px 16px;
+    margin: 0 -16px;
+    gap: 8px;
+  }
 `;
 
 // Translation helper
@@ -1885,19 +1894,9 @@ class HaAssetPanel extends LitElement {
             <svg viewBox="0 0 24 24"><path fill="currentColor" d="M3,6H21V8H3V6M3,11H21V13H3V11M3,16H21V18H3V16Z"/></svg>
           </button>
           <h1 class="top-bar-title">${this._localize("title")}</h1>
-          <div class="top-bar-actions">
-            <button
-              class="top-bar-action-btn"
-              @click=${this._openAddDialog}
-              title="${this._localize("add_asset")}"
-              aria-label="${this._localize("add_asset")}"
-            >
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M17,13H13V17H11V13H7V11H11V7H13V11H17M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2Z"/></svg>
-            </button>
-          </div>
         </div>
 
-        <!-- Search Row + Sort -->
+        <!-- Search Row (full width) -->
         <div class="search-row">
           <div class="search-row-input-wrapper">
             <svg class="search-row-icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M9.5,3A6.5,6.5 0 0,1 16,9.5C16,11.11 15.41,12.59 14.44,13.73L14.71,14H15.5L20.5,19L19,20.5L14,15.5V14.71L13.73,14.44C12.59,15.41 11.11,16 9.5,16A6.5,6.5 0 0,1 3,9.5A6.5,6.5 0 0,1 9.5,3M9.5,5C7,5 5,7 5,9.5C5,12 7,14 9.5,14C12,14 14,12 14,9.5C14,7 12,5 9.5,5Z"/></svg>
@@ -1910,6 +1909,18 @@ class HaAssetPanel extends LitElement {
               @input=${this._onSearchInput}
             />
           </div>
+        </div>
+
+        <!-- Action Row: Add button + Sort -->
+        <div class="action-row">
+          <button
+            class="btn btn-primary"
+            @click=${this._openAddDialog}
+            title="${this._localize("add_asset")}"
+            aria-label="${this._localize("add_asset")}"
+          >
+            + ${this._localize("add_asset")}
+          </button>
           ${this._renderSortDropdown()}
         </div>
 

@@ -51,7 +51,6 @@ A custom sidebar panel is served at ``/ha-health-record``.
 Events
 ~~~~~~
 * ``ha_health_record_record_logged``   -- fired after a record is persisted
-* ``ha_health_record_records_pruned``  -- fired after old records are pruned
 """
 from __future__ import annotations
 

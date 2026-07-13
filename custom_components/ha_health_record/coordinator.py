@@ -22,7 +22,6 @@ from .const import (
     CONF_RECORD_TYPE,
     CONF_RECORD_UNIT,
     DOMAIN,
-    EVENT_RECORDS_PRUNED,
     STORAGE_KEY,
     STORAGE_VERSION,
 )
@@ -30,7 +29,6 @@ from .const import (
 _LOGGER = logging.getLogger(__name__)
 
 SAVE_DELAY = 1  # seconds -- batches rapid operations into a single write
-MAX_RECORDS = 10_000  # oldest records are pruned beyond this limit
 
 
 def signal_record_updated(member_id: str, type_id: str) -> str:
@@ -279,27 +277,6 @@ class HealthRecordCoordinator:
             "records": self.records,
         }
 
-    def _prune_records(self) -> None:
-        """Remove oldest records if the list exceeds MAX_RECORDS."""
-        overflow = len(self.records) - MAX_RECORDS
-        if overflow > 0:
-            del self.records[:overflow]
-            _LOGGER.warning(
-                "Pruned %d oldest record(s) for member %s (limit %d)",
-                overflow,
-                self.member_id,
-                MAX_RECORDS,
-            )
-            self.hass.bus.async_fire(
-                EVENT_RECORDS_PRUNED,
-                {
-                    "member_id": self.member_id,
-                    "member_name": self.member_name,
-                    "pruned_count": overflow,
-                    "max_records": MAX_RECORDS,
-                },
-            )
-
     def get_device_info(self) -> DeviceInfo:
         """Return device info for this member."""
         return DeviceInfo(
@@ -373,7 +350,6 @@ class HealthRecordCoordinator:
             "note": record_set.current_note,
             "timestamp": record_timestamp.isoformat(),
         })
-        self._prune_records()
 
         # Schedule save
         self._async_schedule_save()

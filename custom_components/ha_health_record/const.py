@@ -19,7 +19,6 @@ CONF_RECORD_UNIT = "record_unit"
 
 # Event names
 EVENT_RECORD_LOGGED = f"{DOMAIN}_record_logged"
-EVENT_RECORDS_PRUNED = f"{DOMAIN}_records_pruned"
 
 # Default record types (merged from activity + growth)
 DEFAULT_RECORD_TYPES = [

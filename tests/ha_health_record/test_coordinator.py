@@ -11,7 +11,6 @@ from homeassistant.core import HomeAssistant
 from homeassistant.util import dt as dt_util
 
 from custom_components.ha_health_record.coordinator import (
-    MAX_RECORDS,
     HealthRecordCoordinator,
     Record,
     RecordSet,
@@ -251,10 +250,10 @@ class TestHealthRecordCoordinator:
         record = coordinator.log_record("nonexistent_type")
         assert record is None
 
-    async def test_prune_records_at_max(self, coordinator):
-        """Test that records are pruned when exceeding MAX_RECORDS."""
-        # Pre-fill with MAX_RECORDS entries
-        for i in range(MAX_RECORDS):
+    async def test_records_never_pruned(self, coordinator):
+        """Records are kept permanently -- exceeding the old 10,000 limit loses nothing."""
+        old_limit = 10_000
+        for i in range(old_limit):
             coordinator.records.append({
                 "id": f"rec_{i}",
                 "record_type": "feeding",
@@ -265,16 +264,12 @@ class TestHealthRecordCoordinator:
                 "timestamp": f"2025-01-01T{i % 24:02d}:00:00+00:00",
             })
 
-        assert len(coordinator.records) == MAX_RECORDS
-
-        # Log one more record - should trigger pruning
+        # Log one more record past the old limit
         coordinator.set_record_value("feeding", 999.0)
         coordinator.log_record("feeding")
 
-        assert len(coordinator.records) == MAX_RECORDS
-        # The oldest record should have been removed
-        assert coordinator.records[0]["id"] == "rec_1"  # rec_0 was pruned
-        # The new record should be the last one
+        assert len(coordinator.records) == old_limit + 1
+        assert coordinator.records[0]["id"] == "rec_0"  # oldest still present
         assert coordinator.records[-1]["value"] == 999.0
 
     async def test_delete_record_by_uuid(self, coordinator):

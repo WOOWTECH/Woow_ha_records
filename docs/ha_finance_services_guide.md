@@ -426,7 +426,6 @@ All errors are returned as HTTP 500 with a JSON body:
 | `ha_finance_recurring_executed` | A recurring plan auto-executed |
 | `ha_finance_balance_adjusted` | Balance manually adjusted |
 | `ha_finance_low_balance` | Balance dropped below threshold |
-| `ha_finance_transactions_trimmed` | Oldest transactions pruned (>1000 limit) |
 
 ---
 
