@@ -487,6 +487,9 @@ Create `e2e/k3s/bootstrap.sh` (mode 755). On a fresh HA neither integration is l
 #!/bin/bash
 # Create the first ha_finance + ha_health_record config entries (fixed IDs).
 # Usage: HA_TOKEN=... ./bootstrap.sh
+# Note: on an ALREADY-bootstrapped instance the flow returns
+# {"type":"abort","reason":"already_configured"} and this exits 1 —
+# that state is fine; do not tear down the namespace just for this.
 set -euo pipefail
 HA="${HA_BASE_URL:-http://localhost:18125}"
 
@@ -681,7 +684,7 @@ Expected: `deployment "homeassistant" successfully rolled out`.
 
 - [ ] **Step 2: Port-forward, onboard, bootstrap config entries**
 
-Port-forward PID goes to a file (shell job control does not survive separate command blocks):
+Port-forward PID goes to a file (shell job control does not survive separate command blocks). Run `onboard.sh` and `bootstrap.sh` in the SAME shell block — `bootstrap.sh` needs the `HA_TOKEN` exported by the onboarding line:
 
 ```bash
 kubectl -n ha-records-test port-forward svc/homeassistant 18125:8123 >/tmp/pf.log 2>&1 &
