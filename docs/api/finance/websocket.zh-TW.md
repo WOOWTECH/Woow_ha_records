@@ -8,10 +8,10 @@
 
 | 事件 | 載荷 | 觸發條件 |
 |------|------|----------|
-| `ha_finance_transaction_added` | `account`, `amount`, `note`, `type` | 透過協調器 `add_transaction` 後觸發 |
-| `ha_finance_recurring_executed` | `account`, `plan_id`, `title`, `amount` | 定期計畫在午夜執行時觸發 |
-| `ha_finance_balance_adjusted` | `account`, `old_balance`, `new_balance`, `diff` | 手動調整餘額後觸發 |
-| `ha_finance_low_balance` | `account`, `balance`, `threshold` | 餘額降至閾值以下時觸發（預設：1000） |
+| `woow_ha_records_finance_transaction_added` | `account`, `amount`, `note`, `type` | 透過協調器 `add_transaction` 後觸發 |
+| `woow_ha_records_finance_recurring_executed` | `account`, `plan_id`, `title`, `amount` | 定期計畫在午夜執行時觸發 |
+| `woow_ha_records_finance_balance_adjusted` | `account`, `old_balance`, `new_balance`, `diff` | 手動調整餘額後觸發 |
+| `woow_ha_records_finance_low_balance` | `account`, `balance`, `threshold` | 餘額降至閾值以下時觸發（預設：1000） |
 
 ### 實體模式
 
@@ -40,7 +40,7 @@
 | 交易類型 | `manual`, `recurring`, `adjustment` | 區分交易建立方式 |
 | 頻率選項 | `daily`, `weekly`, `monthly`, `yearly` | 定期計畫頻率 |
 
-### ha_finance/accounts
+### woow_ha_records/finance/accounts
 
 列出所有財務帳戶的基本資訊。
 
@@ -53,7 +53,7 @@
 ```json
 {
   "id": 23,
-  "type": "ha_finance/accounts"
+  "type": "woow_ha_records/finance/accounts"
 }
 ```
 
@@ -79,7 +79,7 @@
 
 ---
 
-### ha_finance/account
+### woow_ha_records/finance/account
 
 取得帳戶完整詳情，包含所有交易與定期計畫。
 
@@ -96,7 +96,7 @@
 ```json
 {
   "id": 24,
-  "type": "ha_finance/account",
+  "type": "woow_ha_records/finance/account",
   "account_id": "finance_abc123"
 }
 ```
@@ -149,9 +149,9 @@
 
 ---
 
-### ha_finance/add_transaction
+### woow_ha_records/finance/add_transaction
 
-新增財務交易。正數金額 = 收入，負數 = 支出。觸發 `ha_finance_transaction_added` 事件並檢查低餘額。
+新增財務交易。正數金額 = 收入，負數 = 支出。觸發 `woow_ha_records_finance_transaction_added` 事件並檢查低餘額。
 
 **驗證：** Public
 
@@ -169,7 +169,7 @@
 ```json
 {
   "id": 25,
-  "type": "ha_finance/add_transaction",
+  "type": "woow_ha_records/finance/add_transaction",
   "account_id": "finance_abc123",
   "amount": -500.0,
   "note": "Groceries"
@@ -206,12 +206,12 @@
 
 **副作用：**
 - 更新帳戶餘額
-- 觸發 `ha_finance_transaction_added` 事件
-- 餘額降至閾值以下時可能觸發 `ha_finance_low_balance`
+- 觸發 `woow_ha_records_finance_transaction_added` 事件
+- 餘額降至閾值以下時可能觸發 `woow_ha_records_finance_low_balance`
 
 ---
 
-### ha_finance/update_transaction
+### woow_ha_records/finance/update_transaction
 
 更新交易的金額或備註。若金額變更，餘額會重新計算。
 
@@ -231,7 +231,7 @@
 ```json
 {
   "id": 26,
-  "type": "ha_finance/update_transaction",
+  "type": "woow_ha_records/finance/update_transaction",
   "account_id": "finance_abc123",
   "transaction_id": "tx_a1b2c3d4",
   "amount": -450.0,
@@ -262,7 +262,7 @@
 
 ---
 
-### ha_finance/delete_transaction
+### woow_ha_records/finance/delete_transaction
 
 刪除交易。交易金額會從餘額中反轉。
 
@@ -280,7 +280,7 @@
 ```json
 {
   "id": 27,
-  "type": "ha_finance/delete_transaction",
+  "type": "woow_ha_records/finance/delete_transaction",
   "account_id": "finance_abc123",
   "transaction_id": "tx_a1b2c3d4"
 }
@@ -309,7 +309,7 @@
 
 ---
 
-### ha_finance/add_plan
+### woow_ha_records/finance/add_plan
 
 為帳戶新增定期計畫。計畫在排定日期到達時於午夜自動執行。
 
@@ -338,7 +338,7 @@
 ```json
 {
   "id": 28,
-  "type": "ha_finance/add_plan",
+  "type": "woow_ha_records/finance/add_plan",
   "account_id": "finance_abc123",
   "title": "Monthly Rent",
   "amount": -15000.0,
@@ -370,7 +370,7 @@
 
 ---
 
-### ha_finance/update_plan
+### woow_ha_records/finance/update_plan
 
 更新定期計畫的屬性。
 
@@ -394,7 +394,7 @@
 ```json
 {
   "id": 29,
-  "type": "ha_finance/update_plan",
+  "type": "woow_ha_records/finance/update_plan",
   "account_id": "finance_abc123",
   "plan_id": "plan_a1b2c3d4",
   "amount": -16000.0,
@@ -425,7 +425,7 @@
 
 ---
 
-### ha_finance/delete_plan
+### woow_ha_records/finance/delete_plan
 
 刪除定期計畫並清理關聯的感測器實體。
 
@@ -443,7 +443,7 @@
 ```json
 {
   "id": 30,
-  "type": "ha_finance/delete_plan",
+  "type": "woow_ha_records/finance/delete_plan",
   "account_id": "finance_abc123",
   "plan_id": "plan_a1b2c3d4"
 }
@@ -465,7 +465,7 @@
 
 ---
 
-### ha_finance/chart_data
+### woow_ha_records/finance/chart_data
 
 取得月度收支彙總資料供圖表使用。回傳結果按時間由舊到新排列。
 
@@ -483,7 +483,7 @@
 ```json
 {
   "id": 31,
-  "type": "ha_finance/chart_data",
+  "type": "woow_ha_records/finance/chart_data",
   "account_id": "finance_abc123",
   "months": 3
 }
@@ -516,7 +516,7 @@
 
 ---
 
-### ha_finance/add_account
+### woow_ha_records/finance/add_account
 
 建立新財務帳戶。透過設定流程建立新的 ConfigEntry，設定協調器與感測器實體。
 
@@ -534,7 +534,7 @@
 ```json
 {
   "id": 32,
-  "type": "ha_finance/add_account",
+  "type": "woow_ha_records/finance/add_account",
   "name": "Savings Account",
   "initial_balance": 100000.0
 }
@@ -572,7 +572,7 @@
 
 ---
 
-### ha_finance/update_account
+### woow_ha_records/finance/update_account
 
 更新帳戶的名稱或備註。若名稱變更，ConfigEntry 標題與裝置註冊表也會更新。
 
@@ -591,7 +591,7 @@
 ```json
 {
   "id": 33,
-  "type": "ha_finance/update_account",
+  "type": "woow_ha_records/finance/update_account",
   "account_id": "finance_abc123",
   "name": "Family Savings",
   "notes": "Emergency fund"
@@ -622,7 +622,7 @@
 
 ---
 
-### ha_finance/delete_account
+### woow_ha_records/finance/delete_account
 
 移除 ConfigEntry 以刪除財務帳戶。觸發完整清理。
 
@@ -639,7 +639,7 @@
 ```json
 {
   "id": 34,
-  "type": "ha_finance/delete_account",
+  "type": "woow_ha_records/finance/delete_account",
   "account_id": "finance_abc123"
 }
 ```

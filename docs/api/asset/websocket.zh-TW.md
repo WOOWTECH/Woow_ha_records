@@ -18,7 +18,7 @@
 
 資產 ID 格式為 `asset_{uuid4_hex}`（例如 `asset_a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4`）。
 
-### ha_asset_record/list
+### woow_ha_records/asset/list
 
 列出所有追蹤中的資產及完整詳情。
 
@@ -31,7 +31,7 @@
 ```json
 {
   "id": 13,
-  "type": "ha_asset_record/list"
+  "type": "woow_ha_records/asset/list"
 }
 ```
 
@@ -68,7 +68,7 @@
 
 ---
 
-### ha_asset_record/create
+### woow_ha_records/asset/create
 
 建立新資產。回傳含自動產生 ID 的資產資料。
 
@@ -92,7 +92,7 @@
 ```json
 {
   "id": 14,
-  "type": "ha_asset_record/create",
+  "type": "woow_ha_records/asset/create",
   "name": "MacBook Pro",
   "brand": "Apple",
   "category": "Electronics",
@@ -139,7 +139,7 @@
 
 ---
 
-### ha_asset_record/update
+### woow_ha_records/asset/update
 
 更新現有資產的一個或多個欄位。
 
@@ -164,7 +164,7 @@
 ```json
 {
   "id": 15,
-  "type": "ha_asset_record/update",
+  "type": "woow_ha_records/asset/update",
   "asset_id": "asset_a1b2c3d4e5f6...",
   "value": 45000.0,
   "maintenance_md": "## 2025-01 Maintenance\n- Replaced battery"
@@ -205,7 +205,7 @@
 
 ---
 
-### ha_asset_record/delete
+### woow_ha_records/asset/delete
 
 刪除資產及所有關聯實體。
 
@@ -222,7 +222,7 @@
 ```json
 {
   "id": 16,
-  "type": "ha_asset_record/delete",
+  "type": "woow_ha_records/asset/delete",
   "asset_id": "asset_a1b2c3d4e5f6..."
 }
 ```

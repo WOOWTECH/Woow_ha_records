@@ -21,7 +21,7 @@ For each note, the following entities are created:
 | Note title | 200 characters |
 | Note content | 100,000 characters (100KB) |
 
-### ha_note_record/get_data
+### woow_ha_records/note/get_data
 
 List all categories and all notes.
 
@@ -34,7 +34,7 @@ List all categories and all notes.
 ```json
 {
   "id": 17,
-  "type": "ha_note_record/get_data"
+  "type": "woow_ha_records/note/get_data"
 }
 ```
 
@@ -75,7 +75,7 @@ List all categories and all notes.
 
 ---
 
-### ha_note_record/create_category
+### woow_ha_records/note/create_category
 
 Create a new note category.
 
@@ -92,7 +92,7 @@ Create a new note category.
 ```json
 {
   "id": 18,
-  "type": "ha_note_record/create_category",
+  "type": "woow_ha_records/note/create_category",
   "name": "Work Notes"
 }
 ```
@@ -122,7 +122,7 @@ Create a new note category.
 
 ---
 
-### ha_note_record/create_note
+### woow_ha_records/note/create_note
 
 Create a new note in a category.
 
@@ -142,7 +142,7 @@ Create a new note in a category.
 ```json
 {
   "id": 19,
-  "type": "ha_note_record/create_note",
+  "type": "woow_ha_records/note/create_note",
   "category_id": "cat_abc123",
   "title": "Meeting Notes",
   "content": "# Q1 Review\n- Revenue up 15%",
@@ -185,7 +185,7 @@ Create a new note in a category.
 
 ---
 
-### ha_note_record/update_note
+### woow_ha_records/note/update_note
 
 Update a note's title, content, or pinned state. All fields are optional — only provided fields are updated.
 
@@ -205,7 +205,7 @@ Update a note's title, content, or pinned state. All fields are optional — onl
 ```json
 {
   "id": 20,
-  "type": "ha_note_record/update_note",
+  "type": "woow_ha_records/note/update_note",
   "note_id": "note_def456",
   "title": "Q1 Meeting Notes (Updated)",
   "pinned": false
@@ -243,7 +243,7 @@ Update a note's title, content, or pinned state. All fields are optional — onl
 
 ---
 
-### ha_note_record/delete_note
+### woow_ha_records/note/delete_note
 
 Delete a note and clean up its entity registry entries.
 
@@ -260,7 +260,7 @@ Delete a note and clean up its entity registry entries.
 ```json
 {
   "id": 21,
-  "type": "ha_note_record/delete_note",
+  "type": "woow_ha_records/note/delete_note",
   "note_id": "note_def456"
 }
 ```
@@ -288,7 +288,7 @@ Delete a note and clean up its entity registry entries.
 
 ---
 
-### ha_note_record/delete_category
+### woow_ha_records/note/delete_category
 
 Delete a category and **cascade-delete all notes** within it. Also removes all entity registry and device registry entries.
 
@@ -305,7 +305,7 @@ Delete a category and **cascade-delete all notes** within it. Also removes all e
 ```json
 {
   "id": 22,
-  "type": "ha_note_record/delete_category",
+  "type": "woow_ha_records/note/delete_category",
   "category_id": "cat_abc123"
 }
 ```

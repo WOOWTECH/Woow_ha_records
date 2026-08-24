@@ -8,10 +8,10 @@ Multi-account financial tracking with transactions, recurring plans, and visuali
 
 | Event | Payload | Trigger |
 |-------|---------|---------|
-| `ha_finance_transaction_added` | `account`, `amount`, `note`, `type` | After `add_transaction` via coordinator |
-| `ha_finance_recurring_executed` | `account`, `plan_id`, `title`, `amount` | When a recurring plan executes at midnight |
-| `ha_finance_balance_adjusted` | `account`, `old_balance`, `new_balance`, `diff` | After manual balance adjustment |
-| `ha_finance_low_balance` | `account`, `balance`, `threshold` | When balance drops below threshold (default: 1000) |
+| `woow_ha_records_finance_transaction_added` | `account`, `amount`, `note`, `type` | After `add_transaction` via coordinator |
+| `woow_ha_records_finance_recurring_executed` | `account`, `plan_id`, `title`, `amount` | When a recurring plan executes at midnight |
+| `woow_ha_records_finance_balance_adjusted` | `account`, `old_balance`, `new_balance`, `diff` | After manual balance adjustment |
+| `woow_ha_records_finance_low_balance` | `account`, `balance`, `threshold` | When balance drops below threshold (default: 1000) |
 
 ### Entity Patterns
 
@@ -40,7 +40,7 @@ For each recurring plan in an account:
 | Transaction types | `manual`, `recurring`, `adjustment` | Distinguishes how transaction was created |
 | Frequency options | `daily`, `weekly`, `monthly`, `yearly` | Recurring plan frequencies |
 
-### ha_finance/accounts
+### woow_ha_records/finance/accounts
 
 List all financial accounts with basic info.
 
@@ -53,7 +53,7 @@ List all financial accounts with basic info.
 ```json
 {
   "id": 23,
-  "type": "ha_finance/accounts"
+  "type": "woow_ha_records/finance/accounts"
 }
 ```
 
@@ -79,7 +79,7 @@ List all financial accounts with basic info.
 
 ---
 
-### ha_finance/account
+### woow_ha_records/finance/account
 
 Get full account details including all transactions and recurring plans.
 
@@ -96,7 +96,7 @@ Get full account details including all transactions and recurring plans.
 ```json
 {
   "id": 24,
-  "type": "ha_finance/account",
+  "type": "woow_ha_records/finance/account",
   "account_id": "finance_abc123"
 }
 ```
@@ -149,9 +149,9 @@ Get full account details including all transactions and recurring plans.
 
 ---
 
-### ha_finance/add_transaction
+### woow_ha_records/finance/add_transaction
 
-Add a financial transaction. Positive amounts = income, negative = expense. Fires `ha_finance_transaction_added` event and checks for low balance.
+Add a financial transaction. Positive amounts = income, negative = expense. Fires `woow_ha_records_finance_transaction_added` event and checks for low balance.
 
 **Auth:** Public
 
@@ -169,7 +169,7 @@ Add a financial transaction. Positive amounts = income, negative = expense. Fire
 ```json
 {
   "id": 25,
-  "type": "ha_finance/add_transaction",
+  "type": "woow_ha_records/finance/add_transaction",
   "account_id": "finance_abc123",
   "amount": -500.0,
   "note": "Groceries"
@@ -206,12 +206,12 @@ Add a financial transaction. Positive amounts = income, negative = expense. Fire
 
 **Side Effects:**
 - Updates account balance
-- Fires `ha_finance_transaction_added` event
-- May fire `ha_finance_low_balance` if balance drops below threshold
+- Fires `woow_ha_records_finance_transaction_added` event
+- May fire `woow_ha_records_finance_low_balance` if balance drops below threshold
 
 ---
 
-### ha_finance/update_transaction
+### woow_ha_records/finance/update_transaction
 
 Update a transaction's amount or note. If amount changes, the balance is recalculated.
 
@@ -231,7 +231,7 @@ Update a transaction's amount or note. If amount changes, the balance is recalcu
 ```json
 {
   "id": 26,
-  "type": "ha_finance/update_transaction",
+  "type": "woow_ha_records/finance/update_transaction",
   "account_id": "finance_abc123",
   "transaction_id": "tx_a1b2c3d4",
   "amount": -450.0,
@@ -262,7 +262,7 @@ Update a transaction's amount or note. If amount changes, the balance is recalcu
 
 ---
 
-### ha_finance/delete_transaction
+### woow_ha_records/finance/delete_transaction
 
 Delete a transaction. The transaction amount is reversed from the balance.
 
@@ -280,7 +280,7 @@ Delete a transaction. The transaction amount is reversed from the balance.
 ```json
 {
   "id": 27,
-  "type": "ha_finance/delete_transaction",
+  "type": "woow_ha_records/finance/delete_transaction",
   "account_id": "finance_abc123",
   "transaction_id": "tx_a1b2c3d4"
 }
@@ -309,7 +309,7 @@ Delete a transaction. The transaction amount is reversed from the balance.
 
 ---
 
-### ha_finance/add_plan
+### woow_ha_records/finance/add_plan
 
 Add a recurring plan to an account. Plans auto-execute at midnight when their scheduled date arrives.
 
@@ -338,7 +338,7 @@ Add a recurring plan to an account. Plans auto-execute at midnight when their sc
 ```json
 {
   "id": 28,
-  "type": "ha_finance/add_plan",
+  "type": "woow_ha_records/finance/add_plan",
   "account_id": "finance_abc123",
   "title": "Monthly Rent",
   "amount": -15000.0,
@@ -370,7 +370,7 @@ Add a recurring plan to an account. Plans auto-execute at midnight when their sc
 
 ---
 
-### ha_finance/update_plan
+### woow_ha_records/finance/update_plan
 
 Update a recurring plan's properties.
 
@@ -394,7 +394,7 @@ Update a recurring plan's properties.
 ```json
 {
   "id": 29,
-  "type": "ha_finance/update_plan",
+  "type": "woow_ha_records/finance/update_plan",
   "account_id": "finance_abc123",
   "plan_id": "plan_a1b2c3d4",
   "amount": -16000.0,
@@ -425,7 +425,7 @@ Update a recurring plan's properties.
 
 ---
 
-### ha_finance/delete_plan
+### woow_ha_records/finance/delete_plan
 
 Delete a recurring plan and clean up associated sensor entities.
 
@@ -443,7 +443,7 @@ Delete a recurring plan and clean up associated sensor entities.
 ```json
 {
   "id": 30,
-  "type": "ha_finance/delete_plan",
+  "type": "woow_ha_records/finance/delete_plan",
   "account_id": "finance_abc123",
   "plan_id": "plan_a1b2c3d4"
 }
@@ -465,7 +465,7 @@ Delete a recurring plan and clean up associated sensor entities.
 
 ---
 
-### ha_finance/chart_data
+### woow_ha_records/finance/chart_data
 
 Get monthly income vs. expense aggregation for charts. Returns data sorted oldest-first.
 
@@ -483,7 +483,7 @@ Get monthly income vs. expense aggregation for charts. Returns data sorted oldes
 ```json
 {
   "id": 31,
-  "type": "ha_finance/chart_data",
+  "type": "woow_ha_records/finance/chart_data",
   "account_id": "finance_abc123",
   "months": 3
 }
@@ -516,7 +516,7 @@ Get monthly income vs. expense aggregation for charts. Returns data sorted oldes
 
 ---
 
-### ha_finance/add_account
+### woow_ha_records/finance/add_account
 
 Create a new financial account. This creates a new ConfigEntry via the config flow, which sets up a coordinator and sensor entities.
 
@@ -534,7 +534,7 @@ Create a new financial account. This creates a new ConfigEntry via the config fl
 ```json
 {
   "id": 32,
-  "type": "ha_finance/add_account",
+  "type": "woow_ha_records/finance/add_account",
   "name": "Savings Account",
   "initial_balance": 100000.0
 }
@@ -572,7 +572,7 @@ Create a new financial account. This creates a new ConfigEntry via the config fl
 
 ---
 
-### ha_finance/update_account
+### woow_ha_records/finance/update_account
 
 Update an account's name or notes. If the name changes, the ConfigEntry title and device registry are also updated.
 
@@ -591,7 +591,7 @@ Update an account's name or notes. If the name changes, the ConfigEntry title an
 ```json
 {
   "id": 33,
-  "type": "ha_finance/update_account",
+  "type": "woow_ha_records/finance/update_account",
   "account_id": "finance_abc123",
   "name": "Family Savings",
   "notes": "Emergency fund"
@@ -622,7 +622,7 @@ Update an account's name or notes. If the name changes, the ConfigEntry title an
 
 ---
 
-### ha_finance/delete_account
+### woow_ha_records/finance/delete_account
 
 Delete a financial account by removing its ConfigEntry. This triggers full cleanup.
 
@@ -639,7 +639,7 @@ Delete a financial account by removing its ConfigEntry. This triggers full clean
 ```json
 {
   "id": 34,
-  "type": "ha_finance/delete_account",
+  "type": "woow_ha_records/finance/delete_account",
   "account_id": "finance_abc123"
 }
 ```

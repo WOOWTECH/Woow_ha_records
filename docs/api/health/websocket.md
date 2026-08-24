@@ -8,7 +8,7 @@ Track health metrics (weight, temperature, feeding, sleep, etc.) for multiple fa
 
 | Event | Payload | Trigger |
 |-------|---------|---------|
-| `ha_health_record_record_logged` | `member_id`, `member_name`, `record_type`, `record_name`, `value`, `unit`, `note`, `timestamp` | Fired after `log_record` succeeds |
+| `woow_ha_records_health_record_logged` | `member_id`, `member_name`, `record_type`, `record_name`, `value`, `unit`, `note`, `timestamp` | Fired after `log_record` succeeds |
 
 ### Entity Patterns
 
@@ -21,7 +21,7 @@ For each member + record_type combination, the following entities are created:
 | `number` | `{member_id}_{type_id}_value` | Input number for setting value before logging |
 | `text` | `{member_id}_{type_id}_note` | Input text for setting note before logging |
 
-### ha_health_record/get_members
+### woow_ha_records/health/get_members
 
 List all family members with their record types, current values, and latest records.
 
@@ -34,7 +34,7 @@ List all family members with their record types, current values, and latest reco
 ```json
 {
   "id": 1,
-  "type": "ha_health_record/get_members"
+  "type": "woow_ha_records/health/get_members"
 }
 ```
 
@@ -76,7 +76,7 @@ List all family members with their record types, current values, and latest reco
 
 ---
 
-### ha_health_record/get_records
+### woow_ha_records/health/get_records
 
 Query health records within a time range across all members. Returns records sorted by timestamp descending.
 
@@ -94,7 +94,7 @@ Query health records within a time range across all members. Returns records sor
 ```json
 {
   "id": 2,
-  "type": "ha_health_record/get_records",
+  "type": "woow_ha_records/health/get_records",
   "start_time": "2025-01-01T00:00:00Z",
   "end_time": "2025-01-31T23:59:59Z"
 }
@@ -133,7 +133,7 @@ Query health records within a time range across all members. Returns records sor
 
 ---
 
-### ha_health_record/export_csv
+### woow_ha_records/health/export_csv
 
 Export all records for a specific member as CSV content. CSV columns: `timestamp`, `record_type`, `record_name`, `value`, `unit`, `note`.
 
@@ -150,7 +150,7 @@ Export all records for a specific member as CSV content. CSV columns: `timestamp
 ```json
 {
   "id": 3,
-  "type": "ha_health_record/export_csv",
+  "type": "woow_ha_records/health/export_csv",
   "member_id": "baby_ming"
 }
 ```
@@ -178,9 +178,9 @@ Export all records for a specific member as CSV content. CSV columns: `timestamp
 
 ---
 
-### ha_health_record/log_record
+### woow_ha_records/health/log_record
 
-Log a health record entry for a member. Fires `ha_health_record_record_logged` event. Updates the sensor entity for that record type. Records are kept permanently.
+Log a health record entry for a member. Fires `woow_ha_records_health_record_logged` event. Updates the sensor entity for that record type. Records are kept permanently.
 
 **Auth:** Admin
 
@@ -199,7 +199,7 @@ Log a health record entry for a member. Fires `ha_health_record_record_logged` e
 ```json
 {
   "id": 4,
-  "type": "ha_health_record/log_record",
+  "type": "woow_ha_records/health/log_record",
   "member_id": "baby_ming",
   "record_type": "weight",
   "value": 8.6,
@@ -228,12 +228,12 @@ Log a health record entry for a member. Fires `ha_health_record_record_logged` e
 | `log_failed` | Failed to log record | Internal error |
 
 **Side Effects:**
-- Fires event `ha_health_record_record_logged`
+- Fires event `woow_ha_records_health_record_logged`
 - Updates `sensor.{member_id}_{type_id}_record` entity state
 
 ---
 
-### ha_health_record/update_record
+### woow_ha_records/health/update_record
 
 Update an existing record's value, note, or timestamp. Supports lookup by UUID (`record_id`) or by `type_id` + `timestamp` fallback.
 
@@ -256,7 +256,7 @@ Update an existing record's value, note, or timestamp. Supports lookup by UUID (
 ```json
 {
   "id": 5,
-  "type": "ha_health_record/update_record",
+  "type": "woow_ha_records/health/update_record",
   "member_id": "baby_ming",
   "type_id": "weight",
   "timestamp": "2025-01-10T08:30:00+00:00",
@@ -286,7 +286,7 @@ Update an existing record's value, note, or timestamp. Supports lookup by UUID (
 
 ---
 
-### ha_health_record/delete_record
+### woow_ha_records/health/delete_record
 
 Delete a specific record by UUID or type+timestamp fallback.
 
@@ -306,7 +306,7 @@ Delete a specific record by UUID or type+timestamp fallback.
 ```json
 {
   "id": 6,
-  "type": "ha_health_record/delete_record",
+  "type": "woow_ha_records/health/delete_record",
   "member_id": "baby_ming",
   "type_id": "weight",
   "timestamp": "2025-01-10T08:30:00+00:00",
@@ -334,7 +334,7 @@ Delete a specific record by UUID or type+timestamp fallback.
 
 ---
 
-### ha_health_record/add_record_type
+### woow_ha_records/health/add_record_type
 
 Add a custom record type (measurement kind) to a member. Triggers ConfigEntry reload to create new entities.
 
@@ -355,7 +355,7 @@ Add a custom record type (measurement kind) to a member. Triggers ConfigEntry re
 ```json
 {
   "id": 7,
-  "type": "ha_health_record/add_record_type",
+  "type": "woow_ha_records/health/add_record_type",
   "member_id": "baby_ming",
   "name": "Temperature",
   "unit": "°C",
@@ -390,7 +390,7 @@ The `type_id` is auto-generated from `name`: lowercased, spaces/hyphens replaced
 
 ---
 
-### ha_health_record/update_record_type
+### woow_ha_records/health/update_record_type
 
 Update an existing record type's name, unit, or default value settings.
 
@@ -412,7 +412,7 @@ Update an existing record type's name, unit, or default value settings.
 ```json
 {
   "id": 8,
-  "type": "ha_health_record/update_record_type",
+  "type": "woow_ha_records/health/update_record_type",
   "member_id": "baby_ming",
   "type_id": "temperature",
   "name": "Body Temperature",
@@ -443,7 +443,7 @@ Update an existing record type's name, unit, or default value settings.
 
 ---
 
-### ha_health_record/delete_record_type
+### woow_ha_records/health/delete_record_type
 
 Delete a record type and clean up all associated entities from the entity registry.
 
@@ -461,7 +461,7 @@ Delete a record type and clean up all associated entities from the entity regist
 ```json
 {
   "id": 9,
-  "type": "ha_health_record/delete_record_type",
+  "type": "woow_ha_records/health/delete_record_type",
   "member_id": "baby_ming",
   "type_id": "temperature"
 }
@@ -491,7 +491,7 @@ Delete a record type and clean up all associated entities from the entity regist
 
 ---
 
-### ha_health_record/add_member
+### woow_ha_records/health/add_member
 
 Add a new family member. Creates a new ConfigEntry via the config flow.
 
@@ -512,7 +512,7 @@ If `member_id` is not provided, it is auto-generated: lowercased, spaces/hyphens
 ```json
 {
   "id": 10,
-  "type": "ha_health_record/add_member",
+  "type": "woow_ha_records/health/add_member",
   "name": "Baby Ming",
   "note": "Born 2024-01-15"
 }
@@ -543,7 +543,7 @@ If `member_id` is not provided, it is auto-generated: lowercased, spaces/hyphens
 
 ---
 
-### ha_health_record/update_member
+### woow_ha_records/health/update_member
 
 Update a member's name or note.
 
@@ -562,7 +562,7 @@ Update a member's name or note.
 ```json
 {
   "id": 11,
-  "type": "ha_health_record/update_member",
+  "type": "woow_ha_records/health/update_member",
   "member_id": "baby_ming",
   "name": "Ming (Updated)",
   "note": "Now 1 year old"
@@ -592,7 +592,7 @@ Update a member's name or note.
 
 ---
 
-### ha_health_record/delete_member
+### woow_ha_records/health/delete_member
 
 Delete a family member and all associated data by removing the ConfigEntry.
 
@@ -609,7 +609,7 @@ Delete a family member and all associated data by removing the ConfigEntry.
 ```json
 {
   "id": 12,
-  "type": "ha_health_record/delete_member",
+  "type": "woow_ha_records/health/delete_member",
   "member_id": "baby_ming"
 }
 ```

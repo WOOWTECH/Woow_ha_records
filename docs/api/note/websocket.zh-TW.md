@@ -21,7 +21,7 @@
 | 筆記標題 | 200 字元 |
 | 筆記內容 | 100,000 字元（100KB） |
 
-### ha_note_record/get_data
+### woow_ha_records/note/get_data
 
 列出所有分類與所有筆記。
 
@@ -34,7 +34,7 @@
 ```json
 {
   "id": 17,
-  "type": "ha_note_record/get_data"
+  "type": "woow_ha_records/note/get_data"
 }
 ```
 
@@ -75,7 +75,7 @@
 
 ---
 
-### ha_note_record/create_category
+### woow_ha_records/note/create_category
 
 建立新筆記分類。
 
@@ -92,7 +92,7 @@
 ```json
 {
   "id": 18,
-  "type": "ha_note_record/create_category",
+  "type": "woow_ha_records/note/create_category",
   "name": "Work Notes"
 }
 ```
@@ -122,7 +122,7 @@
 
 ---
 
-### ha_note_record/create_note
+### woow_ha_records/note/create_note
 
 在分類中建立新筆記。
 
@@ -142,7 +142,7 @@
 ```json
 {
   "id": 19,
-  "type": "ha_note_record/create_note",
+  "type": "woow_ha_records/note/create_note",
   "category_id": "cat_abc123",
   "title": "Meeting Notes",
   "content": "# Q1 Review\n- Revenue up 15%",
@@ -185,7 +185,7 @@
 
 ---
 
-### ha_note_record/update_note
+### woow_ha_records/note/update_note
 
 更新筆記的標題、內容或置頂狀態。所有欄位皆為選填 — 僅更新提供的欄位。
 
@@ -205,7 +205,7 @@
 ```json
 {
   "id": 20,
-  "type": "ha_note_record/update_note",
+  "type": "woow_ha_records/note/update_note",
   "note_id": "note_def456",
   "title": "Q1 Meeting Notes (Updated)",
   "pinned": false
@@ -243,7 +243,7 @@
 
 ---
 
-### ha_note_record/delete_note
+### woow_ha_records/note/delete_note
 
 刪除筆記並清理實體註冊表項目。
 
@@ -260,7 +260,7 @@
 ```json
 {
   "id": 21,
-  "type": "ha_note_record/delete_note",
+  "type": "woow_ha_records/note/delete_note",
   "note_id": "note_def456"
 }
 ```
@@ -288,7 +288,7 @@
 
 ---
 
-### ha_note_record/delete_category
+### woow_ha_records/note/delete_category
 
 刪除分類並**連鎖刪除其中所有筆記**。同時移除所有實體註冊表與裝置註冊表項目。
 
@@ -305,7 +305,7 @@
 ```json
 {
   "id": 22,
-  "type": "ha_note_record/delete_category",
+  "type": "woow_ha_records/note/delete_category",
   "category_id": "cat_abc123"
 }
 ```

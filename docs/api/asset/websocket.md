@@ -18,7 +18,7 @@ For each asset, the following entities are created:
 
 Asset IDs follow the format `asset_{uuid4_hex}` (e.g., `asset_a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4`).
 
-### ha_asset_record/list
+### woow_ha_records/asset/list
 
 List all tracked assets with full details.
 
@@ -31,7 +31,7 @@ List all tracked assets with full details.
 ```json
 {
   "id": 13,
-  "type": "ha_asset_record/list"
+  "type": "woow_ha_records/asset/list"
 }
 ```
 
@@ -68,7 +68,7 @@ List all tracked assets with full details.
 
 ---
 
-### ha_asset_record/create
+### woow_ha_records/asset/create
 
 Create a new asset. Returns the created asset with its auto-generated ID.
 
@@ -92,7 +92,7 @@ Create a new asset. Returns the created asset with its auto-generated ID.
 ```json
 {
   "id": 14,
-  "type": "ha_asset_record/create",
+  "type": "woow_ha_records/asset/create",
   "name": "MacBook Pro",
   "brand": "Apple",
   "category": "Electronics",
@@ -139,7 +139,7 @@ Create a new asset. Returns the created asset with its auto-generated ID.
 
 ---
 
-### ha_asset_record/update
+### woow_ha_records/asset/update
 
 Update one or more fields of an existing asset.
 
@@ -164,7 +164,7 @@ Update one or more fields of an existing asset.
 ```json
 {
   "id": 15,
-  "type": "ha_asset_record/update",
+  "type": "woow_ha_records/asset/update",
   "asset_id": "asset_a1b2c3d4e5f6...",
   "value": 45000.0,
   "maintenance_md": "## 2025-01 Maintenance\n- Replaced battery"
@@ -205,7 +205,7 @@ Update one or more fields of an existing asset.
 
 ---
 
-### ha_asset_record/delete
+### woow_ha_records/asset/delete
 
 Delete an asset and all associated entities.
 
@@ -222,7 +222,7 @@ Delete an asset and all associated entities.
 ```json
 {
   "id": 16,
-  "type": "ha_asset_record/delete",
+  "type": "woow_ha_records/asset/delete",
   "asset_id": "asset_a1b2c3d4e5f6..."
 }
 ```

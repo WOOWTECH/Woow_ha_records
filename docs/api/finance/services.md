@@ -1,30 +1,30 @@
-# ha_finance Services — AI Agent & Automation Guide
+# Finance Area Services — AI Agent & Automation Guide
 
 ## Quick Reference
 
 | Service | Type | Required Fields | Description |
 |---------|------|----------------|-------------|
-| `ha_finance.get_accounts` | Query | — | List all accounts |
-| `ha_finance.get_account` | Query | `account_id` | Full account detail |
-| `ha_finance.get_chart_data` | Query | `account_id` | Monthly income/expense data |
-| `ha_finance.export_csv` | Query | `account_id` | Export transactions as CSV |
-| `ha_finance.add_transaction` | Write | `account_id`, `amount` | Add income/expense |
-| `ha_finance.update_transaction` | Write | `account_id`, `transaction_id` | Modify transaction |
-| `ha_finance.delete_transaction` | Write | `account_id`, `transaction_id` | Delete + revert balance |
-| `ha_finance.add_plan` | Write | `account_id`, `title`, `amount`, `frequency`, `day` | Create recurring plan |
-| `ha_finance.update_plan` | Write | `account_id`, `plan_id` | Modify plan settings |
-| `ha_finance.delete_plan` | Write | `account_id`, `plan_id` | Delete recurring plan |
-| `ha_finance.add_account` | Write | `name` | Create new account |
-| `ha_finance.update_account` | Write | `account_id` | Rename / update notes |
-| `ha_finance.delete_account` | Write | `account_id` | Delete account + all data |
-| `ha_finance.adjust_balance` | Write | `account_id`, `new_balance` | Set absolute balance |
+| `woow_ha_records.finance_get_accounts` | Query | — | List all accounts |
+| `woow_ha_records.finance_get_account` | Query | `account_id` | Full account detail |
+| `woow_ha_records.finance_get_chart_data` | Query | `account_id` | Monthly income/expense data |
+| `woow_ha_records.finance_export_csv` | Query | `account_id` | Export transactions as CSV |
+| `woow_ha_records.finance_add_transaction` | Write | `account_id`, `amount` | Add income/expense |
+| `woow_ha_records.finance_update_transaction` | Write | `account_id`, `transaction_id` | Modify transaction |
+| `woow_ha_records.finance_delete_transaction` | Write | `account_id`, `transaction_id` | Delete + revert balance |
+| `woow_ha_records.finance_add_plan` | Write | `account_id`, `title`, `amount`, `frequency`, `day` | Create recurring plan |
+| `woow_ha_records.finance_update_plan` | Write | `account_id`, `plan_id` | Modify plan settings |
+| `woow_ha_records.finance_delete_plan` | Write | `account_id`, `plan_id` | Delete recurring plan |
+| `woow_ha_records.finance_add_account` | Write | `name` | Create new account |
+| `woow_ha_records.finance_update_account` | Write | `account_id` | Rename / update notes |
+| `woow_ha_records.finance_delete_account` | Write | `account_id` | Delete account + all data |
+| `woow_ha_records.finance_adjust_balance` | Write | `account_id`, `new_balance` | Set absolute balance |
 
 ## Calling Convention
 
 ### REST API
 
 ```
-POST /api/services/ha_finance/<service_name>?return_response
+POST /api/services/woow_ha_records/finance_<verb>?return_response
 Authorization: Bearer <long-lived-access-token>
 Content-Type: application/json
 ```
@@ -36,7 +36,7 @@ Content-Type: application/json
 
 ```python
 response = await hass.services.async_call(
-    "ha_finance",
+    "woow_ha_records",
     "get_accounts",
     {},
     blocking=True,
@@ -59,7 +59,7 @@ curl -s -X POST \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{}' \
-  "http://localhost:8123/api/services/ha_finance/get_accounts?return_response"
+  "http://localhost:8123/api/services/woow_ha_records/finance/get_accounts?return_response"
 ```
 
 **Response:**
@@ -94,7 +94,7 @@ curl -s -X POST \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"account_id": "my_wallet"}' \
-  "http://localhost:8123/api/services/ha_finance/get_account?return_response"
+  "http://localhost:8123/api/services/woow_ha_records/finance/get_account?return_response"
 ```
 
 **Response:**
@@ -141,7 +141,7 @@ curl -s -X POST \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"account_id": "my_wallet", "months": 3}' \
-  "http://localhost:8123/api/services/ha_finance/get_chart_data?return_response"
+  "http://localhost:8123/api/services/woow_ha_records/finance/get_chart_data?return_response"
 ```
 
 **Response:**
@@ -165,7 +165,7 @@ curl -s -X POST \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"account_id": "my_wallet"}' \
-  "http://localhost:8123/api/services/ha_finance/export_csv?return_response"
+  "http://localhost:8123/api/services/woow_ha_records/finance/export_csv?return_response"
 ```
 
 **Response:**
@@ -196,14 +196,14 @@ curl -s -X POST \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"account_id": "my_wallet", "amount": -350, "note": "Grocery shopping"}' \
-  "http://localhost:8123/api/services/ha_finance/add_transaction?return_response"
+  "http://localhost:8123/api/services/woow_ha_records/finance/add_transaction?return_response"
 
 # Record income
 curl -s -X POST \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"account_id": "my_wallet", "amount": 50000, "note": "May salary"}' \
-  "http://localhost:8123/api/services/ha_finance/add_transaction?return_response"
+  "http://localhost:8123/api/services/woow_ha_records/finance/add_transaction?return_response"
 ```
 
 **Response:**
@@ -224,8 +224,8 @@ curl -s -X POST \
 ```
 
 **Events fired:**
-- `ha_finance_transaction_added` — always
-- `ha_finance_low_balance` — if balance drops below threshold
+- `woow_ha_records_finance_transaction_added` — always
+- `woow_ha_records_finance_low_balance` — if balance drops below threshold
 
 ### 6. update_transaction — Modify Transaction
 
@@ -235,7 +235,7 @@ curl -s -X POST \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"account_id": "my_wallet", "transaction_id": "tx_a1b2c3d4", "amount": -300, "note": "Corrected amount"}' \
-  "http://localhost:8123/api/services/ha_finance/update_transaction?return_response"
+  "http://localhost:8123/api/services/woow_ha_records/finance/update_transaction?return_response"
 ```
 
 Balance is automatically adjusted by the difference (old -350 → new -300 = +50 to balance).
@@ -248,7 +248,7 @@ curl -s -X POST \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"account_id": "my_wallet", "transaction_id": "tx_a1b2c3d4"}' \
-  "http://localhost:8123/api/services/ha_finance/delete_transaction?return_response"
+  "http://localhost:8123/api/services/woow_ha_records/finance/delete_transaction?return_response"
 ```
 
 Balance is reverted: if the deleted transaction was -350, balance increases by 350.
@@ -273,21 +273,21 @@ curl -s -X POST \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"account_id": "my_wallet", "title": "Monthly Salary", "amount": 50000, "frequency": "monthly", "day": 5}' \
-  "http://localhost:8123/api/services/ha_finance/add_plan?return_response"
+  "http://localhost:8123/api/services/woow_ha_records/finance/add_plan?return_response"
 
 # Weekly grocery budget on Saturdays (day=6)
 curl -s -X POST \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"account_id": "my_wallet", "title": "Weekly Groceries", "amount": -2000, "frequency": "weekly", "day": 6}' \
-  "http://localhost:8123/api/services/ha_finance/add_plan?return_response"
+  "http://localhost:8123/api/services/woow_ha_records/finance/add_plan?return_response"
 
 # Yearly insurance on March 15
 curl -s -X POST \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"account_id": "my_wallet", "title": "Insurance Premium", "amount": -12000, "frequency": "yearly", "day": 15, "month": 3}' \
-  "http://localhost:8123/api/services/ha_finance/add_plan?return_response"
+  "http://localhost:8123/api/services/woow_ha_records/finance/add_plan?return_response"
 ```
 
 **Response:**
@@ -310,14 +310,14 @@ curl -s -X POST \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"account_id": "my_wallet", "plan_id": "plan_e5f6g7h8", "amount": 55000, "title": "Salary (Raise)"}' \
-  "http://localhost:8123/api/services/ha_finance/update_plan?return_response"
+  "http://localhost:8123/api/services/woow_ha_records/finance/update_plan?return_response"
 
 # Pause a plan
 curl -s -X POST \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"account_id": "my_wallet", "plan_id": "plan_e5f6g7h8", "active": false}' \
-  "http://localhost:8123/api/services/ha_finance/update_plan?return_response"
+  "http://localhost:8123/api/services/woow_ha_records/finance/update_plan?return_response"
 ```
 
 ### 10. delete_plan — Remove Recurring Plan
@@ -328,7 +328,7 @@ curl -s -X POST \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"account_id": "my_wallet", "plan_id": "plan_e5f6g7h8"}' \
-  "http://localhost:8123/api/services/ha_finance/delete_plan?return_response"
+  "http://localhost:8123/api/services/woow_ha_records/finance/delete_plan?return_response"
 ```
 
 ### 11. add_account — Create New Account
@@ -339,7 +339,7 @@ curl -s -X POST \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"name": "Emergency Fund", "initial_balance": 50000}' \
-  "http://localhost:8123/api/services/ha_finance/add_account?return_response"
+  "http://localhost:8123/api/services/woow_ha_records/finance/add_account?return_response"
 ```
 
 **Response:**
@@ -363,7 +363,7 @@ curl -s -X POST \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"account_id": "my_wallet", "name": "Primary Wallet", "notes": "For daily spending only"}' \
-  "http://localhost:8123/api/services/ha_finance/update_account?return_response"
+  "http://localhost:8123/api/services/woow_ha_records/finance/update_account?return_response"
 ```
 
 ### 13. delete_account — Delete Account & All Data
@@ -374,7 +374,7 @@ curl -s -X POST \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"account_id": "emergency_fund"}' \
-  "http://localhost:8123/api/services/ha_finance/delete_account?return_response"
+  "http://localhost:8123/api/services/woow_ha_records/finance/delete_account?return_response"
 ```
 
 Deletes the config entry, all transactions, plans, and sensor entities.
@@ -387,14 +387,14 @@ curl -s -X POST \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"account_id": "my_wallet", "new_balance": 20000}' \
-  "http://localhost:8123/api/services/ha_finance/adjust_balance?return_response"
+  "http://localhost:8123/api/services/woow_ha_records/finance/adjust_balance?return_response"
 ```
 
 Creates an adjustment transaction for the difference. If balance was 15000 and you set 20000, an adjustment of +5000 is created.
 
 **Events fired:**
-- `ha_finance_balance_adjusted` with `{account, balance, old_balance, diff}`
-- `ha_finance_low_balance` if new balance is below threshold
+- `woow_ha_records_finance_balance_adjusted` with `{account, balance, old_balance, diff}`
+- `woow_ha_records_finance_low_balance` if new balance is below threshold
 
 ---
 
@@ -422,10 +422,10 @@ All errors are returned as HTTP 500 with a JSON body:
 
 | Event | When |
 |-------|------|
-| `ha_finance_transaction_added` | New transaction recorded |
-| `ha_finance_recurring_executed` | A recurring plan auto-executed |
-| `ha_finance_balance_adjusted` | Balance manually adjusted |
-| `ha_finance_low_balance` | Balance dropped below threshold |
+| `woow_ha_records_finance_transaction_added` | New transaction recorded |
+| `woow_ha_records_finance_recurring_executed` | A recurring plan auto-executed |
+| `woow_ha_records_finance_balance_adjusted` | Balance manually adjusted |
+| `woow_ha_records_finance_low_balance` | Balance dropped below threshold |
 
 ---
 
@@ -434,11 +434,11 @@ All errors are returned as HTTP 500 with a JSON body:
 ### Daily Expense Tracking
 ```python
 # 1. Find the account
-accounts = await hass.services.async_call("ha_finance", "get_accounts", {}, return_response=True)
+accounts = await hass.services.async_call("woow_ha_records", "get_accounts", {}, return_response=True)
 wallet = next(a for a in accounts["accounts"] if a["name"] == "My Wallet")
 
 # 2. Log an expense
-await hass.services.async_call("ha_finance", "add_transaction", {
+await hass.services.async_call("woow_ha_records", "add_transaction", {
     "account_id": wallet["id"],
     "amount": -150,
     "note": "Lunch at restaurant"
@@ -448,7 +448,7 @@ await hass.services.async_call("ha_finance", "add_transaction", {
 ### Monthly Budget Report
 ```python
 # Get chart data for the last 3 months
-chart = await hass.services.async_call("ha_finance", "get_chart_data", {
+chart = await hass.services.async_call("woow_ha_records", "get_chart_data", {
     "account_id": "my_wallet",
     "months": 3
 }, return_response=True)
@@ -461,7 +461,7 @@ for month in chart["data"]:
 ### Setup Recurring Bills
 ```python
 # Auto-pay rent on the 1st of each month
-await hass.services.async_call("ha_finance", "add_plan", {
+await hass.services.async_call("woow_ha_records", "add_plan", {
     "account_id": "my_wallet",
     "title": "Rent",
     "amount": -15000,
@@ -472,7 +472,7 @@ await hass.services.async_call("ha_finance", "add_plan", {
 
 ### Export for External Analysis
 ```python
-csv_data = await hass.services.async_call("ha_finance", "export_csv", {
+csv_data = await hass.services.async_call("woow_ha_records", "export_csv", {
     "account_id": "my_wallet"
 }, return_response=True)
 
@@ -486,7 +486,7 @@ csv_data = await hass.services.async_call("ha_finance", "export_csv", {
 
 | Aspect | WebSocket | REST Service |
 |--------|-----------|-------------|
-| Protocol | WS `ha_finance/xxx` | POST `/api/services/ha_finance/xxx` |
+| Protocol | WS `woow_ha_records/finance/xxx` | POST `/api/services/woow_ha_records/finance/xxx` |
 | Auth | WS auth flow | Bearer token header |
 | Response | `connection.send_result()` | `return_response` query param |
 | Errors | `connection.send_error(code, msg)` | HTTP 500 + `ServiceValidationError` |

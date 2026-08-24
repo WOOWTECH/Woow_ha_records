@@ -8,7 +8,7 @@
 
 | 事件 | 載荷 | 觸發條件 |
 |------|------|----------|
-| `ha_health_record_record_logged` | `member_id`, `member_name`, `record_type`, `record_name`, `value`, `unit`, `note`, `timestamp` | `log_record` 成功後觸發 |
+| `woow_ha_records_health_record_logged` | `member_id`, `member_name`, `record_type`, `record_name`, `value`, `unit`, `note`, `timestamp` | `log_record` 成功後觸發 |
 
 ### 實體模式
 
@@ -21,7 +21,7 @@
 | `number` | `{member_id}_{type_id}_value` | 記錄前設定數值的輸入 |
 | `text` | `{member_id}_{type_id}_note` | 記錄前設定備註的輸入 |
 
-### ha_health_record/get_members
+### woow_ha_records/health/get_members
 
 列出所有家庭成員及其記錄類型、目前數值與最新記錄。
 
@@ -34,7 +34,7 @@
 ```json
 {
   "id": 1,
-  "type": "ha_health_record/get_members"
+  "type": "woow_ha_records/health/get_members"
 }
 ```
 
@@ -76,7 +76,7 @@
 
 ---
 
-### ha_health_record/get_records
+### woow_ha_records/health/get_records
 
 依時間範圍查詢健康記錄，跨所有成員。回傳結果按時間戳降序排列。
 
@@ -94,7 +94,7 @@
 ```json
 {
   "id": 2,
-  "type": "ha_health_record/get_records",
+  "type": "woow_ha_records/health/get_records",
   "start_time": "2025-01-01T00:00:00Z",
   "end_time": "2025-01-31T23:59:59Z"
 }
@@ -133,7 +133,7 @@
 
 ---
 
-### ha_health_record/export_csv
+### woow_ha_records/health/export_csv
 
 匯出特定成員的所有記錄為 CSV 內容。CSV 欄位：`timestamp`, `record_type`, `record_name`, `value`, `unit`, `note`。
 
@@ -150,7 +150,7 @@
 ```json
 {
   "id": 3,
-  "type": "ha_health_record/export_csv",
+  "type": "woow_ha_records/health/export_csv",
   "member_id": "baby_ming"
 }
 ```
@@ -178,9 +178,9 @@
 
 ---
 
-### ha_health_record/log_record
+### woow_ha_records/health/log_record
 
-記錄一筆健康數據。觸發 `ha_health_record_record_logged` 事件。更新該記錄類型的感測器實體。記錄永久保留。
+記錄一筆健康數據。觸發 `woow_ha_records_health_record_logged` 事件。更新該記錄類型的感測器實體。記錄永久保留。
 
 **驗證：** Admin
 
@@ -199,7 +199,7 @@
 ```json
 {
   "id": 4,
-  "type": "ha_health_record/log_record",
+  "type": "woow_ha_records/health/log_record",
   "member_id": "baby_ming",
   "record_type": "weight",
   "value": 8.6,
@@ -228,12 +228,12 @@
 | `log_failed` | Failed to log record | 內部錯誤 |
 
 **副作用：**
-- 觸發事件 `ha_health_record_record_logged`
+- 觸發事件 `woow_ha_records_health_record_logged`
 - 更新 `sensor.{member_id}_{type_id}_record` 實體狀態
 
 ---
 
-### ha_health_record/update_record
+### woow_ha_records/health/update_record
 
 更新現有記錄的數值、備註或時間戳。支援以 UUID（`record_id`）或以 `type_id` + `timestamp` 回退查找。
 
@@ -256,7 +256,7 @@
 ```json
 {
   "id": 5,
-  "type": "ha_health_record/update_record",
+  "type": "woow_ha_records/health/update_record",
   "member_id": "baby_ming",
   "type_id": "weight",
   "timestamp": "2025-01-10T08:30:00+00:00",
@@ -286,7 +286,7 @@
 
 ---
 
-### ha_health_record/delete_record
+### woow_ha_records/health/delete_record
 
 依 UUID 或類型 + 時間戳回退方式刪除特定記錄。
 
@@ -306,7 +306,7 @@
 ```json
 {
   "id": 6,
-  "type": "ha_health_record/delete_record",
+  "type": "woow_ha_records/health/delete_record",
   "member_id": "baby_ming",
   "type_id": "weight",
   "timestamp": "2025-01-10T08:30:00+00:00",
@@ -334,7 +334,7 @@
 
 ---
 
-### ha_health_record/add_record_type
+### woow_ha_records/health/add_record_type
 
 為成員新增自訂記錄類型（量測種類）。觸發 ConfigEntry 重新載入以建立新實體。
 
@@ -355,7 +355,7 @@
 ```json
 {
   "id": 7,
-  "type": "ha_health_record/add_record_type",
+  "type": "woow_ha_records/health/add_record_type",
   "member_id": "baby_ming",
   "name": "Temperature",
   "unit": "°C",
@@ -390,7 +390,7 @@
 
 ---
 
-### ha_health_record/update_record_type
+### woow_ha_records/health/update_record_type
 
 更新現有記錄類型的名稱、單位或預設值設定。
 
@@ -412,7 +412,7 @@
 ```json
 {
   "id": 8,
-  "type": "ha_health_record/update_record_type",
+  "type": "woow_ha_records/health/update_record_type",
   "member_id": "baby_ming",
   "type_id": "temperature",
   "name": "Body Temperature",
@@ -443,7 +443,7 @@
 
 ---
 
-### ha_health_record/delete_record_type
+### woow_ha_records/health/delete_record_type
 
 刪除記錄類型並從實體註冊表中清理所有關聯實體。
 
@@ -461,7 +461,7 @@
 ```json
 {
   "id": 9,
-  "type": "ha_health_record/delete_record_type",
+  "type": "woow_ha_records/health/delete_record_type",
   "member_id": "baby_ming",
   "type_id": "temperature"
 }
@@ -491,7 +491,7 @@
 
 ---
 
-### ha_health_record/add_member
+### woow_ha_records/health/add_member
 
 新增家庭成員。透過設定流程建立新的 ConfigEntry。
 
@@ -512,7 +512,7 @@
 ```json
 {
   "id": 10,
-  "type": "ha_health_record/add_member",
+  "type": "woow_ha_records/health/add_member",
   "name": "Baby Ming",
   "note": "Born 2024-01-15"
 }
@@ -543,7 +543,7 @@
 
 ---
 
-### ha_health_record/update_member
+### woow_ha_records/health/update_member
 
 更新成員的名稱或備註。
 
@@ -562,7 +562,7 @@
 ```json
 {
   "id": 11,
-  "type": "ha_health_record/update_member",
+  "type": "woow_ha_records/health/update_member",
   "member_id": "baby_ming",
   "name": "Ming (Updated)",
   "note": "Now 1 year old"
@@ -592,7 +592,7 @@
 
 ---
 
-### ha_health_record/delete_member
+### woow_ha_records/health/delete_member
 
 刪除家庭成員及所有關聯資料（移除 ConfigEntry）。
 
@@ -609,7 +609,7 @@
 ```json
 {
   "id": 12,
-  "type": "ha_health_record/delete_member",
+  "type": "woow_ha_records/health/delete_member",
   "member_id": "baby_ming"
 }
 ```

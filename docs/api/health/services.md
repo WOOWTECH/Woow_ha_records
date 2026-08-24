@@ -1,11 +1,11 @@
-# ha_health_record — Services Guide
+# Health Area Services Guide
 
-> **Domain:** `ha_health_record`
+> **Domain:** the `health` Area
 > **Total services:** 12 (3 query + 9 write)
 
 This guide covers all HA services exposed by the **Ha Health Record** integration.
 These services can be called from automations, scripts, Developer Tools, or via the
-REST API (`/api/services/ha_health_record/<service_name>`).
+REST API (`/api/services/woow_ha_records/health_<verb>`).
 
 ---
 
@@ -75,7 +75,7 @@ _(none)_
 ### YAML Example
 
 ```yaml
-service: ha_health_record.get_members
+service: woow_ha_records.health_get_members
 data: {}
 response_variable: members_result
 ```
@@ -87,7 +87,7 @@ response_variable: members_result
 > is optional — add it only when you need the response data.
 
 ```bash
-curl -X POST "http://YOUR_HA:8123/api/services/ha_health_record/get_members?return_response" \
+curl -X POST "http://YOUR_HA:8123/api/services/woow_ha_records/health/get_members?return_response" \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{}'
@@ -125,7 +125,7 @@ Query health records within a time range, across **all** members.
 ### YAML Example
 
 ```yaml
-service: ha_health_record.get_records
+service: woow_ha_records.health_get_records
 data:
   start_time: "2026-05-01T00:00:00"
   end_time: "2026-05-15T23:59:59"
@@ -135,7 +135,7 @@ response_variable: records_result
 ### REST API
 
 ```bash
-curl -X POST "http://YOUR_HA:8123/api/services/ha_health_record/get_records?return_response" \
+curl -X POST "http://YOUR_HA:8123/api/services/woow_ha_records/health/get_records?return_response" \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -169,7 +169,7 @@ Export all records for a member as CSV text.
 ### YAML Example
 
 ```yaml
-service: ha_health_record.export_csv
+service: woow_ha_records.health_export_csv
 data:
   member_id: "baby_emma"
 response_variable: csv_result
@@ -199,7 +199,7 @@ Log a new health record for a member.
 
 ### Events
 
-Fires `ha_health_record_record_logged` with:
+Fires `woow_ha_records_health_record_logged` with:
 ```json
 {
   "member_id": "baby_emma",
@@ -216,7 +216,7 @@ Fires `ha_health_record_record_logged` with:
 ### YAML Example
 
 ```yaml
-service: ha_health_record.log_record
+service: woow_ha_records.health_log_record
 data:
   member_id: "baby_emma"
   record_type: "weight"
@@ -227,7 +227,7 @@ data:
 ### YAML Example — with custom timestamp
 
 ```yaml
-service: ha_health_record.log_record
+service: woow_ha_records.health_log_record
 data:
   member_id: "baby_emma"
   record_type: "weight"
@@ -239,7 +239,7 @@ data:
 ### REST API
 
 ```bash
-curl -X POST "http://YOUR_HA:8123/api/services/ha_health_record/log_record" \
+curl -X POST "http://YOUR_HA:8123/api/services/woow_ha_records/health/log_record" \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -271,7 +271,7 @@ Update an existing health record.
 ### YAML Example
 
 ```yaml
-service: ha_health_record.update_record
+service: woow_ha_records.health_update_record
 data:
   member_id: "baby_emma"
   type_id: "weight"
@@ -298,7 +298,7 @@ Delete a single health record.
 ### YAML Example
 
 ```yaml
-service: ha_health_record.delete_record
+service: woow_ha_records.health_delete_record
 data:
   member_id: "baby_emma"
   type_id: "weight"
@@ -330,7 +330,7 @@ Add a new record type to a member. This triggers an entry reload to create the n
 ### YAML Example
 
 ```yaml
-service: ha_health_record.add_record_type
+service: woow_ha_records.health_add_record_type
 data:
   member_id: "baby_emma"
   name: "Blood Pressure"
@@ -359,7 +359,7 @@ Update the settings of an existing record type. Triggers entry reload.
 ### YAML Example
 
 ```yaml
-service: ha_health_record.update_record_type
+service: woow_ha_records.health_update_record_type
 data:
   member_id: "baby_emma"
   type_id: "blood_pressure"
@@ -384,7 +384,7 @@ Delete a record type and remove its associated entities. Triggers entry reload.
 ### YAML Example
 
 ```yaml
-service: ha_health_record.delete_record_type
+service: woow_ha_records.health_delete_record_type
 data:
   member_id: "baby_emma"
   type_id: "blood_pressure"
@@ -417,7 +417,7 @@ Add a new family member. Creates a new config entry, which triggers entity creat
 ### YAML Example
 
 ```yaml
-service: ha_health_record.add_member
+service: woow_ha_records.health_add_member
 data:
   name: "Baby Emma"
   note: "Born 2026-01-15"
@@ -426,7 +426,7 @@ data:
 ### YAML Example — with custom ID
 
 ```yaml
-service: ha_health_record.add_member
+service: woow_ha_records.health_add_member
 data:
   name: "Baby Emma"
   member_id: "emma"
@@ -450,7 +450,7 @@ Update a member's display name and note.
 ### YAML Example
 
 ```yaml
-service: ha_health_record.update_member
+service: woow_ha_records.health_update_member
 data:
   member_id: "baby_emma"
   name: "Emma (toddler)"
@@ -472,7 +472,7 @@ Delete a member and all associated data (config entry + storage file).
 ### YAML Example
 
 ```yaml
-service: ha_health_record.delete_member
+service: woow_ha_records.health_delete_member
 data:
   member_id: "baby_emma"
 ```
@@ -494,7 +494,7 @@ automation:
         entity_id: sensor.bathroom_scale_weight
         state: "available"
     action:
-      - service: ha_health_record.log_record
+      - service: woow_ha_records.health_log_record
         data:
           member_id: "baby_emma"
           record_type: "weight"
@@ -515,7 +515,7 @@ automation:
         weekday:
           - mon
     action:
-      - service: ha_health_record.export_csv
+      - service: woow_ha_records.health_export_csv
         data:
           member_id: "baby_emma"
         response_variable: csv_result
@@ -533,7 +533,7 @@ automation:
   - alias: "Notify on new health record"
     trigger:
       - platform: event
-        event_type: ha_health_record_record_logged
+        event_type: woow_ha_records_health_record_logged
     action:
       - service: notify.mobile_app
         data:
@@ -554,7 +554,7 @@ AI agents can call these services via the Home Assistant REST API.
 ### Base URL
 
 ```
-POST http://<HA_HOST>:8123/api/services/ha_health_record/<service_name>
+POST http://<HA_HOST>:8123/api/services/woow_ha_records/health_<verb>
 ```
 
 ### Headers
@@ -568,13 +568,13 @@ Content-Type: application/json
 
 ```bash
 # Get all members
-curl -s -X POST "http://HA:8123/api/services/ha_health_record/get_members?return_response" \
+curl -s -X POST "http://HA:8123/api/services/woow_ha_records/health/get_members?return_response" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{}'
 
 # Get records in a time range
-curl -s -X POST "http://HA:8123/api/services/ha_health_record/get_records?return_response" \
+curl -s -X POST "http://HA:8123/api/services/woow_ha_records/health/get_records?return_response" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -587,7 +587,7 @@ curl -s -X POST "http://HA:8123/api/services/ha_health_record/get_records?return
 
 ```bash
 # Log a record
-curl -s -X POST "http://HA:8123/api/services/ha_health_record/log_record" \
+curl -s -X POST "http://HA:8123/api/services/woow_ha_records/health/log_record" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -598,7 +598,7 @@ curl -s -X POST "http://HA:8123/api/services/ha_health_record/log_record" \
   }'
 
 # Add a new member (with response)
-curl -s -X POST "http://HA:8123/api/services/ha_health_record/add_member?return_response" \
+curl -s -X POST "http://HA:8123/api/services/woow_ha_records/health/add_member?return_response" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -608,7 +608,7 @@ curl -s -X POST "http://HA:8123/api/services/ha_health_record/add_member?return_
   }'
 
 # Add a record type (with response)
-curl -s -X POST "http://HA:8123/api/services/ha_health_record/add_record_type?return_response" \
+curl -s -X POST "http://HA:8123/api/services/woow_ha_records/health/add_record_type?return_response" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
