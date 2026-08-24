@@ -769,7 +769,14 @@ async def ws_add_account(
     await area.async_add_account(account_id, name, msg["initial_balance"])
     connection.send_result(
         msg["id"],
-        {"account_id": account_id, "name": name, "balance": msg["initial_balance"]},
+        {
+            "success": True,
+            "account": {
+                "id": account_id,
+                "name": name,
+                "balance": msg["initial_balance"],
+            },
+        },
     )
 
 
@@ -778,7 +785,7 @@ async def ws_add_account(
         vol.Required("type"): "woow_ha_records/finance/update_account",
         vol.Required("account_id"): str,
         vol.Optional("name"): str,
-        vol.Optional("low_balance_threshold"): vol.Coerce(float),
+        vol.Optional("notes"): str,
     }
 )
 @websocket_api.async_response
@@ -787,7 +794,7 @@ async def ws_update_account(
     connection: websocket_api.ActiveConnection,
     msg: dict[str, Any],
 ) -> None:
-    """Rename an Account or change its low-balance threshold."""
+    """Rename an Account or change its notes."""
     area = _area(hass)
     account = area.store.data.get_account(msg["account_id"])
     if account is None:
@@ -809,6 +816,9 @@ async def ws_update_account(
         )
         if device:
             device_reg.async_update_device(device.id, name=new_name)
+
+    if "notes" in msg:
+        account.notes = msg["notes"]
 
     await area.store.async_save()
 

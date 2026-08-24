@@ -92,9 +92,18 @@ class FinanceCoordinator(DataUpdateCoordinator[FinanceData]):
         """Fetch data from storage."""
         return await self.store.async_load()
 
-    async def async_setup(self) -> None:
-        """Set up the coordinator."""
-        await self.async_config_entry_first_refresh()
+    async def async_setup(self, *, during_entry_setup: bool = True) -> None:
+        """Set up the coordinator.
+
+        ``async_config_entry_first_refresh`` may only be called while the entry
+        is still setting up. Accounts created later — through a service or the
+        panel — start their coordinator against an already-loaded entry, and
+        take a plain refresh instead.
+        """
+        if during_entry_setup:
+            await self.async_config_entry_first_refresh()
+        else:
+            await self.async_refresh()
         # Schedule daily check for recurring plans at midnight
         self._unsub_time_change = async_track_time_change(
             self.hass, self._async_check_recurring_plans, hour=0, minute=0, second=0

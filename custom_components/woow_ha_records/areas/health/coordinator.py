@@ -129,6 +129,7 @@ class HealthRecordCoordinator:
         area: HealthArea,
         member_id: str,
         member_name: str,
+        note: str = "",
     ) -> None:
         """Initialize the coordinator for one Member.
 
@@ -145,6 +146,7 @@ class HealthRecordCoordinator:
         # Member info
         self.member_id: str = member_id
         self.member_name: str = member_name
+        self.note: str = note
 
         # Record sets (unified)
         self.record_sets: dict[str, RecordSet] = {}
@@ -152,6 +154,7 @@ class HealthRecordCoordinator:
     def load_from_dict(self, data: dict[str, Any]) -> None:
         """Populate this Member from its slice of the Area store."""
         self.member_name = data.get("name", self.member_name)
+        self.note = data.get("note", self.note)
         self.record_sets = {
             rs_data["type_id"]: RecordSet.from_dict(rs_data)
             for rs_data in data.get("record_sets", [])
@@ -175,6 +178,7 @@ class HealthRecordCoordinator:
         """Return this Member's slice of the Area store."""
         return {
             "name": self.member_name,
+            "note": self.note,
             "record_sets": [
                 record_set.to_dict() for record_set in self.record_sets.values()
             ],

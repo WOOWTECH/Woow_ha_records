@@ -54,7 +54,9 @@ class FinanceArea:
             await self._async_start_coordinator(account_id)
         _LOGGER.debug("Loaded finance Area: %d accounts", len(self.accounts))
 
-    async def _async_start_coordinator(self, account_id: str) -> FinanceCoordinator:
+    async def _async_start_coordinator(
+        self, account_id: str, *, during_entry_setup: bool = True
+    ) -> FinanceCoordinator:
         """Create and start the coordinator for one Account."""
         coordinator = FinanceCoordinator(
             self.hass,
@@ -63,7 +65,7 @@ class FinanceArea:
             account_id,
             DEFAULT_LOW_BALANCE_THRESHOLD,
         )
-        await coordinator.async_setup()
+        await coordinator.async_setup(during_entry_setup=during_entry_setup)
         self.accounts[account_id] = coordinator
         return coordinator
 
@@ -92,8 +94,9 @@ class FinanceArea:
             Account(id=account_id, name=name, balance=initial_balance)
         )
         await self.store.async_save()
-        coordinator = await self._async_start_coordinator(account_id)
-        await coordinator.async_refresh()
+        coordinator = await self._async_start_coordinator(
+            account_id, during_entry_setup=False
+        )
         self.async_notify_entities_changed()
         return coordinator
 

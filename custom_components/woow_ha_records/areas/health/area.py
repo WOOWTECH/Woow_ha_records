@@ -42,7 +42,11 @@ class HealthArea:
         data = await self._store.async_load() or {}
         for member_id, member_data in data.get("members", {}).items():
             coordinator = HealthRecordCoordinator(
-                self.hass, self, member_id, member_data.get("name", member_id)
+                self.hass,
+                self,
+                member_id,
+                member_data.get("name", member_id),
+                member_data.get("note", ""),
             )
             coordinator.load_from_dict(member_data)
             self.members[member_id] = coordinator
@@ -86,9 +90,13 @@ class HealthArea:
         """Return one Member's coordinator, or None if there is no such Member."""
         return self.members.get(member_id)
 
-    def add_member(self, member_id: str, member_name: str) -> HealthRecordCoordinator:
+    def add_member(
+        self, member_id: str, member_name: str, note: str = ""
+    ) -> HealthRecordCoordinator:
         """Create a Member and persist it."""
-        coordinator = HealthRecordCoordinator(self.hass, self, member_id, member_name)
+        coordinator = HealthRecordCoordinator(
+            self.hass, self, member_id, member_name, note
+        )
         self.members[member_id] = coordinator
         self.async_schedule_save()
         self.async_notify_entities_changed()

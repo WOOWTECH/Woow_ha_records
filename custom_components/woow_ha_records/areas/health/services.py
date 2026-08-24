@@ -110,7 +110,7 @@ async def handle_get_members(call: ServiceCall) -> ServiceResponse:
         member: dict[str, Any] = {
             "id": coordinator.member_id,
             "name": coordinator.member_name,
-            "note": coordinator.entry.data.get("note", ""),
+            "note": coordinator.note,
             "record_sets": [
                 {
                     "type": s.type_id,
@@ -409,6 +409,7 @@ async def handle_add_member(call: ServiceCall) -> ServiceResponse:
     hass = call.hass
     name = call.data["name"]
     member_id = call.data.get("member_id")
+    note = call.data.get("note", "")
 
     if not member_id:
         member_id = name.lower().replace(" ", "_").replace("-", "_")
@@ -430,7 +431,7 @@ async def handle_add_member(call: ServiceCall) -> ServiceResponse:
             translation_placeholders={"member_id": member_id},
         )
 
-    area.add_member(member_id, name)
+    area.add_member(member_id, name, note)
     return {"success": True, "member_id": member_id}
 
 
@@ -441,6 +442,7 @@ async def handle_update_member(call: ServiceCall) -> ServiceResponse:
 
     coordinator = _get_coordinator(hass, member_id)
     coordinator.member_name = call.data["name"]
+    coordinator.note = call.data.get("note", "")
     _area(hass).async_schedule_save()
 
     return {"success": True}

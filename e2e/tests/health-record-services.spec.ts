@@ -72,7 +72,7 @@ test.describe('health Area Services E2E Tests', () => {
       expect(r.status).toBe(200);
       expect(r.data.success).toBe(true);
       expect(r.data.member_id).toBe(SVC_MEMBER);
-      expect(r.data.entry_id).toBeTruthy();
+      // No entry_id any more: a Member is a store record, not a config entry.
       await waitReload();
     });
 

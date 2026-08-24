@@ -229,7 +229,7 @@ def ws_get_members(
         member = {
             "id": coordinator.member_id,
             "name": coordinator.member_name,
-            "note": coordinator.entry.data.get("note", ""),
+            "note": coordinator.note,
             "record_sets": [
                 {
                     "type": s.type_id,
@@ -741,6 +741,7 @@ def ws_delete_record_type(
         vol.Required("type"): "woow_ha_records/health/add_member",
         vol.Required("name"): str,
         vol.Optional("member_id"): str,
+        vol.Optional("note", default=""): str,
     }
 )
 @websocket_api.require_admin
@@ -767,7 +768,7 @@ def ws_add_member(
         )
         return
 
-    area.add_member(member_id, name)
+    area.add_member(member_id, name, msg["note"])
     connection.send_result(msg["id"], {"success": True, "member_id": member_id})
 
 
@@ -776,6 +777,7 @@ def ws_add_member(
         vol.Required("type"): "woow_ha_records/health/update_member",
         vol.Required("member_id"): str,
         vol.Required("name"): str,
+        vol.Optional("note", default=""): str,
     }
 )
 @websocket_api.require_admin
@@ -792,6 +794,7 @@ def ws_update_member(
         return
 
     coordinator.member_name = msg["name"]
+    coordinator.note = msg["note"]
     _area(hass).async_schedule_save()
     connection.send_result(msg["id"], {"success": True})
 
