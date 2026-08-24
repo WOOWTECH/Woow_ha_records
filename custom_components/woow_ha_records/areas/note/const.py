@@ -1,15 +1,13 @@
-"""Constants for Ha Note Record integration."""
+"""Constants for the note Area."""
 
 from typing import Final
 
-DOMAIN: Final = "ha_note_record"
+from ...const import AREA_NOTE, DOMAIN, STORAGE_VERSION, storage_key
 
-# Storage
-STORAGE_KEY: Final = DOMAIN
-STORAGE_VERSION: Final = 1
+__all__ = ["DOMAIN", "AREA", "STORAGE_KEY", "STORAGE_VERSION"]
 
-# Platforms
-PLATFORMS: Final = ["text", "switch"]
+AREA: Final = AREA_NOTE
+STORAGE_KEY: Final = storage_key(AREA)
 
 # Attributes
 ATTR_RAW_CONTENT: Final = "raw_content"

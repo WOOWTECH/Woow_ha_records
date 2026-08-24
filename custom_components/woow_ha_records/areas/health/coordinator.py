@@ -5,35 +5,26 @@ import logging
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.dispatcher import async_dispatcher_send
-from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
-from .const import (
-    CONF_MEMBER_ID,
-    CONF_MEMBER_NAME,
-    CONF_RECORD_NAME,
-    CONF_RECORD_SETS,
-    CONF_RECORD_TYPE,
-    CONF_RECORD_UNIT,
-    DOMAIN,
-    STORAGE_KEY,
-    STORAGE_VERSION,
-)
+from ...const import device_id
+
+from .const import AREA, DOMAIN
+
+if TYPE_CHECKING:
+    from .area import HealthArea
 
 _LOGGER = logging.getLogger(__name__)
-
-SAVE_DELAY = 1  # seconds -- batches rapid operations into a single write
 
 
 def signal_record_updated(member_id: str, type_id: str) -> str:
     """Return signal name for record update."""
-    return f"{DOMAIN}_{member_id}_{type_id}_updated"
+    return f"{DOMAIN}_{AREA}_{member_id}_{type_id}_updated"
 
 
 @dataclass
@@ -84,12 +75,35 @@ class RecordSet:
     last_record: Record = field(default_factory=Record)
 
     def to_dict(self) -> dict[str, Any]:
-        """Convert to dictionary for storage."""
+        """Convert to dictionary for storage.
+
+        Carries the definition as well as the state. Before the merge the
+        definition lived in the config entry's options and only the state was
+        stored; a Member is no longer a config entry, so both belong here.
+        """
         return {
+            "type_id": self.type_id,
+            "name": self.name,
+            "unit": self.unit,
+            "default_value": self.default_value,
+            "default_value_mode": self.default_value_mode,
             "current_value": self.current_value,
             "current_note": self.current_note,
             "last_record": self.last_record.to_dict(),
         }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> RecordSet:
+        """Build a record set, definition and state together, from storage."""
+        record_set = cls(
+            type_id=data["type_id"],
+            name=data.get("name", data["type_id"]),
+            unit=data.get("unit", ""),
+            default_value=data.get("default_value", 0),
+            default_value_mode=data.get("default_value_mode", "fixed"),
+        )
+        record_set.load_from_dict(data)
+        return record_set
 
     def load_from_dict(self, data: dict[str, Any]) -> None:
         """Load state from dictionary.
@@ -109,181 +123,71 @@ class RecordSet:
 class HealthRecordCoordinator:
     """Coordinator for managing health record data."""
 
-    def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
-        """Initialize the coordinator."""
+    def __init__(
+        self,
+        hass: HomeAssistant,
+        area: HealthArea,
+        member_id: str,
+        member_name: str,
+    ) -> None:
+        """Initialize the coordinator for one Member.
+
+        The coordinator no longer owns a Store. A Member used to be a config
+        entry with a store file of its own; it is now a record inside the
+        health Area's single store, and persistence is the Area's job.
+        """
         self.hass = hass
-        self.entry = entry
+        self.area = area
 
         # Records history storage (unified)
         self.records: list[dict[str, Any]] = []
 
         # Member info
-        self.member_id: str = entry.data[CONF_MEMBER_ID]
-        self.member_name: str = entry.data[CONF_MEMBER_NAME]
-
-        # Storage - unique per member
-        self._store: Store[dict[str, Any]] = Store(
-            hass,
-            STORAGE_VERSION,
-            f"{STORAGE_KEY}_{self.member_id}",
-            atomic_writes=True,
-        )
+        self.member_id: str = member_id
+        self.member_name: str = member_name
 
         # Record sets (unified)
         self.record_sets: dict[str, RecordSet] = {}
 
-        record_sets_config = entry.options.get(CONF_RECORD_SETS, [])
-        if not record_sets_config:
-            # Fall back to old v1 format in entry.options
-            for act in entry.options.get("activity_sets", []):
-                record_sets_config.append({
-                    CONF_RECORD_TYPE: act.get("activity_type", ""),
-                    CONF_RECORD_NAME: act.get("activity_name", ""),
-                    CONF_RECORD_UNIT: act.get("activity_unit", ""),
-                })
-            for grw in entry.options.get("growth_sets", []):
-                record_sets_config.append({
-                    CONF_RECORD_TYPE: grw.get("growth_type", ""),
-                    CONF_RECORD_NAME: grw.get("growth_name", ""),
-                    CONF_RECORD_UNIT: grw.get("growth_unit", ""),
-                })
-
-        for rs_data in record_sets_config:
-            type_id = rs_data[CONF_RECORD_TYPE]
-            self.record_sets[type_id] = RecordSet(
-                type_id=type_id,
-                name=rs_data[CONF_RECORD_NAME],
-                unit=rs_data[CONF_RECORD_UNIT],
-                default_value=rs_data.get("default_value", 0),
-                default_value_mode=rs_data.get("default_value_mode", "fixed"),
-            )
-
-    async def async_load(self) -> None:
-        """Load data from storage."""
-        data = await self._store.async_load()
-        if data is None:
-            _LOGGER.debug("No stored data for member %s", self.member_id)
-            return
-
-        # Detect v1 format and migrate
-        if "activity_sets" in data or "growth_sets" in data:
-            _LOGGER.info(
-                "Detected v1 storage format for member %s, migrating to v2",
-                self.member_id,
-            )
-            data = self._migrate_v1_to_v2(data)
-
-        # Load record set states
-        record_sets_data = data.get("record_sets", {})
-        for type_id, record_set in self.record_sets.items():
-            if type_id in record_sets_data:
-                record_set.load_from_dict(record_sets_data[type_id])
-
-        # Load records history
+    def load_from_dict(self, data: dict[str, Any]) -> None:
+        """Populate this Member from its slice of the Area store."""
+        self.member_name = data.get("name", self.member_name)
+        self.record_sets = {
+            rs_data["type_id"]: RecordSet.from_dict(rs_data)
+            for rs_data in data.get("record_sets", [])
+        }
         self.records = data.get("records", [])
 
         _LOGGER.debug(
-            "Loaded health record data for member %s: %d record sets, %d records",
+            "Loaded health data for member %s: %d record sets, %d records",
             self.member_id,
             len(self.record_sets),
             len(self.records),
         )
 
-    @staticmethod
-    def _migrate_v1_to_v2(data: dict[str, Any]) -> dict[str, Any]:
-        """Migrate v1 storage format to v2.
-
-        v1 had separate activity_sets/growth_sets and activity_records/growth_records.
-        v2 unifies them into record_sets and records.
-        """
-        migrated_record_sets: dict[str, Any] = {}
-        migrated_records: list[dict[str, Any]] = []
-
-        # Migrate activity_sets state
-        for type_id, aset_data in data.get("activity_sets", {}).items():
-            migrated_record_sets[type_id] = {
-                "current_value": aset_data.get("current_amount"),
-                "current_note": aset_data.get("current_note", ""),
-                "last_record": {},
-            }
-            if aset_data.get("last_record"):
-                lr = aset_data["last_record"]
-                migrated_record_sets[type_id]["last_record"] = {
-                    "value": lr.get("amount"),
-                    "note": lr.get("note", ""),
-                    "timestamp": lr.get("timestamp"),
-                }
-
-        # Migrate growth_sets state
-        for type_id, gset_data in data.get("growth_sets", {}).items():
-            migrated_record_sets[type_id] = {
-                "current_value": gset_data.get("current_value"),
-                "current_note": gset_data.get("current_note", ""),
-                "last_record": {},
-            }
-            if gset_data.get("last_record"):
-                lr = gset_data["last_record"]
-                migrated_record_sets[type_id]["last_record"] = {
-                    "value": lr.get("value"),
-                    "note": lr.get("note", ""),
-                    "timestamp": lr.get("timestamp"),
-                }
-
-        # Migrate activity_records
-        for rec in data.get("activity_records", []):
-            migrated_records.append({
-                "id": rec.get("id", uuid.uuid4().hex),
-                "record_type": rec.get("activity_type", ""),
-                "record_name": rec.get("activity_name", ""),
-                "value": rec.get("amount"),
-                "unit": rec.get("unit", ""),
-                "note": rec.get("note", ""),
-                "timestamp": rec.get("timestamp", ""),
-            })
-
-        # Migrate growth_records
-        for rec in data.get("growth_records", []):
-            migrated_records.append({
-                "id": rec.get("id", uuid.uuid4().hex),
-                "record_type": rec.get("growth_type", ""),
-                "record_name": rec.get("growth_name", ""),
-                "value": rec.get("value"),
-                "unit": rec.get("unit", ""),
-                "note": rec.get("note", ""),
-                "timestamp": rec.get("timestamp", ""),
-            })
-
-        # Sort merged records by timestamp
-        migrated_records.sort(key=lambda r: r.get("timestamp", ""))
-
-        return {
-            "record_sets": migrated_record_sets,
-            "records": migrated_records,
-        }
-
     @callback
     def _async_schedule_save(self) -> None:
-        """Schedule a delayed save to storage."""
-        self._store.async_delay_save(self._data_to_save, SAVE_DELAY)
+        """Ask the Area to persist; the store covers every Member at once."""
+        self.area.async_schedule_save()
 
     @callback
-    def _data_to_save(self) -> dict[str, Any]:
-        """Return data to save to storage."""
+    def to_dict(self) -> dict[str, Any]:
+        """Return this Member's slice of the Area store."""
         return {
-            "record_sets": {
-                type_id: record_set.to_dict()
-                for type_id, record_set in self.record_sets.items()
-            },
+            "name": self.member_name,
+            "record_sets": [
+                record_set.to_dict() for record_set in self.record_sets.values()
+            ],
             "records": self.records,
         }
 
     def get_device_info(self) -> DeviceInfo:
         """Return device info for this member."""
         return DeviceInfo(
-            identifiers={(DOMAIN, self.member_id)},
+            identifiers={(DOMAIN, device_id(AREA, self.member_id))},
             name=self.member_name,
-            manufacturer="Ha Health Record",
-            model="Family Member",
+            manufacturer="Woow HA Records",
+            model="Health Member",
         )
 
     # ── Helpers ──────────────────────────────────────────────────────

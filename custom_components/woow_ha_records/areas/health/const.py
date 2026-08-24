@@ -1,11 +1,13 @@
-"""Constants for Ha Health Record integration."""
+"""Constants for the health Area."""
+
 from typing import Final
 
-DOMAIN: Final = "ha_health_record"
+from ...const import AREA_HEALTH, DOMAIN, STORAGE_VERSION, event_type, storage_key
 
-# Storage
-STORAGE_KEY: Final = DOMAIN
-STORAGE_VERSION: Final = 1
+__all__ = ["DOMAIN", "AREA", "STORAGE_KEY", "STORAGE_VERSION"]
+
+AREA: Final = AREA_HEALTH
+STORAGE_KEY: Final = storage_key(AREA)
 
 # Config keys
 CONF_MEMBER_NAME = "member_name"
@@ -18,7 +20,7 @@ CONF_RECORD_NAME = "record_name"
 CONF_RECORD_UNIT = "record_unit"
 
 # Event names
-EVENT_RECORD_LOGGED = f"{DOMAIN}_record_logged"
+EVENT_RECORD_LOGGED = event_type(AREA, "record_logged")
 
 # Default record types (merged from activity + growth)
 DEFAULT_RECORD_TYPES = [

@@ -4,16 +4,12 @@ from __future__ import annotations
 
 from typing import Final
 
-from homeassistant.const import Platform
+from ...const import AREA_ASSET, DOMAIN, STORAGE_VERSION, storage_key
 
-DOMAIN: Final = "ha_asset_record"
+__all__ = ["DOMAIN", "AREA", "STORAGE_KEY", "STORAGE_VERSION"]
 
-# Storage
-STORAGE_KEY: Final = DOMAIN
-STORAGE_VERSION: Final = 1
-
-# Platforms  [H-01] Use Platform enum instead of raw strings
-PLATFORMS: Final = [Platform.DATETIME, Platform.TEXT, Platform.NUMBER]
+AREA: Final = AREA_ASSET
+STORAGE_KEY: Final = storage_key(AREA)
 
 # Asset fields
 FIELD_NAME: Final = "name"

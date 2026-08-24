@@ -1,9 +1,13 @@
-"""Constants for Ha Finance Record integration."""
+"""Constants for the finance Area."""
+
 from typing import Final
 
-DOMAIN: Final = "ha_finance"
-STORAGE_KEY: Final = "ha_finance"
-STORAGE_VERSION: Final = 1
+from ...const import AREA_FINANCE, DOMAIN, STORAGE_VERSION, event_type, storage_key
+
+__all__ = ["DOMAIN", "AREA", "STORAGE_KEY", "STORAGE_VERSION"]
+
+AREA: Final = AREA_FINANCE
+STORAGE_KEY: Final = storage_key(AREA)
 
 # Config keys
 CONF_ACCOUNT_NAME: Final = "account_name"
@@ -29,10 +33,10 @@ TRANSACTION_RECURRING: Final = "recurring"
 TRANSACTION_ADJUSTMENT: Final = "adjustment"
 
 # Events
-EVENT_TRANSACTION_ADDED: Final = "ha_finance_transaction_added"
-EVENT_RECURRING_EXECUTED: Final = "ha_finance_recurring_executed"
-EVENT_BALANCE_ADJUSTED: Final = "ha_finance_balance_adjusted"
-EVENT_LOW_BALANCE: Final = "ha_finance_low_balance"
+EVENT_TRANSACTION_ADDED: Final = event_type(AREA, "transaction_added")
+EVENT_RECURRING_EXECUTED: Final = event_type(AREA, "recurring_executed")
+EVENT_BALANCE_ADJUSTED: Final = event_type(AREA, "balance_adjusted")
+EVENT_LOW_BALANCE: Final = event_type(AREA, "low_balance")
 
 # Defaults
 DEFAULT_BALANCE: Final = 0.0
