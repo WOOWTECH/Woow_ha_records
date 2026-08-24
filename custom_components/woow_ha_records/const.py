@@ -71,6 +71,18 @@ def event_type(area: str, name: str) -> str:
     return f"{DOMAIN}_{area}_{name}"
 
 
+def signal_entities_changed(area: str) -> str:
+    """Return the dispatcher signal an Area sends when its entity set changes.
+
+    Structural edits (a Member added, a Record Type removed) used to reload the
+    config entry to rebuild entities. With one entry covering four Areas that
+    would blip the other three, and worse, a reload re-reads the store — which
+    a debounced write may not have reached yet. The platforms listen for this
+    instead.
+    """
+    return f"{DOMAIN}_{area}_entities_changed"
+
+
 def device_id(area: str, record_id: str) -> str:
     """Return the device-registry identifier suffix for a record in an Area."""
     return f"{area}_{record_id}"

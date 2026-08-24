@@ -12,9 +12,11 @@ import logging
 from typing import Any
 
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.storage import Store
 
-from .const import STORAGE_KEY, STORAGE_VERSION
+from ...const import signal_entities_changed
+from .const import AREA, STORAGE_KEY, STORAGE_VERSION
 from .coordinator import HealthRecordCoordinator
 
 _LOGGER = logging.getLogger(__name__)
@@ -59,6 +61,19 @@ class HealthArea:
             }
         }
 
+    async def async_save_now(self) -> None:
+        """Flush pending changes immediately.
+
+        Call before anything that re-reads the store; the delayed save batches
+        rapid edits and would otherwise still be pending.
+        """
+        await self._store.async_save(self._data_to_save())
+
+    @callback
+    def async_notify_entities_changed(self) -> None:
+        """Tell the health platforms to reconcile their entities."""
+        async_dispatcher_send(self.hass, signal_entities_changed(AREA))
+
     async def async_remove(self) -> None:
         """Delete the Area's store file."""
         await self._store.async_remove()
@@ -74,6 +89,7 @@ class HealthArea:
         coordinator = HealthRecordCoordinator(self.hass, self, member_id, member_name)
         self.members[member_id] = coordinator
         self.async_schedule_save()
+        self.async_notify_entities_changed()
         return coordinator
 
     def remove_member(self, member_id: str) -> bool:
@@ -81,4 +97,5 @@ class HealthArea:
         if self.members.pop(member_id, None) is None:
             return False
         self.async_schedule_save()
+        self.async_notify_entities_changed()
         return True

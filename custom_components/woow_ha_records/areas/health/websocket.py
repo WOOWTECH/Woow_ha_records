@@ -1,4 +1,6 @@
-"""Panel registration and WebSocket API for Ha Health Record.
+"""WebSocket commands for the health Area.
+
+Panel registration and WebSocket API for Ha Health Record.
 
 This module registers a custom panel in the Home Assistant sidebar and
 exposes 12 WebSocket commands that the frontend uses to manage health
@@ -117,20 +119,17 @@ Error Codes
 """
 from __future__ import annotations
 
+from homeassistant.components import websocket_api
+
 import csv
 import io
 import logging
 import math
-import time
 from datetime import datetime
-from pathlib import Path
 from typing import Any
 
 import voluptuous as vol
 
-from homeassistant.components import websocket_api, frontend, panel_custom
-from homeassistant.components.http import StaticPathConfig
-from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import entity_registry as er
 
@@ -142,16 +141,11 @@ from .const import (
     DOMAIN,
     EVENT_RECORD_LOGGED,
 )
+from ...runtime import get_data
+from .area import HealthArea
 from .coordinator import HealthRecordCoordinator
 
 _LOGGER = logging.getLogger(__name__)
-
-PANEL_TITLE = "Health Record"
-PANEL_ICON = "mdi:heart-pulse"
-PANEL_URL_PATH = "ha-health-record"  # URL path for the panel in sidebar
-PANEL_COMPONENT_NAME = "ha-health-record-panel"  # Web component name
-FRONTEND_SCRIPT_PATH = f"/{DOMAIN}/frontend"  # Static path for JS files
-
 
 @callback
 def register_websocket_commands(hass: HomeAssistant) -> None:
@@ -170,43 +164,6 @@ def register_websocket_commands(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_export_csv)
 
 
-async def async_setup_panel(hass: HomeAssistant) -> None:
-    """Set up the Ha Health Record panel (static paths + sidebar)."""
-    # Register static path for frontend files
-    frontend_path = Path(__file__).parent / "frontend"
-    await hass.http.async_register_static_paths([
-        StaticPathConfig(FRONTEND_SCRIPT_PATH, str(frontend_path), cache_headers=False)
-    ])
-
-    # Register the panel using panel_custom
-    # Add cache-busting timestamp to force browser to reload the JS file
-    cache_buster = int(time.time())
-    await panel_custom.async_register_panel(
-        hass,
-        webcomponent_name=PANEL_COMPONENT_NAME,
-        frontend_url_path=PANEL_URL_PATH,
-        sidebar_title=PANEL_TITLE,
-        sidebar_icon=PANEL_ICON,
-        module_url=f"{FRONTEND_SCRIPT_PATH}/ha-health-record-panel.js?v={cache_buster}",
-        require_admin=False,
-        config={},
-    )
-
-    # Register sidebar title i18n script (runs on every page)
-    frontend.add_extra_js_url(
-        hass, f"{FRONTEND_SCRIPT_PATH}/sidebar-title.js?v={cache_buster}"
-    )
-
-    _LOGGER.info("Registered Ha Health Record panel")
-
-
-async def async_unload_panel(hass: HomeAssistant) -> None:
-    """Unload the Ha Health Record panel."""
-    if PANEL_URL_PATH in hass.data.get(frontend.DATA_PANELS, {}):
-        frontend.async_remove_panel(hass, PANEL_URL_PATH)
-        _LOGGER.info("Unregistered Ha Health Record panel")
-
-
 def valid_float(value: Any) -> float:
     """Validate float, rejecting NaN and Infinity."""
     result = vol.Coerce(float)(value)
@@ -215,29 +172,21 @@ def valid_float(value: Any) -> float:
     return result
 
 
+def _area(hass: HomeAssistant) -> HealthArea:
+    """Return the health Area."""
+    return get_data(hass).health
+
+
 def _get_coordinators(hass: HomeAssistant) -> list[HealthRecordCoordinator]:
-    """Get all coordinators from loaded config entries."""
-    coordinators: list[HealthRecordCoordinator] = []
-    for entry in hass.config_entries.async_entries(DOMAIN):
-        if entry.state is ConfigEntryState.LOADED:
-            coordinators.append(entry.runtime_data)
-    return coordinators
+    """Return every Member's coordinator."""
+    return list(_area(hass).members.values())
 
 
 def _find_coordinator(
     hass: HomeAssistant, member_id: str
 ) -> HealthRecordCoordinator | None:
-    """Find a coordinator by member_id (O(1) via cache, O(n) fallback)."""
-    # Fast path: use the coordinator lookup dict
-    coord_map = hass.data.get(f"{DOMAIN}_coordinator_map", {})
-    coord = coord_map.get(member_id)
-    if coord is not None:
-        return coord
-    # Fallback: linear scan (for resilience)
-    for coord in _get_coordinators(hass):
-        if coord.member_id == member_id:
-            return coord
-    return None
+    """Find a coordinator by member_id."""
+    return _area(hass).get(member_id)
 
 
 # ============================================================================
@@ -247,7 +196,7 @@ def _find_coordinator(
 
 @websocket_api.websocket_command(
     {
-        vol.Required("type"): "ha_health_record/get_members",
+        vol.Required("type"): "woow_ha_records/health/get_members",
     }
 )
 @callback
@@ -310,7 +259,7 @@ def ws_get_members(
 
 @websocket_api.websocket_command(
     {
-        vol.Required("type"): "ha_health_record/get_records",
+        vol.Required("type"): "woow_ha_records/health/get_records",
         vol.Required("start_time"): str,
         vol.Required("end_time"): str,
     }
@@ -362,7 +311,7 @@ def ws_get_records(
 
 @websocket_api.websocket_command(
     {
-        vol.Required("type"): "ha_health_record/export_csv",
+        vol.Required("type"): "woow_ha_records/health/export_csv",
         vol.Required("member_id"): str,
     }
 )
@@ -429,7 +378,7 @@ def ws_export_csv(
 
 @websocket_api.websocket_command(
     {
-        vol.Required("type"): "ha_health_record/log_record",
+        vol.Required("type"): "woow_ha_records/health/log_record",
         vol.Required("member_id"): str,
         vol.Required("record_type"): str,
         vol.Required("value"): valid_float,
@@ -538,7 +487,7 @@ def ws_log_record(
 
 @websocket_api.websocket_command(
     {
-        vol.Required("type"): "ha_health_record/update_record",
+        vol.Required("type"): "woow_ha_records/health/update_record",
         vol.Required("member_id"): str,
         vol.Required("type_id"): str,
         vol.Required("timestamp"): str,  # ISO format to identify the record
@@ -609,7 +558,7 @@ def ws_update_record(
 
 @websocket_api.websocket_command(
     {
-        vol.Required("type"): "ha_health_record/delete_record",
+        vol.Required("type"): "woow_ha_records/health/delete_record",
         vol.Required("member_id"): str,
         vol.Required("type_id"): str,
         vol.Required("timestamp"): str,
@@ -666,502 +615,204 @@ def ws_delete_record(
 # ============================================================================
 # Record Type Management APIs (unified)
 # ============================================================================
+#
+# These used to rewrite the member's config entry and reload it. A Member is a
+# store record now (ADR-0001), so they are plain writes and the platforms
+# reconcile their entities off the Area's dispatcher signal.
 
 
 @websocket_api.websocket_command(
     {
-        vol.Required("type"): "ha_health_record/add_record_type",
+        vol.Required("type"): "woow_ha_records/health/add_record_type",
         vol.Required("member_id"): str,
         vol.Required("name"): str,
         vol.Required("unit"): str,
         vol.Optional("default_value", default=0): valid_float,
-        vol.Optional("default_value_mode", default="fixed"): vol.In(["fixed", "last_value"]),
+        vol.Optional("default_value_mode", default="fixed"): vol.In(
+            ["fixed", "last_value"]
+        ),
     }
 )
 @websocket_api.require_admin
-@websocket_api.async_response
-async def ws_add_record_type(
+@callback
+def ws_add_record_type(
     hass: HomeAssistant,
     connection: websocket_api.ActiveConnection,
     msg: dict[str, Any],
 ) -> None:
-    """Add a new record type to a member's configuration.
+    """Define a new record type for a member."""
+    coordinator = _find_coordinator(hass, msg["member_id"])
+    if coordinator is None:
+        connection.send_error(msg["id"], "member_not_found", "Member not found")
+        return
 
-    Command:
-        ``ha_health_record/add_record_type``
-
-    Parameters:
-        member_id (str): The member to add the type to.
-        name (str): Human-readable name (also used to derive *type_id*).
-        unit (str): Unit of measurement (e.g. "kg", "bpm").
-        default_value (float, optional): Initial default value.
-            Defaults to ``0``.
-        default_value_mode (str, optional): ``"fixed"`` or
-            ``"last_value"``.  Defaults to ``"fixed"``.
-
-    Permission:
-        Admin required.
-
-    Returns:
-        ``{success: true, type_id: str}`` -- the auto-generated
-        type identifier.
-
-    Error codes:
-        ``member_not_found`` -- no config entry matches *member_id*.
-        ``type_exists`` -- a record type with the derived *type_id*
-            already exists for this member.
-        ``invalid_type_id`` -- the sanitized *name* yields an empty
-            identifier.
-
-    Side effects:
-        Updates the config entry's options with the new record set and
-        triggers a config reload, which creates the corresponding
-        sensor, button, number, and text entities.
-    """
-    member_id = msg["member_id"]
-    name = msg["name"]
-    unit = msg["unit"]
-    default_value = msg.get("default_value", 0)
-
-    # Generate type_id from name (sanitize)
-    type_id = name.lower().replace(" ", "_").replace("-", "_")
+    type_id = msg["name"].lower().replace(" ", "_").replace("-", "_")
     type_id = "".join(c for c in type_id if c.isalnum() or c == "_")
-
     if not type_id:
-        connection.send_error(msg["id"], "invalid_type_id", "Name must contain at least one alphanumeric character")
+        connection.send_error(msg["id"], "invalid_type_id", "Type id is empty")
         return
 
-    # Find the config entry for this member
-    entry = None
-    for e in hass.config_entries.async_entries(DOMAIN):
-        if e.data.get("member_id") == member_id:
-            entry = e
-            break
-
-    if entry is None:
-        connection.send_error(msg["id"], "member_not_found", f"Member {member_id} not found")
+    if type_id in coordinator.record_sets:
+        connection.send_error(
+            msg["id"], "type_exists", f"Record type '{type_id}' already exists"
+        )
         return
 
-    # Get current record sets
-    current_options = dict(entry.options)
-    record_sets = list(current_options.get(CONF_RECORD_SETS, []))
-
-    # Check if type already exists across ALL record types
-    for s in record_sets:
-        if s.get(CONF_RECORD_TYPE) == type_id:
-            connection.send_error(msg["id"], "type_exists", f"Record type {type_id} already exists")
-            return
-
-    # Add new type
-    record_sets.append({
-        CONF_RECORD_TYPE: type_id,
-        CONF_RECORD_NAME: name,
-        CONF_RECORD_UNIT: unit,
-        "default_value": default_value,
-        "default_value_mode": msg.get("default_value_mode", "fixed"),
-    })
-
-    current_options[CONF_RECORD_SETS] = record_sets
-
-    # Update config entry
-    hass.config_entries.async_update_entry(entry, options=current_options)
-
-    # Reload entry to create new entities
-    await hass.config_entries.async_reload(entry.entry_id)
-
+    coordinator.add_record_type(
+        type_id,
+        msg["name"],
+        msg["unit"],
+        msg["default_value"],
+        msg["default_value_mode"],
+    )
     connection.send_result(msg["id"], {"success": True, "type_id": type_id})
 
 
 @websocket_api.websocket_command(
     {
-        vol.Required("type"): "ha_health_record/update_record_type",
+        vol.Required("type"): "woow_ha_records/health/update_record_type",
         vol.Required("member_id"): str,
         vol.Required("type_id"): str,
-        vol.Required("name"): str,
-        vol.Required("unit"): str,
+        vol.Optional("name"): str,
+        vol.Optional("unit"): str,
         vol.Optional("default_value"): valid_float,
         vol.Optional("default_value_mode"): vol.In(["fixed", "last_value"]),
     }
 )
 @websocket_api.require_admin
-@websocket_api.async_response
-async def ws_update_record_type(
+@callback
+def ws_update_record_type(
     hass: HomeAssistant,
     connection: websocket_api.ActiveConnection,
     msg: dict[str, Any],
 ) -> None:
-    """Update the metadata of an existing record type.
-
-    Command:
-        ``ha_health_record/update_record_type``
-
-    Parameters:
-        member_id (str): The owning member's identifier.
-        type_id (str): The record-type id to update.
-        name (str): New human-readable name.
-        unit (str): New unit of measurement.
-        default_value (float, optional): New default value.  Unchanged
-            when omitted.
-        default_value_mode (str, optional): ``"fixed"`` or
-            ``"last_value"``.  Unchanged when omitted.
-
-    Permission:
-        Admin required.
-
-    Returns:
-        ``{success: true}``
-
-    Error codes:
-        ``member_not_found`` -- no config entry matches *member_id*.
-        ``type_not_found`` -- *type_id* does not exist for this member.
-
-    Side effects:
-        Updates the config entry's options and triggers a config reload
-        so that entity attributes reflect the changes.
-    """
-    member_id = msg["member_id"]
-    type_id = msg["type_id"]
-    name = msg["name"]
-    unit = msg["unit"]
-    default_value = msg.get("default_value")
-
-    # Find the config entry for this member
-    entry = None
-    for e in hass.config_entries.async_entries(DOMAIN):
-        if e.data.get("member_id") == member_id:
-            entry = e
-            break
-
-    if entry is None:
-        connection.send_error(msg["id"], "member_not_found", f"Member {member_id} not found")
+    """Change a record type's name, unit, or defaults."""
+    coordinator = _find_coordinator(hass, msg["member_id"])
+    if coordinator is None:
+        connection.send_error(msg["id"], "member_not_found", "Member not found")
         return
 
-    # Get current record sets
-    current_options = dict(entry.options)
-    record_sets = list(current_options.get(CONF_RECORD_SETS, []))
-
-    # Find and update the type (copy-and-replace to ensure HA detects the change)
-    found = False
-    for i, s in enumerate(record_sets):
-        if s.get(CONF_RECORD_TYPE) == type_id:
-            updated = dict(s)
-            updated[CONF_RECORD_NAME] = name
-            updated[CONF_RECORD_UNIT] = unit
-            if default_value is not None:
-                updated["default_value"] = default_value
-            default_value_mode = msg.get("default_value_mode")
-            if default_value_mode is not None:
-                updated["default_value_mode"] = default_value_mode
-            record_sets[i] = updated
-            found = True
-            break
-
-    if not found:
-        connection.send_error(msg["id"], "type_not_found", f"Record type {type_id} not found")
+    if not coordinator.update_record_type(
+        msg["type_id"],
+        name=msg.get("name"),
+        unit=msg.get("unit"),
+        default_value=msg.get("default_value"),
+        default_value_mode=msg.get("default_value_mode"),
+    ):
+        connection.send_error(msg["id"], "type_not_found", "Record type not found")
         return
-
-    current_options[CONF_RECORD_SETS] = record_sets
-
-    # Update config entry
-    hass.config_entries.async_update_entry(entry, options=current_options)
-
-    # Reload entry to update entities
-    await hass.config_entries.async_reload(entry.entry_id)
 
     connection.send_result(msg["id"], {"success": True})
 
 
 @websocket_api.websocket_command(
     {
-        vol.Required("type"): "ha_health_record/delete_record_type",
+        vol.Required("type"): "woow_ha_records/health/delete_record_type",
         vol.Required("member_id"): str,
         vol.Required("type_id"): str,
     }
 )
 @websocket_api.require_admin
-@websocket_api.async_response
-async def ws_delete_record_type(
+@callback
+def ws_delete_record_type(
     hass: HomeAssistant,
     connection: websocket_api.ActiveConnection,
     msg: dict[str, Any],
 ) -> None:
-    """Delete a record type and its associated entities.
-
-    Command:
-        ``ha_health_record/delete_record_type``
-
-    Parameters:
-        member_id (str): The owning member's identifier.
-        type_id (str): The record-type id to delete.
-
-    Permission:
-        Admin required.
-
-    Returns:
-        ``{success: true}``
-
-    Error codes:
-        ``member_not_found`` -- no config entry matches *member_id*.
-        ``type_not_found`` -- *type_id* does not exist for this member.
-
-    Side effects:
-        Removes the four related entities (sensor, button, number, text)
-        from the entity registry, updates the config entry's options,
-        and triggers a config reload.
-    """
-    member_id = msg["member_id"]
-    type_id = msg["type_id"]
-
-    # Find the config entry for this member
-    entry = None
-    for e in hass.config_entries.async_entries(DOMAIN):
-        if e.data.get("member_id") == member_id:
-            entry = e
-            break
-
-    if entry is None:
-        connection.send_error(msg["id"], "member_not_found", f"Member {member_id} not found")
+    """Remove a record type and every record logged against it."""
+    coordinator = _find_coordinator(hass, msg["member_id"])
+    if coordinator is None:
+        connection.send_error(msg["id"], "member_not_found", "Member not found")
         return
 
-    # Get current record sets
-    current_options = dict(entry.options)
-    record_sets = list(current_options.get(CONF_RECORD_SETS, []))
-
-    # Find and remove the type
-    new_sets = [s for s in record_sets if s.get(CONF_RECORD_TYPE) != type_id]
-
-    if len(new_sets) == len(record_sets):
-        connection.send_error(msg["id"], "type_not_found", f"Record type {type_id} not found")
+    if not coordinator.delete_record_type(msg["type_id"]):
+        connection.send_error(msg["id"], "type_not_found", "Record type not found")
         return
-
-    # Remove entities for the deleted record type from the entity registry
-    entity_reg = er.async_get(hass)
-    suffixes = [
-        ("sensor", "_record"),
-        ("button", "_log"),
-        ("number", "_value"),
-        ("text", "_note"),
-    ]
-    for platform, suffix in suffixes:
-        unique_id = f"{member_id}_{type_id}{suffix}"
-        entity_id = entity_reg.async_get_entity_id(platform, DOMAIN, unique_id)
-        if entity_id:
-            entity_reg.async_remove(entity_id)
-
-    current_options[CONF_RECORD_SETS] = new_sets
-
-    # Update config entry
-    hass.config_entries.async_update_entry(entry, options=current_options)
-
-    # Reload entry to remove entities
-    await hass.config_entries.async_reload(entry.entry_id)
 
     connection.send_result(msg["id"], {"success": True})
 
 
 # ============================================================================
-# Member (Person) Management APIs
+# Member Management APIs
 # ============================================================================
+
 
 @websocket_api.websocket_command(
     {
-        vol.Required("type"): "ha_health_record/add_member",
+        vol.Required("type"): "woow_ha_records/health/add_member",
         vol.Required("name"): str,
         vol.Optional("member_id"): str,
-        vol.Optional("note", default=""): str,
     }
 )
 @websocket_api.require_admin
-@websocket_api.async_response
-async def ws_add_member(
+@callback
+def ws_add_member(
     hass: HomeAssistant,
     connection: websocket_api.ActiveConnection,
     msg: dict[str, Any],
 ) -> None:
-    """Add a new member (person) to be tracked.
-
-    Command:
-        ``ha_health_record/add_member``
-
-    Parameters:
-        name (str): Display name of the new member.
-        member_id (str, optional): Unique identifier.  When omitted it
-            is auto-generated by sanitizing *name* (lowercase,
-            underscores, alphanumeric only).
-        note (str, optional): Free-text note.  Defaults to ``""``.
-
-    Permission:
-        Admin required.
-
-    Returns:
-        ``{success: true, member_id: str, entry_id: str}``
-
-    Error codes:
-        ``invalid_member_id`` -- the sanitized *member_id* is empty.
-        ``member_exists`` -- a config entry with this *member_id*
-            already exists.
-        ``create_failed`` -- the config flow did not produce a new
-            entry.
-
-    Side effects:
-        Creates a new config entry via the integration's config flow.
-    """
+    """Add a member to track."""
     name = msg["name"]
     member_id = msg.get("member_id")
-
-    # Generate member_id from name if not provided
     if not member_id:
         member_id = name.lower().replace(" ", "_").replace("-", "_")
         member_id = "".join(c for c in member_id if c.isalnum() or c == "_")
-
     if not member_id:
+        connection.send_error(msg["id"], "invalid_member_id", "Member id is empty")
+        return
+
+    area = _area(hass)
+    if area.get(member_id) is not None:
         connection.send_error(
-            msg["id"], "invalid_member_id", "Member ID is empty after sanitization"
+            msg["id"], "member_exists", f"Member '{member_id}' already exists"
         )
         return
 
-    # Check if member already exists
-    for e in hass.config_entries.async_entries(DOMAIN):
-        if e.data.get("member_id") == member_id:
-            connection.send_error(msg["id"], "member_exists", f"Member {member_id} already exists")
-            return
-
-    note = msg.get("note", "")
-
-    # Create new config entry via config flow
-    result = await hass.config_entries.flow.async_init(
-        DOMAIN,
-        context={"source": "user"},
-        data={"member_name": name, "member_id": member_id, "note": note},
-    )
-
-    if result.get("type") == "create_entry":
-        connection.send_result(msg["id"], {
-            "success": True,
-            "member_id": member_id,
-            "entry_id": result.get("result").entry_id if result.get("result") else None,
-        })
-    else:
-        connection.send_error(msg["id"], "create_failed", "Failed to create member")
+    area.add_member(member_id, name)
+    connection.send_result(msg["id"], {"success": True, "member_id": member_id})
 
 
 @websocket_api.websocket_command(
     {
-        vol.Required("type"): "ha_health_record/update_member",
+        vol.Required("type"): "woow_ha_records/health/update_member",
         vol.Required("member_id"): str,
         vol.Required("name"): str,
-        vol.Optional("note", default=""): str,
     }
 )
 @websocket_api.require_admin
-@websocket_api.async_response
-async def ws_update_member(
+@callback
+def ws_update_member(
     hass: HomeAssistant,
     connection: websocket_api.ActiveConnection,
     msg: dict[str, Any],
 ) -> None:
-    """Update a member's display name and note.
-
-    Command:
-        ``ha_health_record/update_member``
-
-    Parameters:
-        member_id (str): The member to update.
-        name (str): New display name.
-        note (str, optional): New note.  Defaults to ``""``.
-
-    Permission:
-        Admin required.
-
-    Returns:
-        ``{success: true}``
-
-    Error codes:
-        ``member_not_found`` -- no config entry matches *member_id*.
-
-    Side effects:
-        Updates the config entry's ``data`` dict and ``title``, then
-        triggers a config reload so the coordinator picks up the new
-        values.
-    """
-    member_id = msg["member_id"]
-    name = msg["name"]
-
-    # Find the config entry for this member
-    entry = None
-    for e in hass.config_entries.async_entries(DOMAIN):
-        if e.data.get("member_id") == member_id:
-            entry = e
-            break
-
-    if entry is None:
-        connection.send_error(msg["id"], "member_not_found", f"Member {member_id} not found")
+    """Rename a member."""
+    coordinator = _find_coordinator(hass, msg["member_id"])
+    if coordinator is None:
+        connection.send_error(msg["id"], "member_not_found", "Member not found")
         return
 
-    note = msg.get("note", "")
-
-    # Update entry data (need to update both data and title)
-    new_data = dict(entry.data)
-    new_data["member_name"] = name
-    new_data["note"] = note
-
-    hass.config_entries.async_update_entry(entry, data=new_data, title=name)
-
-    # Reload to apply changes
-    await hass.config_entries.async_reload(entry.entry_id)
-
+    coordinator.member_name = msg["name"]
+    _area(hass).async_schedule_save()
     connection.send_result(msg["id"], {"success": True})
 
 
 @websocket_api.websocket_command(
     {
-        vol.Required("type"): "ha_health_record/delete_member",
+        vol.Required("type"): "woow_ha_records/health/delete_member",
         vol.Required("member_id"): str,
     }
 )
 @websocket_api.require_admin
-@websocket_api.async_response
-async def ws_delete_member(
+@callback
+def ws_delete_member(
     hass: HomeAssistant,
     connection: websocket_api.ActiveConnection,
     msg: dict[str, Any],
 ) -> None:
-    """Delete a member and all associated data.
-
-    Command:
-        ``ha_health_record/delete_member``
-
-    Parameters:
-        member_id (str): The member to delete.
-
-    Permission:
-        Admin required.
-
-    Returns:
-        ``{success: true}``
-
-    Error codes:
-        ``member_not_found`` -- no config entry matches *member_id*.
-
-    Side effects:
-        Removes the config entry, which cascades to unload the
-        coordinator, remove all entities, and delete persisted record
-        data.
-    """
-    member_id = msg["member_id"]
-
-    # Find the config entry for this member
-    entry = None
-    for e in hass.config_entries.async_entries(DOMAIN):
-        if e.data.get("member_id") == member_id:
-            entry = e
-            break
-
-    if entry is None:
-        connection.send_error(msg["id"], "member_not_found", f"Member {member_id} not found")
+    """Delete a member and everything recorded against them."""
+    if not _area(hass).remove_member(msg["member_id"]):
+        connection.send_error(msg["id"], "member_not_found", "Member not found")
         return
-
-    # Remove the config entry
-    await hass.config_entries.async_remove(entry.entry_id)
 
     connection.send_result(msg["id"], {"success": True})

@@ -190,6 +190,52 @@ class HealthRecordCoordinator:
             model="Health Member",
         )
 
+    # ── Record Types ─────────────────────────────────────────────────
+
+    def add_record_type(
+        self,
+        type_id: str,
+        name: str,
+        unit: str,
+        default_value: float = 0,
+        default_value_mode: str = "fixed",
+    ) -> None:
+        """Define a new Record Type for this Member.
+
+        Record Types used to live in the config entry's options, so adding one
+        meant rewriting the entry and reloading it. They are stored data now.
+        """
+        self.record_sets[type_id] = RecordSet(
+            type_id=type_id,
+            name=name,
+            unit=unit,
+            default_value=default_value,
+            default_value_mode=default_value_mode,
+        )
+        self._async_schedule_save()
+        self.area.async_notify_entities_changed()
+
+    def update_record_type(self, type_id: str, **changes: Any) -> bool:
+        """Change a Record Type's definition in place."""
+        record_set = self.record_sets.get(type_id)
+        if record_set is None:
+            return False
+        for field_name, value in changes.items():
+            if value is not None and hasattr(record_set, field_name):
+                setattr(record_set, field_name, value)
+        self._async_schedule_save()
+        self.area.async_notify_entities_changed()
+        return True
+
+    def delete_record_type(self, type_id: str) -> bool:
+        """Remove a Record Type and every Record logged against it."""
+        if self.record_sets.pop(type_id, None) is None:
+            return False
+        self.records = [r for r in self.records if r.get("record_type") != type_id]
+        self._async_schedule_save()
+        self.area.async_notify_entities_changed()
+        return True
+
     # ── Helpers ──────────────────────────────────────────────────────
 
     def _recalculate_current_value(self, type_id: str) -> None:

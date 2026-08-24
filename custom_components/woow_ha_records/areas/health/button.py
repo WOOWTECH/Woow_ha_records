@@ -12,32 +12,30 @@ from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from . import HaHealthRecordConfigEntry
 from .const import EVENT_RECORD_LOGGED
+from ...const import unique_id
+from .area import HealthArea
+from .const import AREA
+from .platform import async_setup_record_entities
 from .coordinator import HealthRecordCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
 
-async def async_setup_entry(
+async def async_setup_area(
     hass: HomeAssistant,
-    entry: HaHealthRecordConfigEntry,
+    area: HealthArea,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Set up button entities from a config entry."""
-    coordinator = entry.runtime_data
-
-    entities: list[ButtonEntity] = []
-
-    for type_id in coordinator.record_sets:
-        entities.append(
-            RecordLogButton(
-                coordinator=coordinator,
-                type_id=type_id,
-            )
-        )
-
-    async_add_entities(entities)
+    """Set up one RecordLogButton per Record Type per Member."""
+    await async_setup_record_entities(
+        hass,
+        area,
+        async_add_entities,
+        lambda coordinator, type_id: RecordLogButton(
+            coordinator=coordinator, type_id=type_id
+        ),
+    )
 
 
 class RecordLogButton(ButtonEntity):
@@ -78,7 +76,7 @@ class RecordLogButton(ButtonEntity):
         self._type_id = type_id
         record_set = coordinator.get_record_set(type_id)
 
-        self._attr_unique_id = f"{coordinator.member_id}_{type_id}_log"
+        self._attr_unique_id = unique_id(AREA, coordinator.member_id, type_id, "log")
         self._attr_translation_placeholders = {"record_name": record_set.name}
         self._attr_device_info = coordinator.get_device_info()
         self._attr_icon = "mdi:content-save"

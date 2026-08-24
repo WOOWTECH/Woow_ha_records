@@ -13,7 +13,10 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from . import HaHealthRecordConfigEntry
+from ...const import unique_id
+from .area import HealthArea
+from .const import AREA
+from .platform import async_setup_record_entities
 from .coordinator import (
     HealthRecordCoordinator,
     signal_record_updated,
@@ -22,25 +25,20 @@ from .coordinator import (
 _LOGGER = logging.getLogger(__name__)
 
 
-async def async_setup_entry(
+async def async_setup_area(
     hass: HomeAssistant,
-    entry: HaHealthRecordConfigEntry,
+    area: HealthArea,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Set up sensor entities from a config entry."""
-    coordinator = entry.runtime_data
-
-    entities: list[SensorEntity] = []
-
-    for type_id in coordinator.record_sets:
-        entities.append(
-            RecordSensor(
-                coordinator=coordinator,
-                type_id=type_id,
-            )
-        )
-
-    async_add_entities(entities)
+    """Set up one RecordSensor per Record Type per Member."""
+    await async_setup_record_entities(
+        hass,
+        area,
+        async_add_entities,
+        lambda coordinator, type_id: RecordSensor(
+            coordinator=coordinator, type_id=type_id
+        ),
+    )
 
 
 class RecordSensor(SensorEntity):
@@ -85,7 +83,7 @@ class RecordSensor(SensorEntity):
         self._type_id = type_id
         record_set = coordinator.get_record_set(type_id)
 
-        self._attr_unique_id = f"{coordinator.member_id}_{type_id}_record"
+        self._attr_unique_id = unique_id(AREA, coordinator.member_id, type_id, "record")
         self._attr_translation_placeholders = {"record_name": record_set.name}
         self._attr_native_unit_of_measurement = record_set.unit
         self._attr_device_info = coordinator.get_device_info()

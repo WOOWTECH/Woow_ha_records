@@ -12,31 +12,29 @@ from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from . import HaHealthRecordConfigEntry
+from ...const import unique_id
+from .area import HealthArea
+from .const import AREA
+from .platform import async_setup_record_entities
 from .coordinator import HealthRecordCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
 
-async def async_setup_entry(
+async def async_setup_area(
     hass: HomeAssistant,
-    entry: HaHealthRecordConfigEntry,
+    area: HealthArea,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Set up text entities from a config entry."""
-    coordinator = entry.runtime_data
-
-    entities: list[TextEntity] = []
-
-    for type_id in coordinator.record_sets:
-        entities.append(
-            RecordNoteText(
-                coordinator=coordinator,
-                type_id=type_id,
-            )
-        )
-
-    async_add_entities(entities)
+    """Set up one RecordNoteText per Record Type per Member."""
+    await async_setup_record_entities(
+        hass,
+        area,
+        async_add_entities,
+        lambda coordinator, type_id: RecordNoteText(
+            coordinator=coordinator, type_id=type_id
+        ),
+    )
 
 
 class RecordNoteText(TextEntity):
@@ -82,7 +80,7 @@ class RecordNoteText(TextEntity):
         self._type_id = type_id
         record_set = coordinator.get_record_set(type_id)
 
-        self._attr_unique_id = f"{coordinator.member_id}_{type_id}_note"
+        self._attr_unique_id = unique_id(AREA, coordinator.member_id, type_id, "note")
         self._attr_translation_placeholders = {"record_name": record_set.name}
         self._attr_device_info = coordinator.get_device_info()
         self._attr_icon = "mdi:note-text"
