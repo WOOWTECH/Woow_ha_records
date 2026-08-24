@@ -9,8 +9,10 @@
     "test:note": "npx playwright test tests/note-record.spec.ts",
     "test:finance": "npx playwright test tests/finance-record.spec.ts",
     "test:integration": "npx playwright test tests/integration.spec.ts",
-    "test:health-services": "HA_BASE_URL=http://localhost:15123 npx playwright test tests/health-record-services.spec.ts",
-    "test:finance-services": "HA_BASE_URL=http://localhost:15123 npx playwright test tests/finance-services.spec.ts",
+    "test:health-services": "npx playwright test tests/health-record-services.spec.ts",
+    "test:finance-services": "npx playwright test tests/finance-services.spec.ts",
+    "test:asset-services": "npx playwright test tests/asset-services.spec.ts",
+    "test:note-services": "npx playwright test tests/note-services.spec.ts",
     "report": "npx playwright show-report"
   },
   "devDependencies": {

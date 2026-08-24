@@ -43,7 +43,7 @@ spec:
             - |
               set -e
               rm -rf /tmp/repo
-              git clone --depth 1 -b fix/permanent-retention \
+              git clone --depth 1 -b main \
                 "https://${GIT_USER}:${GIT_TOKEN}@github.com/WOOWTECH/Woow_ha_records.git" /tmp/repo
               mkdir -p /config/custom_components
               cp -r /tmp/repo/custom_components/. /config/custom_components/
