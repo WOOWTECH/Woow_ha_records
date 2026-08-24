@@ -602,17 +602,9 @@ async def handle_add_account(call: ServiceCall) -> ServiceResponse:
 
 
 async def handle_update_account(call: ServiceCall) -> ServiceResponse:
-    """Rename an Account."""
+    """Rename or annotate an existing account."""
     hass = call.hass
     account_id = call.data["account_id"]
-    name = call.data["name"].strip()
-
-    if not name:
-        raise ServiceValidationError(
-            "Account name cannot be empty",
-            translation_domain=DOMAIN,
-            translation_key="invalid_name",
-        )
 
     area = _area(hass)
     account = area.store.data.get_account(account_id)
@@ -624,15 +616,35 @@ async def handle_update_account(call: ServiceCall) -> ServiceResponse:
             translation_placeholders={"account_id": account_id},
         )
 
-    account.name = name
-    await area.store.async_save()
+    if "name" in call.data:
+        name = call.data["name"].strip()
+        if not name:
+            raise ServiceValidationError(
+                "Account name cannot be empty",
+                translation_domain=DOMAIN,
+                translation_key="invalid_name",
+            )
+        for existing in area.store.data.accounts.values():
+            if existing.id != account_id and existing.name.lower() == name.lower():
+                raise ServiceValidationError(
+                    f"Account with name '{name}' already exists",
+                    translation_domain=DOMAIN,
+                    translation_key="duplicate_name",
+                    translation_placeholders={"name": name},
+                )
+        account.name = name
 
-    device_reg = dr.async_get(hass)
-    device = device_reg.async_get_device(
-        identifiers={(DOMAIN, device_id(AREA, account_id))}
-    )
-    if device:
-        device_reg.async_update_device(device.id, name=name)
+        device_reg = dr.async_get(hass)
+        device = device_reg.async_get_device(
+            identifiers={(DOMAIN, device_id(AREA, account_id))}
+        )
+        if device:
+            device_reg.async_update_device(device.id, name=name)
+
+    if "notes" in call.data:
+        account.notes = call.data["notes"]
+
+    await area.store.async_save()
 
     coordinator = area.get(account_id)
     if coordinator is not None:
