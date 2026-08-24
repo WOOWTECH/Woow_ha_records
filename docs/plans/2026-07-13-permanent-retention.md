@@ -1,5 +1,9 @@
 # Permanent Record Retention Implementation Plan
 
+> **STATUS: SHIPPED.** Implemented and merged in `71403ba` (Merge fix/permanent-retention).
+> All steps below are complete; the file is retained as the record of the design decisions.
+> The quoted PR body near the end is reproduced verbatim as it was written and is not updated.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Remove the hard-coded data-retention limits in `ha_finance` (1000 tx/account) and `ha_health_record` (10,000 records/member) so records are kept permanently, then prove it with unit tests and a disposable k3s Home Assistant E2E test before the PR is merged.
@@ -8,7 +12,7 @@
 
 **Tech Stack:** Python 3.12+, pytest + pytest-homeassistant-custom-component (pinned `homeassistant==2025.1.4`), kubectl against local k3s, bash + Python stdlib for E2E scripts.
 
-**Spec:** `docs/superpowers/specs/2026-07-13-permanent-retention-design.md`
+**Spec:** `docs/design/2026-07-13-permanent-retention-design.md`
 
 **Working directory:** `/home/woowtechcluster1/Woow_ha_records` (branch `fix/permanent-retention`, already contains the committed spec).
 
@@ -32,7 +36,7 @@
 
 **Files:** none created (venv is gitignored-by-convention; verify)
 
-- [ ] **Step 1: Create venv and install test deps**
+- [x] **Step 1: Create venv and install test deps**
 
 ```bash
 cd /home/woowtechcluster1/Woow_ha_records
@@ -41,14 +45,14 @@ python3 -m venv .venv
 .venv/bin/pip install --quiet -r requirements_test.txt
 ```
 
-- [ ] **Step 2: Ensure `.venv` is not committed**
+- [x] **Step 2: Ensure `.venv` is not committed**
 
 ```bash
 grep -q '^\.venv' .gitignore || echo '.venv/' >> .gitignore
 ```
 If `.gitignore` was modified, include it in the Task 2 commit.
 
-- [ ] **Step 3: Run the full suite for a green baseline**
+- [x] **Step 3: Run the full suite for a green baseline**
 
 Run: `.venv/bin/pytest -q`
 Expected: all tests PASS. If the baseline is already red, STOP and report — do not proceed on a broken baseline.
@@ -66,7 +70,7 @@ Expected: all tests PASS. If the baseline is already red, STOP and report — do
 - Modify: `custom_components/ha_finance/panel.py:61` (docstring)
 - Modify: `custom_components/ha_finance/manifest.json:4`
 
-- [ ] **Step 1: Replace the trimming test with a permanent-retention test**
+- [x] **Step 1: Replace the trimming test with a permanent-retention test**
 
 In `tests/ha_finance/test_models.py`, replace the whole `test_add_transaction_trims_oldest` method (lines 122-136, docstring self-labelled "BUG") with:
 
@@ -86,12 +90,12 @@ In `tests/ha_finance/test_models.py`, replace the whole `test_add_transaction_tr
         assert account.transactions[-1].note == f"tx_{total - 1}"
 ```
 
-- [ ] **Step 2: Run the new test to verify it fails**
+- [x] **Step 2: Run the new test to verify it fails**
 
 Run: `.venv/bin/pytest tests/ha_finance/test_models.py::TestAccount::test_add_transaction_never_trims -v`
 Expected: FAIL — `len(account.transactions)` is 1000, not 1001 (trimming still active).
 
-- [ ] **Step 3: Remove trimming from the model**
+- [x] **Step 3: Remove trimming from the model**
 
 In `custom_components/ha_finance/models.py`, replace `add_transaction` (lines 163-182) with:
 
@@ -105,11 +109,11 @@ In `custom_components/ha_finance/models.py`, replace `add_transaction` (lines 16
         self.transactions.append(transaction)
 ```
 
-- [ ] **Step 4: Remove the constant and event**
+- [x] **Step 4: Remove the constant and event**
 
 In `custom_components/ha_finance/const.py` delete line 36 (`EVENT_TRANSACTIONS_TRIMMED: Final = "ha_finance_transactions_trimmed"`) and line 41 (`DEFAULT_MAX_TRANSACTIONS: Final = 1000`).
 
-- [ ] **Step 5: Clean up the coordinator**
+- [x] **Step 5: Clean up the coordinator**
 
 In `custom_components/ha_finance/coordinator.py`:
 1. Remove `DEFAULT_MAX_TRANSACTIONS,` (line 16) and `EVENT_TRANSACTIONS_TRIMMED,` (line 22) from the `.const` import.
@@ -120,23 +124,23 @@ In `custom_components/ha_finance/coordinator.py`:
 
 (Line numbers shift as you edit — locate by content, not absolute number.)
 
-- [ ] **Step 6: Update docstrings and manifest**
+- [x] **Step 6: Update docstrings and manifest**
 
 1. `custom_components/ha_finance/__init__.py` module docstring: delete the line `` * ``ha_finance_transactions_trimmed`` -- old transactions pruned `` and the line `` * ``max_transactions``       -- ``1000`` `` under "Configuration defaults".
 2. `custom_components/ha_finance/panel.py` docstring: delete the line `` - ``ha_finance_transactions_trimmed`` -- Old transactions were pruned. ``
 3. `custom_components/ha_finance/manifest.json` `description`: change `Fires 5 HA bus events (transaction_added, recurring_executed, balance_adjusted, low_balance, transactions_trimmed).` → `Fires 4 HA bus events (transaction_added, recurring_executed, balance_adjusted, low_balance). Transactions are kept permanently.`
 
-- [ ] **Step 7: Verify no stale references remain in the component**
+- [x] **Step 7: Verify no stale references remain in the component**
 
 Run: `grep -rn "DEFAULT_MAX_TRANSACTIONS\|EVENT_TRANSACTIONS_TRIMMED\|max_transactions\|_fire_trimmed_event\|transactions_trimmed" custom_components/ tests/`
 Expected: no matches (the services/panel call sites `account.add_transaction(transaction)` never used the return value, so nothing else changes).
 
-- [ ] **Step 8: Run the finance test suite**
+- [x] **Step 8: Run the finance test suite**
 
 Run: `.venv/bin/pytest tests/ha_finance -v`
 Expected: ALL PASS, including `test_add_transaction_never_trims`.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add tests/ha_finance/test_models.py custom_components/ha_finance/ .gitignore
@@ -153,7 +157,7 @@ git commit -m "fix(ha_finance): keep transactions permanently, remove 1000-tx tr
 - Modify: `custom_components/ha_health_record/const.py:22`
 - Modify: `custom_components/ha_health_record/__init__.py:54` (docstring)
 
-- [ ] **Step 1: Replace the pruning test and drop the `MAX_RECORDS` import**
+- [x] **Step 1: Replace the pruning test and drop the `MAX_RECORDS` import**
 
 In `tests/ha_health_record/test_coordinator.py`:
 
@@ -193,12 +197,12 @@ from custom_components.ha_health_record.coordinator import (
         assert coordinator.records[-1]["value"] == 999.0
 ```
 
-- [ ] **Step 2: Run the new test to verify it fails**
+- [x] **Step 2: Run the new test to verify it fails**
 
 Run: `.venv/bin/pytest tests/ha_health_record/test_coordinator.py -v -k never_pruned`
 Expected: FAIL — count is 10,000 (rec_0 pruned).
 
-- [ ] **Step 3: Remove pruning from the coordinator**
+- [x] **Step 3: Remove pruning from the coordinator**
 
 In `custom_components/ha_health_record/coordinator.py`:
 1. Remove `EVENT_RECORDS_PRUNED,` from the `.const` import (line 25).
@@ -206,22 +210,22 @@ In `custom_components/ha_health_record/coordinator.py`:
 3. Delete the whole `_prune_records` method (lines 282-301).
 4. In `log_record`, delete the call `self._prune_records()` (line 376).
 
-- [ ] **Step 4: Remove the event constant and docstring mention**
+- [x] **Step 4: Remove the event constant and docstring mention**
 
 1. `custom_components/ha_health_record/const.py`: delete line 22 (`EVENT_RECORDS_PRUNED = f"{DOMAIN}_records_pruned"`).
 2. `custom_components/ha_health_record/__init__.py` docstring: delete the line `` * ``ha_health_record_records_pruned``  -- fired after old records are pruned ``.
 
-- [ ] **Step 5: Verify no stale references remain**
+- [x] **Step 5: Verify no stale references remain**
 
 Run: `grep -rn "MAX_RECORDS\|EVENT_RECORDS_PRUNED\|_prune_records\|records_pruned" custom_components/ tests/`
 Expected: no matches.
 
-- [ ] **Step 6: Run the health-record test suite**
+- [x] **Step 6: Run the health-record test suite**
 
 Run: `.venv/bin/pytest tests/ha_health_record -v`
 Expected: ALL PASS.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add tests/ha_health_record/test_coordinator.py custom_components/ha_health_record/
@@ -232,12 +236,12 @@ git commit -m "fix(ha_health_record): keep records permanently, remove 10k pruni
 
 ### Task 4: Full suite + repo-wide sweep
 
-- [ ] **Step 1: Run the entire pytest suite**
+- [x] **Step 1: Run the entire pytest suite**
 
 Run: `.venv/bin/pytest -q`
 Expected: ALL PASS (merge-gate check #1).
 
-- [ ] **Step 2: Repo-wide sweep for leftovers (excluding docs, handled next)**
+- [x] **Step 2: Repo-wide sweep for leftovers (excluding docs, handled next)**
 
 Run: `grep -rni "trimmed\|pruned" custom_components/ tests/ | grep -vi "whitespace"`
 Expected: no matches. (The remaining "trimmed" hits in `ha_note_record`/`ha_asset_record` are whitespace-trimming docs — leave them.)
@@ -253,7 +257,7 @@ No commit needed if nothing found.
 - Modify: `README_zh-TW.md` (same mirrored lines)
 - Modify: `docs/ha_finance_services_guide.md:429`
 
-- [ ] **Step 1: Update `README.md`**
+- [x] **Step 1: Update `README.md`**
 
 1. Line 148 — delete the table row `| \`ha_health_record_records_pruned\` | ... |`.
 2. Line 320 — replace the sentence `Records exceeding 10,000 per member are auto-pruned (oldest removed).` with `Records are kept permanently.`
@@ -262,7 +266,7 @@ No commit needed if nothing found.
 5. Line 1399 — delete the table row `| \`DEFAULT_MAX_TRANSACTIONS\` | 1000 | ... |`.
 6. Line 1572 — delete the bullet `- May fire \`ha_finance_transactions_trimmed\` if transactions exceed 1000`.
 
-- [ ] **Step 2: Update `README_zh-TW.md` (mirrored lines)**
+- [x] **Step 2: Update `README_zh-TW.md` (mirrored lines)**
 
 1. Line 148 — delete the `ha_health_record_records_pruned` row.
 2. Line 320 — replace 「每位成員超過 10,000 筆記錄時自動修剪（移除最舊記錄）。」 with 「記錄永久保留。」
@@ -271,16 +275,16 @@ No commit needed if nothing found.
 5. Line 1399 — delete the `DEFAULT_MAX_TRANSACTIONS` row.
 6. Line 1572 — delete 「- 交易超過 1000 筆時可能觸發 …」.
 
-- [ ] **Step 3: Update the services guide**
+- [x] **Step 3: Update the services guide**
 
 `docs/ha_finance_services_guide.md` line 429: delete the row `| \`ha_finance_transactions_trimmed\` | Oldest transactions pruned (>1000 limit) |`.
 
-- [ ] **Step 4: Final docs sweep**
+- [x] **Step 4: Final docs sweep**
 
-Run: `grep -rni "trimmed\|pruned\|max_transactions\|MAX_RECORDS" README.md README_zh-TW.md docs/ --include='*.md' | grep -v superpowers`
-Expected: no retention-related matches (spec/plan files under `docs/superpowers/` are exempt).
+Run: `grep -rni "trimmed\|pruned\|max_transactions\|MAX_RECORDS" README.md README_zh-TW.md docs/ --include='*.md' | grep -vE 'docs/(plans|design)/'`
+Expected: no retention-related matches (spec/plan files under `docs/design/` and `docs/plans/` are exempt).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add README.md README_zh-TW.md docs/ha_finance_services_guide.md
@@ -291,14 +295,14 @@ git commit -m "docs: records are kept permanently; remove trimmed/pruned event d
 
 ### Task 6: Push branch + open PR (do NOT merge)
 
-- [ ] **Step 1: Push**
+- [x] **Step 1: Push**
 
 ```bash
 cd /home/woowtechcluster1/Woow_ha_records
 git push -u origin fix/permanent-retention
 ```
 
-- [ ] **Step 2: Open the PR** (extract token from the remote; never echo it)
+- [x] **Step 2: Open the PR** (extract token from the remote; never echo it)
 
 ```bash
 export GH_TOKEN=$(git remote get-url origin | sed -E 's#https://[^:]+:([^@]+)@.*#\1#')
@@ -335,7 +339,7 @@ Expected: PR URL printed. Report it to the user.
 - Create: `e2e/k3s/bootstrap.sh`
 - Create: `e2e/k3s/retention_test.py`
 
-- [ ] **Step 1: Write the k8s manifest**
+- [x] **Step 1: Write the k8s manifest**
 
 Create `e2e/k3s/ha-test.yaml`. Notes: PVC (not emptyDir) so `.storage` survives pod restart (merge-gate check #6); initContainer clones the branch and copies `custom_components` on every pod start; credentials come from a Secret created at deploy time (Task 8), never from this file.
 
@@ -428,7 +432,7 @@ spec:
       targetPort: 8123
 ```
 
-- [ ] **Step 2: Write the onboarding + token scripts**
+- [x] **Step 2: Write the onboarding + token scripts**
 
 Create `e2e/k3s/onboard.sh` (mode 755). Completes fresh-HA onboarding (owner user `admin`/`admin123`, matching `e2e/run-tests.sh` conventions), **saves the refresh token** to `/tmp/ha-records-test.refresh`, and prints an access token on stdout:
 
@@ -479,7 +483,7 @@ curl -sf -X POST "$HA/auth/token" \
   | python3 -c 'import sys,json;print(json.load(sys.stdin)["access_token"])'
 ```
 
-- [ ] **Step 2b: Write the bootstrap script (creates the first config entries)**
+- [x] **Step 2b: Write the bootstrap script (creates the first config entries)**
 
 Create `e2e/k3s/bootstrap.sh` (mode 755). On a fresh HA neither integration is loaded (config-flow-only; `ha_health_record` has no `async_setup`), so their services don't exist yet. This creates one config entry per domain via the config-flow REST API with **known, fixed IDs**, which loads the integrations and registers all services:
 
@@ -514,7 +518,7 @@ flow ha_health_record '{"member_name":"Retention Test","member_id":"retention_te
 
 (Field keys verified against `config_flow.py`: finance `account_name`/`account_id`/`initial_balance`; health `member_name`/`member_id` — both flows honor the explicit IDs.)
 
-- [ ] **Step 3: Write the retention test script**
+- [x] **Step 3: Write the retention test script**
 
 Create `e2e/k3s/retention_test.py` (mode 755). Python stdlib only. Assumes `bootstrap.sh` already created the account/member entries with the fixed IDs. Two phases so the pod restart happens between them; auto-refreshes the access token on 401 using `/tmp/ha-records-test.refresh`:
 
@@ -649,7 +653,7 @@ if __name__ == "__main__":
 
 (Response shapes verified against `services.py` on this branch: `get_account` → `{"account": {"balance", "transactions": [...]}}`; `get_records` → `{"records": [...]}`; `add_record_type` requires `member_id`/`name`/`unit` and generates `type_id` from `name`. The account/member are NOT created here — `bootstrap.sh` creates them via config flow because `ha_finance.add_account` auto-generates IDs and `ha_health_record.add_member` requires an existing entry to even be registered.)
 
-- [ ] **Step 4: Commit the harness**
+- [x] **Step 4: Commit the harness**
 
 ```bash
 chmod +x e2e/k3s/onboard.sh e2e/k3s/token.sh e2e/k3s/bootstrap.sh e2e/k3s/retention_test.py
@@ -664,7 +668,7 @@ git push
 
 No repo file changes — this task produces the test report.
 
-- [ ] **Step 1: Create namespace + credentials Secret + deploy**
+- [x] **Step 1: Create namespace + credentials Secret + deploy**
 
 ```bash
 cd /home/woowtechcluster1/Woow_ha_records
@@ -682,7 +686,7 @@ kubectl -n ha-records-test rollout status deployment/homeassistant --timeout=600
 
 Expected: `deployment "homeassistant" successfully rolled out`.
 
-- [ ] **Step 2: Port-forward, onboard, bootstrap config entries**
+- [x] **Step 2: Port-forward, onboard, bootstrap config entries**
 
 Port-forward PID goes to a file (shell job control does not survive separate command blocks). Run `onboard.sh` and `bootstrap.sh` in the SAME shell block — `bootstrap.sh` needs the `HA_TOKEN` exported by the onboarding line:
 
@@ -698,7 +702,7 @@ bash e2e/k3s/bootstrap.sh
 
 Expected: `{"message": "API running."}`, `OK`, then `Created ha_finance entry.` and `Created ha_health_record entry.` — this loads both integrations and registers their services (they are config-flow-only; without an entry the services don't exist). Gate #2 partially verified here.
 
-- [ ] **Step 3: Seed past the old limits (gates #3 and #4)**
+- [x] **Step 3: Seed past the old limits (gates #3 and #4)**
 
 Mint a fresh token first (the onboarding token may be near its ~30-min expiry):
 
@@ -709,7 +713,7 @@ python3 e2e/k3s/retention_test.py seed 2>&1 | tee /tmp/retention-seed.log
 
 Expected: `PASS finance transactions retained: 1100`, `PASS finance balance correct: 1100.0`, `PASS health records retained: 10100`, exit 0. (Sequential REST calls: expect roughly 5-15 minutes for the 11,200 calls; the script auto-refreshes its token on 401. NOT idempotent — to retry after a partial failure, delete the namespace and restart from Step 1.)
 
-- [ ] **Step 4: Log check — no errors, no trim/prune mentions (gates #2 and #5)**
+- [x] **Step 4: Log check — no errors, no trim/prune mentions (gates #2 and #5)**
 
 ```bash
 kubectl -n ha-records-test logs deployment/homeassistant | grep -iE "error.*(ha_finance|ha_health_record)|trimmed|pruned" || echo CLEAN
@@ -717,7 +721,7 @@ kubectl -n ha-records-test logs deployment/homeassistant | grep -iE "error.*(ha_
 
 Expected: `CLEAN`. (The trim/prune code paths no longer exist, so the events cannot fire; log absence is the verification.)
 
-- [ ] **Step 5: Restart pod, verify persistence (gate #6)**
+- [x] **Step 5: Restart pod, verify persistence (gate #6)**
 
 ```bash
 kubectl -n ha-records-test rollout restart deployment/homeassistant
@@ -732,7 +736,7 @@ python3 e2e/k3s/retention_test.py verify
 
 Expected: all three PASS lines again, exit 0. Onboarding does not re-run — users/entries/records are all in `.storage` on the PVC, and the refresh token remains valid across restarts.
 
-- [ ] **Step 6: Frontend panel check (gate #7)**
+- [x] **Step 6: Frontend panel check (gate #7)**
 
 Run the existing Playwright suite against the instance (covers panels loading and browsing):
 
@@ -743,7 +747,7 @@ cd e2e && HA_BASE_URL=http://localhost:18125 HA_USERNAME=admin HA_PASSWORD=admin
 
 Expected: tests pass. If the suite has environment problems unrelated to retention (e.g. missing xvfb), fall back to a manual check: `curl -sf $HA_BASE_URL/ha-finance-panel/ && curl -sf $HA_BASE_URL/ha-health-record/` return HTTP 200, and note the fallback in the report.
 
-- [ ] **Step 7: Write the report and attach to the PR**
+- [x] **Step 7: Write the report and attach to the PR**
 
 Compose `/tmp/retention-e2e-report.md` summarizing all 7 gate results (PASS/FAIL each, with counts and durations). **The report must state explicitly** that gate #5 (zero trimmed/pruned events) is verified by log absence plus the fact that the event-firing code paths were deleted from the codebase — a live event listener is unnecessary since the events can no longer be constructed. Then:
 
@@ -756,7 +760,7 @@ gh pr comment --repo WOOWTECH/Woow_ha_records fix/permanent-retention --body-fil
 
 ### Task 9: Teardown + hand off to user
 
-- [ ] **Step 1: Teardown ONLY after user confirms** they don't want to inspect the instance:
+- [x] **Step 1: Teardown ONLY after user confirms** they don't want to inspect the instance:
 
 ```bash
 kill $(cat /tmp/pf.pid) 2>/dev/null  # stop port-forward
@@ -764,4 +768,4 @@ kubectl delete namespace ha-records-test
 rm -f /tmp/ha-records-test.refresh /tmp/pf.pid
 ```
 
-- [ ] **Step 2: Report to user**: PR URL, E2E report summary, reminder that merging is the user's call (per spec, the agent never merges).
+- [x] **Step 2: Report to user**: PR URL, E2E report summary, reminder that merging is the user's call (per spec, the agent never merges).
