@@ -14,7 +14,7 @@ import {
 let token: string;
 let ws: HAWebSocketClient;
 
-test.describe('ha_health_record E2E Tests', () => {
+test.describe('health Area E2E Tests', () => {
   test.beforeAll(async () => {
     const tokens = await getHAToken();
     token = tokens.access_token;

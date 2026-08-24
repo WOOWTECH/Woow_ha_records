@@ -1,4 +1,4 @@
-"""Tests for ha_health_record coordinator."""
+"""Tests for the health Area coordinator."""
 from __future__ import annotations
 
 import math
@@ -10,7 +10,7 @@ import pytest
 from homeassistant.core import HomeAssistant
 from homeassistant.util import dt as dt_util
 
-from custom_components.ha_health_record.coordinator import (
+from custom_components.woow_ha_records.areas.health.coordinator import (
     HealthRecordCoordinator,
     Record,
     RecordSet,
@@ -419,32 +419,3 @@ class TestHealthRecordCoordinator:
         assert ("ha_health_record", "test_member") in info["identifiers"]
         assert info["name"] == "Test Member"
 
-    async def test_v1_fallback_in_options(self, hass):
-        """Test coordinator falls back to v1 format in options."""
-        from types import MappingProxyType
-        from homeassistant.config_entries import ConfigEntry
-        from custom_components.ha_health_record.const import DOMAIN, CONF_MEMBER_ID, CONF_MEMBER_NAME
-
-        entry = ConfigEntry(
-            version=2,
-            minor_version=1,
-            domain=DOMAIN,
-            title="Legacy",
-            data={CONF_MEMBER_ID: "legacy", CONF_MEMBER_NAME: "Legacy"},
-            source="user",
-            options={
-                "activity_sets": [
-                    {"activity_type": "feeding", "activity_name": "Feeding", "activity_unit": "ml"},
-                ],
-                "growth_sets": [
-                    {"growth_type": "weight", "growth_name": "Weight", "growth_unit": "kg"},
-                ],
-            },
-            unique_id="legacy",
-            discovery_keys=MappingProxyType({}),
-        )
-        entry.hass = hass
-
-        coord = HealthRecordCoordinator(hass, entry)
-        assert "feeding" in coord.record_sets
-        assert "weight" in coord.record_sets

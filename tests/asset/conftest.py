@@ -1,4 +1,4 @@
-"""Fixtures for ha_asset_record tests."""
+"""Fixtures for the asset Area."""
 from __future__ import annotations
 
 from types import MappingProxyType
@@ -8,13 +8,13 @@ import pytest
 
 from homeassistant.core import HomeAssistant
 
-from custom_components.ha_asset_record.const import DOMAIN
-from custom_components.ha_asset_record.coordinator import AssetCoordinator
+from custom_components.woow_ha_records.areas.asset.const import DOMAIN
+from custom_components.woow_ha_records.areas.asset.coordinator import AssetCoordinator
 
 
 @pytest.fixture
 def mock_config_entry(hass: HomeAssistant):
-    """Create a mock config entry for ha_asset_record."""
+    """Create a mock config entry."""
     from homeassistant.config_entries import ConfigEntry
 
     entry = ConfigEntry(

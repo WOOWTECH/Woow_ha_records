@@ -1,4 +1,4 @@
-"""Tests for ha_note_record store."""
+"""Tests for the note Area store."""
 from __future__ import annotations
 
 from unittest.mock import AsyncMock
@@ -7,7 +7,7 @@ import pytest
 
 from homeassistant.core import HomeAssistant
 
-from custom_components.ha_note_record.store import (
+from custom_components.woow_ha_records.areas.note.store import (
     Category,
     HaNoteRecordStore,
     Note,

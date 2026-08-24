@@ -1,4 +1,4 @@
-"""Fixtures for ha_finance tests."""
+"""Fixtures for the finance Area."""
 from __future__ import annotations
 
 from types import MappingProxyType
@@ -8,14 +8,14 @@ import pytest
 
 from homeassistant.core import HomeAssistant
 
-from custom_components.ha_finance.const import DOMAIN
-from custom_components.ha_finance.models import Account, FinanceData
-from custom_components.ha_finance.store import FinanceStore
+from custom_components.woow_ha_records.areas.finance.const import DOMAIN
+from custom_components.woow_ha_records.areas.finance.models import Account, FinanceData
+from custom_components.woow_ha_records.areas.finance.store import FinanceStore
 
 
 @pytest.fixture
 def mock_config_entry(hass: HomeAssistant):
-    """Create a mock config entry for ha_finance."""
+    """Create a mock config entry."""
     from homeassistant.config_entries import ConfigEntry
 
     entry = ConfigEntry(

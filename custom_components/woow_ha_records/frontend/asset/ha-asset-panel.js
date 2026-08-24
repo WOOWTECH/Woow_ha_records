@@ -1073,7 +1073,7 @@ class HaAssetPanel extends LitElement {
   async _loadAssets() {
     this._loading = true;
     try {
-      const result = await this.hass.callWS({ type: "ha_asset_record/list" });
+      const result = await this.hass.callWS({ type: "woow_ha_records/asset/list" });
       this._assets = result.assets || [];
       this._categories = result.categories || [];
     } catch (e) {
@@ -1090,7 +1090,7 @@ class HaAssetPanel extends LitElement {
 
   _localize(key) {
     // Try to get translation from HA
-    const translation = this.hass?.localize?.(`component.ha_asset_record.panel.${key}`);
+    const translation = this.hass?.localize?.(`component.woow_ha_records.panel.${key}`);
     if (translation) return translation;
 
     // Fallback translations
@@ -1273,7 +1273,7 @@ class HaAssetPanel extends LitElement {
     try {
       if (this._editingAsset.id) {
         await this.hass.callWS({
-          type: "ha_asset_record/update",
+          type: "woow_ha_records/asset/update",
           asset_id: this._editingAsset.id,
           name: name,
           brand: (this._editingAsset.brand || "").trim(),
@@ -1286,7 +1286,7 @@ class HaAssetPanel extends LitElement {
         });
       } else {
         await this.hass.callWS({
-          type: "ha_asset_record/create",
+          type: "woow_ha_records/asset/create",
           name: name,
           brand: (this._editingAsset.brand || "").trim(),
           category_id: this._editingAsset.category_id || "",
@@ -1314,7 +1314,7 @@ class HaAssetPanel extends LitElement {
 
     try {
       await this.hass.callWS({
-        type: "ha_asset_record/delete",
+        type: "woow_ha_records/asset/delete",
         asset_id: this._editingAsset.id,
       });
       this._closeDialog();
@@ -1380,13 +1380,13 @@ class HaAssetPanel extends LitElement {
     try {
       if (this._categoryDialogId) {
         await this.hass.callWS({
-          type: "ha_asset_record/update_category",
+          type: "woow_ha_records/asset/update_category",
           category_id: this._categoryDialogId,
           name: name,
         });
       } else {
         await this.hass.callWS({
-          type: "ha_asset_record/create_category",
+          type: "woow_ha_records/asset/create_category",
           name: name,
         });
       }
@@ -1418,7 +1418,7 @@ class HaAssetPanel extends LitElement {
     if (!this._categoryDeleteTarget) return;
     try {
       await this.hass.callWS({
-        type: "ha_asset_record/delete_category",
+        type: "woow_ha_records/asset/delete_category",
         category_id: this._categoryDeleteTarget.id,
       });
       if (this._activeTab === this._categoryDeleteTarget.id) {

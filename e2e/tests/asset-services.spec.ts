@@ -1,5 +1,5 @@
 /**
- * E2E tests for ha_asset_record HA Services.
+ * E2E tests for the asset Area's HA services.
  *
  * Tests 10 services via REST API:
  *   Query (ONLY):  list_assets, get_asset, list_categories, export_csv
@@ -22,7 +22,7 @@ import { EDGE_CASES } from '../utils/test-data';
 
 test.describe.configure({ retries: 0 });
 
-const DOMAIN = 'ha_asset_record';
+const DOMAIN = 'asset';
 
 let token: string;
 let svc: HAServicesClient;
@@ -38,7 +38,7 @@ let assetId3 = '';  // markdown content
 const extraAssetIds: string[] = [];
 const extraCatIds: string[] = [];
 
-test.describe('ha_asset_record Services E2E Tests', () => {
+test.describe('asset Area Services E2E Tests', () => {
   test.beforeAll(async () => {
     const tokens = await getHAToken();
     token = tokens.access_token;
@@ -646,13 +646,13 @@ test.describe('ha_asset_record Services E2E Tests', () => {
   // Round 4: Browser UI Verification
   // ═══════════════════════════════════════════════════════════
   test.describe('Round 4: Browser UI Verification', () => {
-    test('4.1 ha_asset_record services listed in Developer Tools', async ({ page }) => {
+    test('4.1 asset services listed in Developer Tools', async ({ page }) => {
       await loginAndNavigate(page, 'developer-tools/service');
       await page.waitForLoadState('networkidle');
       await page.waitForTimeout(2000);
 
       const content = await page.content();
-      expect(content).toContain('ha_asset_record');
+      expect(content).toContain('asset_');
     });
 
     test('4.2 Asset panel loads correctly', async ({ page }) => {

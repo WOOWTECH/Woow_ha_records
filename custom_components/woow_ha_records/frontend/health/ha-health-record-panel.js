@@ -406,7 +406,7 @@ class HaHealthRecordPanel extends HTMLElement {
     try {
       // Load members
       const membersResult = await this._hass.callWS({
-        type: 'ha_health_record/get_members',
+        type: 'woow_ha_records/health/get_members',
       });
       this.members = membersResult.members || [];
 
@@ -428,7 +428,7 @@ class HaHealthRecordPanel extends HTMLElement {
   async _loadRecords() {
     try {
       const recordsResult = await this._hass.callWS({
-        type: 'ha_health_record/get_records',
+        type: 'woow_ha_records/health/get_records',
         start_time: new Date(this.startDate).toISOString(),
         end_time: new Date(this.endDate).toISOString(),
       });
@@ -507,7 +507,7 @@ class HaHealthRecordPanel extends HTMLElement {
 
     try {
       await this._hass.callWS({
-        type: 'ha_health_record/log_record',
+        type: 'woow_ha_records/health/log_record',
         member_id: this.selectedMember.id,
         record_type: this.selectedType,
         value: this.inputValue || 0,
@@ -740,7 +740,7 @@ class HaHealthRecordPanel extends HTMLElement {
       // Convert datetime-local value to ISO string for new_timestamp
       const newTimestamp = this.editingRecord.timestamp ? new Date(this.editingRecord.timestamp).toISOString() : null;
       await this._hass.callWS({
-        type: 'ha_health_record/update_record',
+        type: 'woow_ha_records/health/update_record',
         member_id: record.member_id,
         type_id: record.record_type,
         timestamp: record.timestamp,
@@ -825,7 +825,7 @@ class HaHealthRecordPanel extends HTMLElement {
 
       if (mode === 'add') {
         await this._hass.callWS({
-          type: 'ha_health_record/add_record_type',
+          type: 'woow_ha_records/health/add_record_type',
           member_id: memberId,
           name: data.name,
           unit: data.unit,
@@ -834,7 +834,7 @@ class HaHealthRecordPanel extends HTMLElement {
         });
       } else {
         await this._hass.callWS({
-          type: 'ha_health_record/update_record_type',
+          type: 'woow_ha_records/health/update_record_type',
           member_id: memberId,
           type_id: typeId,
           name: data.name,
@@ -951,14 +951,14 @@ class HaHealthRecordPanel extends HTMLElement {
 
       if (mode === 'add') {
         await this._hass.callWS({
-          type: 'ha_health_record/add_member',
+          type: 'woow_ha_records/health/add_member',
           name: data.name,
           ...(data.member_id ? { member_id: data.member_id } : {}),
           ...(data.note ? { note: data.note } : {}),
         });
       } else {
         await this._hass.callWS({
-          type: 'ha_health_record/update_member',
+          type: 'woow_ha_records/health/update_member',
           member_id: originalId,
           name: data.name,
           ...(data.note !== undefined ? { note: data.note } : {}),
@@ -1009,7 +1009,7 @@ class HaHealthRecordPanel extends HTMLElement {
       switch (type) {
         case 'record':
           await this._hass.callWS({
-            type: 'ha_health_record/delete_record',
+            type: 'woow_ha_records/health/delete_record',
             member_id: record.member_id,
             type_id: record.record_type,
             timestamp: record.timestamp,
@@ -1018,7 +1018,7 @@ class HaHealthRecordPanel extends HTMLElement {
           break;
         case 'recordType':
           await this._hass.callWS({
-            type: 'ha_health_record/delete_record_type',
+            type: 'woow_ha_records/health/delete_record_type',
             member_id: memberId,
             type_id: id,
           });
@@ -1026,7 +1026,7 @@ class HaHealthRecordPanel extends HTMLElement {
           break;
         case 'member':
           await this._hass.callWS({
-            type: 'ha_health_record/delete_member',
+            type: 'woow_ha_records/health/delete_member',
             member_id: id,
           });
           needsReloadWait = true;
@@ -3059,7 +3059,7 @@ class HaHealthRecordPanel extends HTMLElement {
 
     try {
       const result = await this._hass.callWS({
-        type: 'ha_health_record/export_csv',
+        type: 'woow_ha_records/health/export_csv',
         member_id: this.selectedMemberId,
       });
 

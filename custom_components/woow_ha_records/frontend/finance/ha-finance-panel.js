@@ -1532,7 +1532,7 @@ class HaFinancePanel extends LitElement {
     this._error = "";
 
     try {
-      const result = await this.hass.callWS({ type: "ha_finance/accounts" });
+      const result = await this.hass.callWS({ type: "woow_ha_records/finance/accounts" });
       this._accounts = result.accounts;
 
       if (this._accounts.length > 0 && !this._selectedAccountId) {
@@ -1552,7 +1552,7 @@ class HaFinancePanel extends LitElement {
     this._loading = true;
     try {
       const result = await this.hass.callWS({
-        type: "ha_finance/account",
+        type: "woow_ha_records/finance/account",
         account_id: this._selectedAccountId,
       });
       this._selectedAccount = result.account;
@@ -1570,7 +1570,7 @@ class HaFinancePanel extends LitElement {
     this._chartError = "";
     try {
       const result = await this.hass.callWS({
-        type: "ha_finance/chart_data",
+        type: "woow_ha_records/finance/chart_data",
         account_id: this._selectedAccountId,
         months: 6,
       });
@@ -1888,7 +1888,7 @@ class HaFinancePanel extends LitElement {
     const accountName = this._selectedAccount?.name || "account";
     const date = new Date().toISOString().slice(0, 10);
     a.href = url;
-    a.download = `ha_finance_${accountName}_${date}.csv`;
+    a.download = `woow_finance_${accountName}_${date}.csv`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -1904,7 +1904,7 @@ class HaFinancePanel extends LitElement {
     try {
       if (this._editingTransaction) {
         await this.hass.callWS({
-          type: "ha_finance/update_transaction",
+          type: "woow_ha_records/finance/update_transaction",
           account_id: this._selectedAccountId,
           transaction_id: this._editingTransaction.id,
           amount,
@@ -1912,7 +1912,7 @@ class HaFinancePanel extends LitElement {
         });
       } else {
         await this.hass.callWS({
-          type: "ha_finance/add_transaction",
+          type: "woow_ha_records/finance/add_transaction",
           account_id: this._selectedAccountId,
           amount,
           note,
@@ -1930,7 +1930,7 @@ class HaFinancePanel extends LitElement {
 
     try {
       await this.hass.callWS({
-        type: "ha_finance/delete_transaction",
+        type: "woow_ha_records/finance/delete_transaction",
         account_id: this._selectedAccountId,
         transaction_id: transaction.id,
       });
@@ -2133,7 +2133,7 @@ class HaFinancePanel extends LitElement {
     try {
       if (this._editingPlan) {
         await this.hass.callWS({
-          type: "ha_finance/update_plan",
+          type: "woow_ha_records/finance/update_plan",
           account_id: this._selectedAccountId,
           plan_id: this._editingPlan.id,
           title,
@@ -2145,7 +2145,7 @@ class HaFinancePanel extends LitElement {
         });
       } else {
         await this.hass.callWS({
-          type: "ha_finance/add_plan",
+          type: "woow_ha_records/finance/add_plan",
           account_id: this._selectedAccountId,
           title,
           amount,
@@ -2167,7 +2167,7 @@ class HaFinancePanel extends LitElement {
 
     try {
       await this.hass.callWS({
-        type: "ha_finance/delete_plan",
+        type: "woow_ha_records/finance/delete_plan",
         account_id: this._selectedAccountId,
         plan_id: plan.id,
       });
@@ -2762,7 +2762,7 @@ class HaFinancePanel extends LitElement {
     try {
       // Create an adjustment transaction
       await this.hass.callWS({
-        type: "ha_finance/add_transaction",
+        type: "woow_ha_records/finance/add_transaction",
         account_id: this._selectedAccountId,
         amount: adjustment,
         note: `[${this._getTranslation("adjustment")}] ${reason}`,
@@ -2778,7 +2778,7 @@ class HaFinancePanel extends LitElement {
   async _saveAccountNotes() {
     try {
       await this.hass.callWS({
-        type: "ha_finance/update_account",
+        type: "woow_ha_records/finance/update_account",
         account_id: this._selectedAccountId,
         notes: this._editingAccountNotes,
       });
@@ -3057,7 +3057,7 @@ class HaFinancePanel extends LitElement {
 
     try {
       const result = await this.hass.callWS({
-        type: "ha_finance/add_account",
+        type: "woow_ha_records/finance/add_account",
         name,
         initial_balance: initialBalance,
       });
@@ -3085,7 +3085,7 @@ class HaFinancePanel extends LitElement {
 
     try {
       await this.hass.callWS({
-        type: "ha_finance/update_account",
+        type: "woow_ha_records/finance/update_account",
         account_id: this._selectedAccountId,
         name,
       });
@@ -3100,7 +3100,7 @@ class HaFinancePanel extends LitElement {
   async _deleteAccount() {
     try {
       await this.hass.callWS({
-        type: "ha_finance/delete_account",
+        type: "woow_ha_records/finance/delete_account",
         account_id: this._selectedAccountId,
       });
       this._closeDeleteAccountForm();

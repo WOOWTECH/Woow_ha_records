@@ -1,9 +1,9 @@
 /**
- * E2E tests for ha_health_record HA Services (REST API).
+ * E2E tests for the health Area's HA services (REST API).
  *
  * These tests exercise the 12 services registered via services.py,
  * called through the REST API endpoint:
- *   POST /api/services/ha_health_record/<service_name>?return_response
+ *   POST /api/services/woow_ha_records/health_<verb>?return_response
  *
  * Structure:
  *   Round 1 — Happy path: full CRUD lifecycle for members, record types, records
@@ -35,7 +35,7 @@ const SVC_MEMBER_EDGE = 'svc_edge_member';
 /** Wait for config entry reload to complete */
 const waitReload = (ms = 3000) => new Promise(r => setTimeout(r, ms));
 
-test.describe('ha_health_record Services E2E Tests', () => {
+test.describe('health Area Services E2E Tests', () => {
   test.beforeAll(async () => {
     // Prefer long-lived token from env; fall back to auth flow
     if (process.env.HA_TOKEN) {
@@ -491,7 +491,7 @@ test.describe('ha_health_record Services E2E Tests', () => {
       await page.waitForTimeout(5000);
 
       const content = await page.content();
-      expect(content).toContain('ha_health_record');
+      expect(content).toContain('health_');
     });
 
     test('4.2 Health record panel loads correctly', async ({ page }) => {

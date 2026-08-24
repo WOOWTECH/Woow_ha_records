@@ -1,4 +1,4 @@
-"""Tests for ha_asset_record coordinator."""
+"""Tests for the asset Area coordinator."""
 from __future__ import annotations
 
 import re
@@ -11,7 +11,7 @@ import pytest
 from homeassistant.core import HomeAssistant
 from homeassistant.util import dt as dt_util
 
-from custom_components.ha_asset_record.const import (
+from custom_components.woow_ha_records.areas.asset.const import (
     FIELD_BRAND,
     FIELD_CATEGORY_ID,
     FIELD_MAINTENANCE_MD,
@@ -21,7 +21,7 @@ from custom_components.ha_asset_record.const import (
     FIELD_VALUE,
     FIELD_WARRANTY_UNTIL,
 )
-from custom_components.ha_asset_record.coordinator import (
+from custom_components.woow_ha_records.areas.asset.coordinator import (
     Asset,
     AssetCoordinator,
     Category,

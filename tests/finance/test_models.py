@@ -1,9 +1,9 @@
-"""Tests for ha_finance models."""
+"""Tests for the finance Area models."""
 from __future__ import annotations
 
 import pytest
 
-from custom_components.ha_finance.models import (
+from custom_components.woow_ha_records.areas.finance.models import (
     Account,
     FinanceData,
     RecurringPlan,

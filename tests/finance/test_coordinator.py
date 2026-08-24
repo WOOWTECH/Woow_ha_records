@@ -1,4 +1,4 @@
-"""Tests for ha_finance coordinator."""
+"""Tests for the finance Area coordinator."""
 from __future__ import annotations
 
 from datetime import date, datetime, timezone
@@ -8,7 +8,7 @@ import pytest
 
 from homeassistant.core import HomeAssistant
 
-from custom_components.ha_finance.const import (
+from custom_components.woow_ha_records.areas.finance.const import (
     EVENT_BALANCE_ADJUSTED,
     EVENT_LOW_BALANCE,
     EVENT_TRANSACTION_ADDED,
@@ -17,8 +17,8 @@ from custom_components.ha_finance.const import (
     FREQUENCY_WEEKLY,
     FREQUENCY_YEARLY,
 )
-from custom_components.ha_finance.coordinator import FinanceCoordinator
-from custom_components.ha_finance.models import Account, FinanceData, RecurringPlan
+from custom_components.woow_ha_records.areas.finance.coordinator import FinanceCoordinator
+from custom_components.woow_ha_records.areas.finance.models import Account, FinanceData, RecurringPlan
 
 
 class TestCalculateNextDate:
@@ -26,7 +26,7 @@ class TestCalculateNextDate:
 
     def _make_coordinator(self, hass, mock_config_entry, finance_store):
         """Create a coordinator for testing."""
-        coord = FinanceCoordinator(hass, mock_config_entry, finance_store)
+        coord = FinanceCoordinator(hass, mock_config_entry, finance_store, "test_account")
         return coord
 
     async def test_daily(self, hass, mock_config_entry, finance_store):
@@ -122,7 +122,7 @@ class TestFinanceCoordinatorOperations:
         finance_store._data = finance_data_with_account
         finance_store._store.async_load = AsyncMock(return_value=finance_data_with_account.to_dict())
 
-        coord = FinanceCoordinator(hass, mock_config_entry, finance_store)
+        coord = FinanceCoordinator(hass, mock_config_entry, finance_store, "test_account")
         # Manually set data to avoid full HA setup
         coord.data = finance_data_with_account
         return coord
@@ -202,5 +202,5 @@ class TestFinanceCoordinatorOperations:
 
     async def test_account_property_none_when_no_data(self, hass, mock_config_entry, finance_store):
         """Test account property returns None when no data loaded."""
-        coord = FinanceCoordinator(hass, mock_config_entry, finance_store)
+        coord = FinanceCoordinator(hass, mock_config_entry, finance_store, "test_account")
         assert coord.account is None

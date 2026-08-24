@@ -805,7 +805,7 @@ class HaNoteRecordPanel extends LitElement {
     this._loading = true;
     try {
       const result = await this.hass.callWS({
-        type: "ha_note_record/get_data",
+        type: "woow_ha_records/note/get_data",
       });
       this._categories = result.categories || [];
       this._notes = result.notes || [];
@@ -874,7 +874,7 @@ class HaNoteRecordPanel extends LitElement {
 
   _localize(key) {
     // Try to get translation from HA's built-in localization first
-    const translation = this.hass?.localize?.(`component.ha_note_record.panel.${key}`);
+    const translation = this.hass?.localize?.(`component.woow_ha_records.panel.${key}`);
     if (translation) return translation;
 
     // Fall back to locally loaded translations.json
@@ -886,7 +886,7 @@ class HaNoteRecordPanel extends LitElement {
     this.hass.callService("persistent_notification", "create", {
       message: message,
       title: type === "error" ? this._localize("error") : this._localize("title"),
-      notification_id: `ha_note_record_${Date.now()}`,
+      notification_id: `woow_ha_records_note_${Date.now()}`,
     });
   }
 
@@ -925,7 +925,7 @@ class HaNoteRecordPanel extends LitElement {
 
     try {
       const result = await this.hass.callWS({
-        type: "ha_note_record/create_category",
+        type: "woow_ha_records/note/create_category",
         name: name,
       });
       this._categories = [...this._categories, result];
@@ -962,7 +962,7 @@ class HaNoteRecordPanel extends LitElement {
 
     try {
       await this.hass.callWS({
-        type: "ha_note_record/delete_category",
+        type: "woow_ha_records/note/delete_category",
         category_id: target.id,
       });
       this._notes = this._notes.filter((n) => n.category_id !== target.id);
@@ -1006,7 +1006,7 @@ class HaNoteRecordPanel extends LitElement {
     try {
       if (this._dialogMode === "create") {
         const result = await this.hass.callWS({
-          type: "ha_note_record/create_note",
+          type: "woow_ha_records/note/create_note",
           category_id: this._editingNote.category_id,
           title: this._editingNote.title,
           content: this._editingNote.content,
@@ -1015,7 +1015,7 @@ class HaNoteRecordPanel extends LitElement {
         this._notes = [...this._notes, result];
       } else {
         const result = await this.hass.callWS({
-          type: "ha_note_record/update_note",
+          type: "woow_ha_records/note/update_note",
           note_id: this._editingNote.id,
           title: this._editingNote.title,
           content: this._editingNote.content,
@@ -1038,7 +1038,7 @@ class HaNoteRecordPanel extends LitElement {
 
     try {
       await this.hass.callWS({
-        type: "ha_note_record/delete_note",
+        type: "woow_ha_records/note/delete_note",
         note_id: this._editingNote.id,
       });
       this._notes = this._notes.filter((n) => n.id !== this._editingNote.id);

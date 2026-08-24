@@ -19,16 +19,17 @@ export interface ServiceResult {
 
 export class HAServicesClient {
   private token: string;
-  private domain: string;
+  private area: string;
 
-  constructor(token: string, domain = 'ha_health_record') {
+  /** @param area  One of "finance", "asset", "health", "note". */
+  constructor(token: string, area = 'health') {
     this.token = token;
-    this.domain = domain;
+    this.area = area;
   }
 
   /**
    * Call an HA service via REST API.
-   * @param service  Service name (e.g. "get_members")
+   * @param service  Bare verb (e.g. "get_members"); the Area prefix is added
    * @param data     Service call payload
    * @param opts     Options: returnResponse (default: true)
    */
@@ -39,7 +40,7 @@ export class HAServicesClient {
   ): Promise<ServiceResult> {
     const wantResponse = opts.returnResponse !== false;
     const qs = wantResponse ? '?return_response' : '';
-    const url = `${HA_BASE}/api/services/${this.domain}/${service}${qs}`;
+    const url = `${HA_BASE}/api/services/woow_ha_records/${this.area}_${service}${qs}`;
 
     const res = await fetch(url, {
       method: 'POST',
