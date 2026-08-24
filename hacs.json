@@ -1,6 +1,5 @@
 {
-  "name": "WOOW HA Records Suite",
+  "name": "Woow HA Records",
   "render_readme": true,
-  "domains": ["ha_health_record", "ha_asset_record", "ha_note_record", "ha_finance"],
-  "homeassistant": "2025.1.0"
+  "homeassistant": "2025.12.0"
 }
