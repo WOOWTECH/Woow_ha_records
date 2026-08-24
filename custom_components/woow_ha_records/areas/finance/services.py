@@ -37,6 +37,10 @@ from .const import (
     CONF_INITIAL_BALANCE,
     DOMAIN,
 )
+from ...const import device_id
+from ...runtime import get_data
+from .area import FinanceArea, generate_account_id
+from .const import AREA
 from .coordinator import FinanceCoordinator, get_coordinator_for_account
 from .models import RecurringPlan, Transaction
 
@@ -48,17 +52,14 @@ _LOGGER = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 
+def _area(hass: HomeAssistant) -> FinanceArea:
+    """Return the finance Area."""
+    return get_data(hass).finance
+
+
 def _get_store(hass: HomeAssistant):
-    """Get the shared finance store from hass.data."""
-    domain_data = hass.data.get(DOMAIN, {})
-    store = domain_data.get("store")
-    if store is not None:
-        return store
-    raise ServiceValidationError(
-        "Finance integration not configured — no store available",
-        translation_domain=DOMAIN,
-        translation_key="not_configured",
-    )
+    """Return the shared finance store."""
+    return _area(hass).store
 
 
 def _valid_amount(value: Any) -> float:
@@ -561,7 +562,11 @@ async def handle_delete_plan(call: ServiceCall) -> ServiceResponse:
 
 
 async def handle_add_account(call: ServiceCall) -> ServiceResponse:
-    """Create a new financial account via config flow."""
+    """Create an Account.
+
+    Used to start a config flow and wait for the entry; an Account is a store
+    record now (ADR-0001).
+    """
     hass = call.hass
     name = call.data["name"].strip()
     initial_balance = _valid_amount(call.data.get("initial_balance", 0.0))
@@ -573,10 +578,8 @@ async def handle_add_account(call: ServiceCall) -> ServiceResponse:
             translation_key="invalid_name",
         )
 
-    # Check for duplicate name (case-insensitive) in existing accounts
-    store = _get_store(hass)
-    await store.async_load()
-    for existing in store.data.accounts.values():
+    area = _area(hass)
+    for existing in area.store.data.accounts.values():
         if existing.name.lower() == name.lower():
             raise ServiceValidationError(
                 f"Account with name '{name}' already exists",
@@ -585,50 +588,34 @@ async def handle_add_account(call: ServiceCall) -> ServiceResponse:
                 translation_placeholders={"name": name},
             )
 
-    try:
-        result = await hass.config_entries.flow.async_init(
-            DOMAIN,
-            context={"source": "ws_panel"},
-            data={"name": name, "initial_balance": initial_balance},
-        )
-    except Exception:
-        _LOGGER.exception("Failed to create account via config flow")
+    account_id = generate_account_id(name)
+    if area.get(account_id) is not None:
         raise ServiceValidationError(
-            "Failed to create account",
+            f"Account id '{account_id}' already exists",
             translation_domain=DOMAIN,
-            translation_key="create_failed",
-            translation_placeholders={"reason": "config flow error"},
+            translation_key="duplicate_name",
+            translation_placeholders={"name": name},
         )
 
-    if result.get("type") != FlowResultType.CREATE_ENTRY:
-        reason = result.get("reason", "unknown")
-        raise ServiceValidationError(
-            f"Failed to create account: {reason}",
-            translation_domain=DOMAIN,
-            translation_key="create_failed",
-            translation_placeholders={"reason": reason},
-        )
-
-    entry = result.get("result")
-    account_id = entry.data.get(CONF_ACCOUNT_ID, "") if entry else ""
-    account_name = entry.data.get(CONF_ACCOUNT_NAME, name) if entry else name
-
-    return {
-        "success": True,
-        "account_id": account_id,
-        "name": account_name,
-    }
+    await area.async_add_account(account_id, name, initial_balance)
+    return {"success": True, "account_id": account_id, "name": name}
 
 
 async def handle_update_account(call: ServiceCall) -> ServiceResponse:
-    """Rename or annotate an existing account."""
+    """Rename an Account."""
     hass = call.hass
     account_id = call.data["account_id"]
+    name = call.data["name"].strip()
 
-    store = _get_store(hass)
-    await store.async_load()
+    if not name:
+        raise ServiceValidationError(
+            "Account name cannot be empty",
+            translation_domain=DOMAIN,
+            translation_key="invalid_name",
+        )
 
-    account = store.data.get_account(account_id)
+    area = _area(hass)
+    account = area.store.data.get_account(account_id)
     if account is None:
         raise ServiceValidationError(
             f"Account '{account_id}' not found",
@@ -637,85 +624,33 @@ async def handle_update_account(call: ServiceCall) -> ServiceResponse:
             translation_placeholders={"account_id": account_id},
         )
 
-    if "name" in call.data:
-        name = call.data["name"].strip()
-        if not name:
-            raise ServiceValidationError(
-                "Account name cannot be empty",
-                translation_domain=DOMAIN,
-                translation_key="invalid_name",
-            )
-        # Check duplicate (case-insensitive, excluding self)
-        for existing in store.data.accounts.values():
-            if existing.id != account_id and existing.name.lower() == name.lower():
-                raise ServiceValidationError(
-                    f"Account with name '{name}' already exists",
-                    translation_domain=DOMAIN,
-                    translation_key="duplicate_name",
-                    translation_placeholders={"name": name},
-                )
-        account.name = name
+    account.name = name
+    await area.store.async_save()
 
-    if "notes" in call.data:
-        account.notes = call.data["notes"]
+    device_reg = dr.async_get(hass)
+    device = device_reg.async_get_device(
+        identifiers={(DOMAIN, device_id(AREA, account_id))}
+    )
+    if device:
+        device_reg.async_update_device(device.id, name=name)
 
-    await store.async_save()
-
-    # Sync to config entry and device registry if name changed
-    if "name" in call.data:
-        for entry in hass.config_entries.async_entries(DOMAIN):
-            if entry.data.get(CONF_ACCOUNT_ID) == account_id:
-                new_data = dict(entry.data)
-                new_data[CONF_ACCOUNT_NAME] = account.name
-                hass.config_entries.async_update_entry(
-                    entry, title=account.name, data=new_data
-                )
-                device_reg = dr.async_get(hass)
-                device = device_reg.async_get_device(
-                    identifiers={(DOMAIN, account_id)}
-                )
-                if device:
-                    device_reg.async_update_device(device.id, name=account.name)
-                break
-
-    # Refresh coordinator if available
-    coordinator = get_coordinator_for_account(hass, account_id)
-    if coordinator:
+    coordinator = area.get(account_id)
+    if coordinator is not None:
         await coordinator.async_refresh()
 
     return {"success": True}
 
 
 async def handle_delete_account(call: ServiceCall) -> ServiceResponse:
-    """Delete an account and all its data."""
+    """Delete an Account and everything recorded against it."""
     hass = call.hass
     account_id = call.data["account_id"]
 
-    # Find the config entry
-    entry_to_remove = None
-    for entry in hass.config_entries.async_entries(DOMAIN):
-        if entry.data.get(CONF_ACCOUNT_ID) == account_id:
-            entry_to_remove = entry
-            break
-
-    if entry_to_remove is None:
+    if not await _area(hass).async_remove_account(account_id):
         raise ServiceValidationError(
             f"Account '{account_id}' not found",
             translation_domain=DOMAIN,
             translation_key="account_not_found",
-            translation_placeholders={"account_id": account_id},
-        )
-
-    try:
-        await hass.config_entries.async_remove(entry_to_remove.entry_id)
-    except Exception:
-        _LOGGER.exception(
-            "Failed to remove config entry for account %s", account_id
-        )
-        raise ServiceValidationError(
-            f"Failed to delete account '{account_id}'",
-            translation_domain=DOMAIN,
-            translation_key="delete_failed",
             translation_placeholders={"account_id": account_id},
         )
 
@@ -746,7 +681,7 @@ async def handle_adjust_balance(call: ServiceCall) -> ServiceResponse:
 # Registration
 # ---------------------------------------------------------------------------
 
-_SERVICE_HANDLERS = {
+SERVICE_HANDLERS = {
     # Query — ONLY
     "get_accounts": (handle_get_accounts, SupportsResponse.ONLY),
     "get_account": (handle_get_account, SupportsResponse.ONLY),
@@ -766,22 +701,3 @@ _SERVICE_HANDLERS = {
     "delete_account": (handle_delete_account, SupportsResponse.OPTIONAL),
     "adjust_balance": (handle_adjust_balance, SupportsResponse.OPTIONAL),
 }
-
-
-def async_register_services(hass: HomeAssistant) -> None:
-    """Register all ha_finance services."""
-    for name, (handler, response_type) in _SERVICE_HANDLERS.items():
-        hass.services.async_register(
-            DOMAIN,
-            name,
-            handler,
-            supports_response=response_type,
-        )
-    _LOGGER.debug("Registered %d services for %s", len(_SERVICE_HANDLERS), DOMAIN)
-
-
-def async_unregister_services(hass: HomeAssistant) -> None:
-    """Remove all ha_finance services."""
-    for name in _SERVICE_HANDLERS:
-        hass.services.async_remove(DOMAIN, name)
-    _LOGGER.debug("Unregistered services for %s", DOMAIN)

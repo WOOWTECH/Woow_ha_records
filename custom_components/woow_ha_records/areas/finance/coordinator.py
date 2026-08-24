@@ -41,24 +41,29 @@ NOTE_BALANCE_ADJUSTMENT = "Balance Adjustment"
 def get_coordinator_for_account(
     hass: HomeAssistant, account_id: str
 ) -> FinanceCoordinator | None:
-    """Get coordinator for a specific account."""
-    if DOMAIN not in hass.data:
-        return None
-    for value in hass.data[DOMAIN].values():
-        if not isinstance(value, FinanceCoordinator):
-            continue
-        if value.account and value.account.id == account_id:
-            return value
-    return None
+    """Return the coordinator for one Account, or None."""
+    from ...runtime import get_data
+
+    return get_data(hass).finance.get(account_id)
 
 
 class FinanceCoordinator(DataUpdateCoordinator[FinanceData]):
     """Coordinator for managing finance data and recurring plans."""
 
     def __init__(
-        self, hass: HomeAssistant, entry: ConfigEntry, store: FinanceStore
+        self,
+        hass: HomeAssistant,
+        entry: ConfigEntry,
+        store: FinanceStore,
+        account_id: str,
+        low_balance_threshold: float = DEFAULT_LOW_BALANCE_THRESHOLD,
     ) -> None:
-        """Initialize the coordinator."""
+        """Initialize the coordinator for one Account.
+
+        An Account used to be a config entry, so the id and the low-balance
+        threshold were read off it. They are passed in now — *entry* is the
+        integration's single entry and identifies nothing in particular.
+        """
         super().__init__(
             hass,
             _LOGGER,
@@ -67,11 +72,9 @@ class FinanceCoordinator(DataUpdateCoordinator[FinanceData]):
             config_entry=entry,
         )
         self.store = store
-        self._account_id: str = entry.data.get("account_id", "")
+        self._account_id: str = account_id
         self._unsub_time_change: Callable[[], None] | None = None
-        self._low_balance_threshold: float = entry.options.get(
-            "low_balance_threshold", DEFAULT_LOW_BALANCE_THRESHOLD
-        )
+        self._low_balance_threshold: float = low_balance_threshold
 
     @property
     def account_id(self) -> str:

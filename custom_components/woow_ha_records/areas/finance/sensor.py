@@ -21,67 +21,70 @@ from homeassistant.components.sensor import (
     SensorEntity,
     SensorStateClass,
 )
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity import DeviceInfo
+from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.util import dt as dt_util
 
-from .const import CONF_ACCOUNT_ID, CONF_CURRENCY, DEFAULT_CURRENCY, DOMAIN
+from ...const import device_id, signal_entities_changed, unique_id
+from .area import FinanceArea
+from .const import AREA, CONF_CURRENCY, DEFAULT_CURRENCY, DOMAIN
 from .coordinator import FinanceCoordinator
 
 if TYPE_CHECKING:
     from .models import Account
 
 
-async def async_setup_entry(
+async def async_setup_area(
     hass: HomeAssistant,
-    entry: ConfigEntry,
+    area: FinanceArea,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Set up sensor entities."""
-    coordinator: FinanceCoordinator = hass.data[DOMAIN][entry.entry_id]
-    account_id = entry.data[CONF_ACCOUNT_ID]
+    """Set up the per-Account and per-Recurring-Plan sensors.
 
-    entities: list[SensorEntity] = [
-        BalanceDisplaySensor(coordinator, account_id),
-        LastTransactionSensor(coordinator, account_id),
-        LastNoteSensor(coordinator, account_id),
-        LastTimeSensor(coordinator, account_id),
-    ]
+    Accounts and plans both come and go at runtime, so the entity set is
+    reconciled on the Area's signal rather than built once.
+    """
+    known: set[tuple[str, str]] = set()
 
-    # Add recurring plan sensors
-    if coordinator.account:
-        for plan_id in coordinator.account.recurring_plans:
-            entities.append(PlanNextDateSensor(coordinator, account_id, plan_id))
-            entities.append(PlanLastExecutedSensor(coordinator, account_id, plan_id))
-
-    async_add_entities(entities)
-
-    # Register listener for new plans
     @callback
-    def async_add_plan_entities() -> None:
-        """Add entities for new recurring plans."""
-        if not coordinator.account:
-            return
-        existing_plan_ids = {
-            e.plan_id
-            for e in entities
-            if isinstance(e, (PlanNextDateSensor, PlanLastExecutedSensor))
-        }
-        new_entities: list[SensorEntity] = []
-        for plan_id in coordinator.account.recurring_plans:
-            if plan_id not in existing_plan_ids:
-                new_entities.append(PlanNextDateSensor(coordinator, account_id, plan_id))
-                new_entities.append(
-                    PlanLastExecutedSensor(coordinator, account_id, plan_id)
+    def _reconcile() -> None:
+        added: list[SensorEntity] = []
+        for account_id, coordinator in area.accounts.items():
+            if (account_id, "") not in known:
+                known.add((account_id, ""))
+                added.extend(
+                    (
+                        BalanceDisplaySensor(coordinator, account_id),
+                        LastTransactionSensor(coordinator, account_id),
+                        LastNoteSensor(coordinator, account_id),
+                        LastTimeSensor(coordinator, account_id),
+                    )
                 )
-        if new_entities:
-            async_add_entities(new_entities)
-            entities.extend(new_entities)
+            if not coordinator.account:
+                continue
+            for plan_id in coordinator.account.recurring_plans:
+                if (account_id, plan_id) in known:
+                    continue
+                known.add((account_id, plan_id))
+                added.extend(
+                    (
+                        PlanNextDateSensor(coordinator, account_id, plan_id),
+                        PlanLastExecutedSensor(coordinator, account_id, plan_id),
+                    )
+                )
+        if added:
+            async_add_entities(added)
 
-    entry.async_on_unload(coordinator.async_add_listener(async_add_plan_entities))
+    _reconcile()
+    async_dispatcher_connect(hass, signal_entities_changed(AREA), _reconcile)
+
+    # A plan added through a coordinator update does not go through the Area,
+    # so listen there too.
+    for coordinator in area.accounts.values():
+        area.entry.async_on_unload(coordinator.async_add_listener(_reconcile))
 
 
 class FinanceSensorBase(CoordinatorEntity[FinanceCoordinator], SensorEntity):
@@ -108,7 +111,7 @@ class FinanceSensorBase(CoordinatorEntity[FinanceCoordinator], SensorEntity):
     def device_info(self) -> DeviceInfo:
         """Return device info."""
         return DeviceInfo(
-            identifiers={(DOMAIN, self._account_id)},
+            identifiers={(DOMAIN, device_id(AREA, self._account_id))},
         )
 
     @property
@@ -142,7 +145,7 @@ class BalanceDisplaySensor(FinanceSensorBase):
     def __init__(self, coordinator: FinanceCoordinator, account_id: str) -> None:
         """Initialize balance display sensor."""
         super().__init__(coordinator, account_id)
-        self._attr_unique_id = f"{account_id}_balance_display"
+        self._attr_unique_id = unique_id(AREA, account_id, "balance_display")
         # Get currency from config entry options, default to NTD
         currency = coordinator.config_entry.options.get(CONF_CURRENCY, DEFAULT_CURRENCY)
         self._attr_native_unit_of_measurement = currency
@@ -179,7 +182,7 @@ class LastTransactionSensor(FinanceSensorBase):
     def __init__(self, coordinator: FinanceCoordinator, account_id: str) -> None:
         """Initialize last transaction sensor."""
         super().__init__(coordinator, account_id)
-        self._attr_unique_id = f"{account_id}_last_transaction"
+        self._attr_unique_id = unique_id(AREA, account_id, "last_transaction")
         # Get currency from config entry options, default to NTD
         currency = coordinator.config_entry.options.get(CONF_CURRENCY, DEFAULT_CURRENCY)
         self._attr_native_unit_of_measurement = currency
@@ -219,7 +222,7 @@ class LastNoteSensor(FinanceSensorBase):
     def __init__(self, coordinator: FinanceCoordinator, account_id: str) -> None:
         """Initialize last note sensor."""
         super().__init__(coordinator, account_id)
-        self._attr_unique_id = f"{account_id}_last_note"
+        self._attr_unique_id = unique_id(AREA, account_id, "last_note")
 
     @property
     def native_value(self) -> str | None:
@@ -256,7 +259,7 @@ class LastTimeSensor(FinanceSensorBase):
     def __init__(self, coordinator: FinanceCoordinator, account_id: str) -> None:
         """Initialize last time sensor."""
         super().__init__(coordinator, account_id)
-        self._attr_unique_id = f"{account_id}_last_time"
+        self._attr_unique_id = unique_id(AREA, account_id, "last_time")
 
     @property
     def native_value(self) -> datetime | None:
@@ -301,7 +304,7 @@ class PlanNextDateSensor(FinanceSensorBase):
         """Initialize plan next date sensor."""
         super().__init__(coordinator, account_id)
         self.plan_id = plan_id
-        self._attr_unique_id = f"{account_id}_{plan_id}_next_date"
+        self._attr_unique_id = unique_id(AREA, account_id, plan_id, "next_date")
         self._update_translation_placeholders()
 
     def _update_translation_placeholders(self) -> None:
@@ -364,7 +367,7 @@ class PlanLastExecutedSensor(FinanceSensorBase):
         """Initialize plan last executed sensor."""
         super().__init__(coordinator, account_id)
         self.plan_id = plan_id
-        self._attr_unique_id = f"{account_id}_{plan_id}_last_executed"
+        self._attr_unique_id = unique_id(AREA, account_id, plan_id, "last_executed")
         self._update_translation_placeholders()
 
     def _update_translation_placeholders(self) -> None:
