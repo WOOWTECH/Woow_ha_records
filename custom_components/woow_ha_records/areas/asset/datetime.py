@@ -11,7 +11,6 @@ import logging
 from typing import Any
 
 from homeassistant.components.datetime import DateTimeEntity
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
@@ -28,13 +27,12 @@ from .entity import AssetEntity
 _LOGGER = logging.getLogger(__name__)
 
 
-async def async_setup_entry(
+async def async_setup_area(
     hass: HomeAssistant,
-    entry: ConfigEntry,
+    coordinator: AssetCoordinator,
     async_add_entities: AddConfigEntryEntitiesCallback,  # [M-06]
 ) -> None:
     """Set up datetime entities."""
-    coordinator: AssetCoordinator = entry.runtime_data
 
     entities: list[AssetDateTimeEntity] = []
     for asset in coordinator.assets.values():
@@ -60,7 +58,7 @@ async def async_setup_entry(
         if new_entities:
             async_add_entities(new_entities)
 
-    entry.async_on_unload(coordinator.add_listener(_async_add_asset_entities))
+    coordinator.entry.async_on_unload(coordinator.add_listener(_async_add_asset_entities))
 
 
 def _create_datetime_entities(

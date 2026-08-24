@@ -87,7 +87,7 @@ Member Management (admin required)
     Params: ``name`` (str), ``member_id`` (str, optional,
     auto-generated from name), ``note`` (str, optional, default "")
     Returns: ``{success: true, member_id: str, entry_id: str}``
-    Errors: ``invalid_member_id``, ``member_exists``, ``create_failed``
+    Errors: ``invalid_member_id``, ``member_exists``
     Side effects: creates a new config entry via the config flow.
 
 - **ha_health_record/update_member**
@@ -115,7 +115,6 @@ Error Codes
 ``invalid_type_id``    -- The generated type_id is empty after sanitization.
 ``invalid_member_id``  -- The generated member_id is empty after sanitization.
 ``log_failed``         -- The coordinator failed to persist the record.
-``create_failed``      -- The config flow did not create a new entry.
 """
 from __future__ import annotations
 

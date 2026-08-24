@@ -76,7 +76,7 @@ from typing import TYPE_CHECKING, Any
 import voluptuous as vol
 
 from homeassistant.components import websocket_api
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import device_registry as dr
 
 from .const import (
@@ -103,6 +103,26 @@ if TYPE_CHECKING:
     from .store import FinanceStore
 
 _LOGGER = logging.getLogger(__name__)
+
+@callback
+def async_register_websocket_commands(hass: HomeAssistant) -> None:
+    """Register the finance Area's WebSocket commands."""
+    for command in (
+        ws_get_accounts,
+        ws_get_account,
+        ws_add_transaction,
+        ws_update_transaction,
+        ws_delete_transaction,
+        ws_add_plan,
+        ws_update_plan,
+        ws_delete_plan,
+        ws_get_chart_data,
+        ws_add_account,
+        ws_update_account,
+        ws_delete_account,
+    ):
+        websocket_api.async_register_command(hass, command)
+
 
 def _area(hass: HomeAssistant) -> FinanceArea:
     """Return the finance Area."""

@@ -17,7 +17,9 @@ from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
+from ...const import device_id
 from .const import (
+    AREA,
     CATEGORY_ID_PREFIX,
     DOMAIN,
     FIELD_BRAND,
@@ -190,16 +192,14 @@ class AssetCoordinator:
     """Coordinator for managing assets.
 
     [M-05] The Store key is STORAGE_KEY (== DOMAIN == "ha_asset_record").
-    Only a single config entry should use this store; multiple entries would
-    overwrite each other's data because they share the same storage file.
+    The integration has exactly one config entry, which this coordinator holds
+    only so platforms can tie their listeners to its lifetime.
     """
 
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
         """Initialize the coordinator."""
         self.hass = hass
         self.entry = entry
-        # [M-05] Single store instance keyed by STORAGE_KEY; only one config
-        # entry should exist for this integration at a time.
         self._store: Store[dict[str, Any]] = Store(
             hass, STORAGE_VERSION, STORAGE_KEY
         )
@@ -422,7 +422,7 @@ class AssetCoordinator:
         # Remove the device from the device registry so it no longer
         # appears in Device & Services after the asset is deleted.
         dev_reg = dr.async_get(self.hass)
-        device = dev_reg.async_get_device(identifiers={(DOMAIN, asset_id)})
+        device = dev_reg.async_get_device(identifiers={(DOMAIN, device_id(AREA, asset_id))})
         if device is not None:
             dev_reg.async_remove_device(device.id)
 
@@ -571,7 +571,7 @@ class AssetCoordinator:
         dev_reg = dr.async_get(self.hass)
         for asset_id in asset_ids_to_delete:
             asset = self._assets.pop(asset_id)
-            device = dev_reg.async_get_device(identifiers={(DOMAIN, asset_id)})
+            device = dev_reg.async_get_device(identifiers={(DOMAIN, device_id(AREA, asset_id))})
             if device is not None:
                 dev_reg.async_remove_device(device.id)
             _LOGGER.info(

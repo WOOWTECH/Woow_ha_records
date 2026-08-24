@@ -11,6 +11,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.storage import Store
@@ -27,9 +28,10 @@ SAVE_DELAY = 1  # seconds -- batches rapid operations into a single write
 class HealthArea:
     """Owns the health store and every Member coordinator in it."""
 
-    def __init__(self, hass: HomeAssistant) -> None:
+    def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
         """Initialize the Area."""
         self.hass = hass
+        self.entry = entry
         self.members: dict[str, HealthRecordCoordinator] = {}
         self._store: Store[dict[str, Any]] = Store(
             hass, STORAGE_VERSION, STORAGE_KEY, atomic_writes=True

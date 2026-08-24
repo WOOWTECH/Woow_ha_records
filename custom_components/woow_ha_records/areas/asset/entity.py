@@ -13,7 +13,8 @@ from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity import Entity
 
-from .const import DOMAIN
+from ...const import device_id, unique_id
+from .const import AREA, DOMAIN
 from .coordinator import Asset, AssetCoordinator
 
 _LOGGER = logging.getLogger(__name__)
@@ -33,7 +34,7 @@ class AssetEntity(Entity):
 
     Device info
         Each asset creates one device with
-        ``identifiers={(DOMAIN, asset_id)}``.
+        ``identifiers={(DOMAIN, device_id(AREA, asset_id))}``.
     """
 
     _attr_has_entity_name = True
@@ -52,13 +53,13 @@ class AssetEntity(Entity):
         self.asset = asset
         self.field_name = field_name
         self._attr_translation_key = translation_key
-        self._attr_unique_id = f"{DOMAIN}_{asset.id}_{field_name}"
+        self._attr_unique_id = unique_id(AREA, asset.id, field_name)
 
     @property
     def device_info(self) -> DeviceInfo:
         """Return device info."""
         return DeviceInfo(
-            identifiers={(DOMAIN, self.asset.id)},
+            identifiers={(DOMAIN, device_id(AREA, self.asset.id))},
             name=self.asset.name,
             manufacturer="Ha Asset Record",
             model="Asset",
@@ -94,7 +95,7 @@ class AssetEntity(Entity):
         # updated_asset.name by the time this callback fires.
         dev_reg = dr.async_get(self.hass)
         device = dev_reg.async_get_device(
-            identifiers={(DOMAIN, self.asset.id)}
+            identifiers={(DOMAIN, device_id(AREA, self.asset.id))}
         )
         if device is not None and device.name != updated_asset.name:
             dev_reg.async_update_device(device.id, name=updated_asset.name)

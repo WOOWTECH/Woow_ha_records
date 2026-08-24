@@ -9,7 +9,8 @@ from __future__ import annotations
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity import Entity
 
-from .const import DOMAIN
+from ...const import device_id
+from .const import AREA, DOMAIN
 from .store import Category, HaNoteRecordStore, Note
 
 
@@ -53,7 +54,7 @@ class HaNoteRecordEntity(Entity):
     def device_info(self) -> DeviceInfo:
         """Return device info."""
         return DeviceInfo(
-            identifiers={(DOMAIN, self._category.id)},
+            identifiers={(DOMAIN, device_id(AREA, self._category.id))},
             name=self._category.name,
             manufacturer="Ha Note Record",
             model="Note Category",

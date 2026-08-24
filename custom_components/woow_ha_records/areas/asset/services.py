@@ -27,6 +27,7 @@ from homeassistant.core import (
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.util import dt as dt_util
 
+from ...runtime import get_data
 from .const import (
     DOMAIN,
     FIELD_BRAND,
@@ -49,15 +50,8 @@ _LOGGER = logging.getLogger(__name__)
 
 
 def _get_coordinator(hass: HomeAssistant) -> AssetCoordinator:
-    """Retrieve the singleton AssetCoordinator from hass.data."""
-    coordinator = hass.data.get(DOMAIN)
-    if coordinator is None:
-        raise ServiceValidationError(
-            "Asset Record integration is not configured",
-            translation_domain=DOMAIN,
-            translation_key="not_configured",
-        )
-    return coordinator
+    """Return the asset Area's coordinator."""
+    return get_data(hass).asset
 
 
 def _parse_datetime(value: str | None) -> datetime | None:
@@ -325,7 +319,7 @@ async def handle_delete_category(call: ServiceCall) -> ServiceResponse:
 # Registration
 # ---------------------------------------------------------------------------
 
-_SERVICE_HANDLERS = {
+SERVICE_HANDLERS = {
     # Query — ONLY
     "list_assets": (handle_list_assets, SupportsResponse.ONLY),
     "get_asset": (handle_get_asset, SupportsResponse.ONLY),

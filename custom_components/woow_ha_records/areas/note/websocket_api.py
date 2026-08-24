@@ -79,7 +79,10 @@ from homeassistant.components import websocket_api
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 
+from ...const import device_id
+from ...runtime import get_data
 from .const import (
+    AREA,
     DOMAIN,
     MAX_CATEGORY_NAME_LENGTH,
     MAX_NOTE_CONTENT_LENGTH,
@@ -100,16 +103,14 @@ def async_register_websocket_api(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, websocket_delete_category)
 
 
-def _get_store(hass: HomeAssistant) -> HaNoteRecordStore | None:
-    """Get the store from hass.data."""
-    if DOMAIN not in hass.data:
-        return None
-    return hass.data[DOMAIN].get("store")
+def _get_store(hass: HomeAssistant) -> HaNoteRecordStore:
+    """Return the note Area's store."""
+    return get_data(hass).note
 
 
 @websocket_api.websocket_command(
     {
-        vol.Required("type"): "ha_note_record/get_data",
+        vol.Required("type"): "woow_ha_records/note/get_data",
     }
 )
 @callback
@@ -159,7 +160,7 @@ def websocket_get_data(
 
 @websocket_api.websocket_command(
     {
-        vol.Required("type"): "ha_note_record/create_category",
+        vol.Required("type"): "woow_ha_records/note/create_category",
         vol.Required("name"): str,
     }
 )
@@ -231,7 +232,7 @@ async def websocket_create_category(
 
 @websocket_api.websocket_command(
     {
-        vol.Required("type"): "ha_note_record/create_note",
+        vol.Required("type"): "woow_ha_records/note/create_note",
         vol.Required("category_id"): str,
         vol.Required("title"): str,
         vol.Optional("content", default=""): str,
@@ -346,7 +347,7 @@ async def websocket_create_note(
 
 @websocket_api.websocket_command(
     {
-        vol.Required("type"): "ha_note_record/update_note",
+        vol.Required("type"): "woow_ha_records/note/update_note",
         vol.Required("note_id"): str,
         vol.Optional("title"): str,
         vol.Optional("content"): str,
@@ -466,7 +467,7 @@ async def websocket_update_note(
 
 @websocket_api.websocket_command(
     {
-        vol.Required("type"): "ha_note_record/delete_note",
+        vol.Required("type"): "woow_ha_records/note/delete_note",
         vol.Required("note_id"): str,
     }
 )
@@ -537,7 +538,7 @@ async def websocket_delete_note(
 
 @websocket_api.websocket_command(
     {
-        vol.Required("type"): "ha_note_record/delete_category",
+        vol.Required("type"): "woow_ha_records/note/delete_category",
         vol.Required("category_id"): str,
     }
 )
@@ -608,7 +609,7 @@ async def websocket_delete_category(
     if success:
         # Clean up device registry entry
         dev_reg = dr.async_get(hass)
-        device = dev_reg.async_get_device(identifiers={(DOMAIN, category_id)})
+        device = dev_reg.async_get_device(identifiers={(DOMAIN, device_id(AREA, category_id))})
         if device:
             dev_reg.async_remove_device(device.id)
         connection.send_result(msg["id"], {"deleted": True})

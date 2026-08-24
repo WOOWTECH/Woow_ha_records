@@ -100,6 +100,7 @@ from homeassistant.components import websocket_api
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.util import dt as dt_util
 
+from ...runtime import get_data
 from .const import (
     DOMAIN,
     FIELD_BRAND,
@@ -156,9 +157,8 @@ def async_register_websocket_commands(hass: HomeAssistant) -> None:
 def _get_coordinator_from_hass(hass: HomeAssistant) -> AssetCoordinator | None:
     """Get the coordinator from hass.data.
 
-    [H-12] Direct lookup via hass.data[DOMAIN] instead of iterating config entries.
     """
-    return hass.data.get(DOMAIN)
+    return get_data(hass).asset
 
 
 # ---------------------------------------------------------------------------
@@ -168,7 +168,7 @@ def _get_coordinator_from_hass(hass: HomeAssistant) -> AssetCoordinator | None:
 
 @websocket_api.websocket_command(
     {
-        vol.Required("type"): "ha_asset_record/list",
+        vol.Required("type"): "woow_ha_records/asset/list",
     }
 )
 @websocket_api.async_response
@@ -192,7 +192,7 @@ async def ws_list_assets(
 @websocket_api.require_admin
 @websocket_api.websocket_command(
     {
-        vol.Required("type"): "ha_asset_record/create",
+        vol.Required("type"): "woow_ha_records/asset/create",
         # [M-11] String length validation
         vol.Required("name"): vol.All(str, vol.Length(max=255)),
         vol.Optional("brand"): vol.All(str, vol.Length(max=255)),
@@ -266,7 +266,7 @@ async def ws_create_asset(
 @websocket_api.require_admin
 @websocket_api.websocket_command(
     {
-        vol.Required("type"): "ha_asset_record/update",
+        vol.Required("type"): "woow_ha_records/asset/update",
         # [L-13] Validate asset_id format
         vol.Required("asset_id"): vol.All(str, vol.Match(ASSET_ID_PATTERN)),
         # [M-11] String length validation
@@ -364,7 +364,7 @@ async def ws_update_asset(
 @websocket_api.require_admin
 @websocket_api.websocket_command(
     {
-        vol.Required("type"): "ha_asset_record/delete",
+        vol.Required("type"): "woow_ha_records/asset/delete",
         # [L-13] Validate asset_id format
         vol.Required("asset_id"): vol.All(str, vol.Match(ASSET_ID_PATTERN)),
     }
@@ -399,7 +399,7 @@ async def ws_delete_asset(
 @websocket_api.require_admin
 @websocket_api.websocket_command(
     {
-        vol.Required("type"): "ha_asset_record/create_category",
+        vol.Required("type"): "woow_ha_records/asset/create_category",
         vol.Required("name"): vol.All(str, vol.Length(max=MAX_CATEGORY_NAME_LENGTH)),
     }
 )
@@ -427,7 +427,7 @@ async def ws_create_category(
 @websocket_api.require_admin
 @websocket_api.websocket_command(
     {
-        vol.Required("type"): "ha_asset_record/update_category",
+        vol.Required("type"): "woow_ha_records/asset/update_category",
         vol.Required("category_id"): vol.All(
             str, vol.Match(CATEGORY_ID_PATTERN)
         ),
@@ -461,7 +461,7 @@ async def ws_update_category(
 @websocket_api.require_admin
 @websocket_api.websocket_command(
     {
-        vol.Required("type"): "ha_asset_record/delete_category",
+        vol.Required("type"): "woow_ha_records/asset/delete_category",
         vol.Required("category_id"): vol.All(
             str, vol.Match(CATEGORY_ID_PATTERN)
         ),

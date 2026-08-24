@@ -10,11 +10,12 @@ from __future__ import annotations
 import logging
 
 from homeassistant.components.text import TextEntity, TextMode
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
+from ...const import unique_id
 from .const import (
+    AREA,
     ATTR_CATEGORY,
     ATTR_CREATED_AT,
     ATTR_NOTE_ID,
@@ -34,13 +35,12 @@ _LOGGER = logging.getLogger(__name__)
 MAX_STATE_LENGTH = 200
 
 
-async def async_setup_entry(
+async def async_setup_area(
     hass: HomeAssistant,
-    entry: ConfigEntry,
+    store: HaNoteRecordStore,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up text entities from a config entry."""
-    store: HaNoteRecordStore = entry.runtime_data
 
     # Track entity IDs to avoid duplicates
     known_note_ids: set[str] = set()
@@ -74,7 +74,7 @@ async def async_setup_entry(
         if new_entities:
             async_add_entities(new_entities)
 
-    entry.async_on_unload(store.async_add_listener(async_add_new_entities))
+    store.entry.async_on_unload(store.async_add_listener(async_add_new_entities))
 
 
 class HaNoteRecordTextEntity(HaNoteRecordEntity, TextEntity):
@@ -118,7 +118,7 @@ class HaNoteRecordTextEntity(HaNoteRecordEntity, TextEntity):
     ) -> None:
         """Initialize the text entity."""
         super().__init__(store, note, category)
-        self._attr_unique_id = f"{DOMAIN}_{category.id}_{note.id}_content"
+        self._attr_unique_id = unique_id(AREA, category.id, note.id, "content")
         self._attr_name = note.title
 
     @property

@@ -10,24 +10,23 @@ import logging
 from typing import Any
 
 from homeassistant.components.switch import SwitchEntity
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import ATTR_NOTE_ID, DOMAIN, ICON_PINNED, ICON_UNPINNED
+from ...const import unique_id
+from .const import AREA, ATTR_NOTE_ID, DOMAIN, ICON_PINNED, ICON_UNPINNED
 from .entity import HaNoteRecordEntity
 from .store import Category, HaNoteRecordStore, Note
 
 _LOGGER = logging.getLogger(__name__)
 
 
-async def async_setup_entry(
+async def async_setup_area(
     hass: HomeAssistant,
-    entry: ConfigEntry,
+    store: HaNoteRecordStore,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up switch entities from a config entry."""
-    store: HaNoteRecordStore = entry.runtime_data
 
     # Track entity IDs to avoid duplicates
     known_note_ids: set[str] = set()
@@ -61,7 +60,7 @@ async def async_setup_entry(
         if new_entities:
             async_add_entities(new_entities)
 
-    entry.async_on_unload(store.async_add_listener(async_add_new_entities))
+    store.entry.async_on_unload(store.async_add_listener(async_add_new_entities))
 
 
 class HaNoteRecordSwitchEntity(HaNoteRecordEntity, SwitchEntity):
@@ -96,7 +95,7 @@ class HaNoteRecordSwitchEntity(HaNoteRecordEntity, SwitchEntity):
     ) -> None:
         """Initialize the switch entity."""
         super().__init__(store, note, category)
-        self._attr_unique_id = f"{DOMAIN}_{category.id}_{note.id}_pinned"
+        self._attr_unique_id = unique_id(AREA, category.id, note.id, "pinned")
         self._attr_name = f"{note.title} Pinned"
 
     @property

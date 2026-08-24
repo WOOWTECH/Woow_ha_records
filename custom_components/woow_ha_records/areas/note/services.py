@@ -24,7 +24,10 @@ from homeassistant.core import (
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 
+from ...const import device_id
+from ...runtime import get_data
 from .const import (
+    AREA,
     DOMAIN,
     MAX_CATEGORY_NAME_LENGTH,
     MAX_NOTE_CONTENT_LENGTH,
@@ -41,17 +44,8 @@ _LOGGER = logging.getLogger(__name__)
 
 
 def _get_store(hass: HomeAssistant) -> HaNoteRecordStore:
-    """Retrieve the HaNoteRecordStore from hass.data."""
-    store = None
-    if DOMAIN in hass.data:
-        store = hass.data[DOMAIN].get("store")
-    if store is None:
-        raise ServiceValidationError(
-            "Note Record integration is not configured",
-            translation_domain=DOMAIN,
-            translation_key="not_configured",
-        )
-    return store
+    """Return the note Area's store."""
+    return get_data(hass).note
 
 
 # ---------------------------------------------------------------------------
@@ -367,7 +361,7 @@ async def handle_delete_category(call: ServiceCall) -> ServiceResponse:
 
     # Clean up device registry entry
     dev_reg = dr.async_get(call.hass)
-    device = dev_reg.async_get_device(identifiers={(DOMAIN, category_id)})
+    device = dev_reg.async_get_device(identifiers={(DOMAIN, device_id(AREA, category_id))})
     if device:
         dev_reg.async_remove_device(device.id)
 
@@ -378,7 +372,7 @@ async def handle_delete_category(call: ServiceCall) -> ServiceResponse:
 # Registration
 # ---------------------------------------------------------------------------
 
-_SERVICE_HANDLERS = {
+SERVICE_HANDLERS = {
     # Query — ONLY
     "list_notes": (handle_list_notes, SupportsResponse.ONLY),
     "get_note": (handle_get_note, SupportsResponse.ONLY),

@@ -10,6 +10,7 @@ from typing import Any
 import uuid
 
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.helpers.storage import Store
 
 from .const import STORAGE_KEY, STORAGE_VERSION
@@ -92,9 +93,14 @@ class StoreData:
 class HaNoteRecordStore:
     """Manage storage for Ha Note Record."""
 
-    def __init__(self, hass: HomeAssistant) -> None:
-        """Initialize the store."""
+    def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
+        """Initialize the store.
+
+        *entry* is the integration's single config entry, held only so
+        platforms can tie their listeners to its lifetime.
+        """
         self._hass = hass
+        self.entry = entry
         self._store: Store[dict[str, Any]] = Store(
             hass, STORAGE_VERSION, STORAGE_KEY
         )
