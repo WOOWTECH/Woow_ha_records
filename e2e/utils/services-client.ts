@@ -8,6 +8,9 @@
 
 const HA_BASE = process.env.HA_BASE_URL || 'http://localhost:18125';
 
+/** The integration domain every Area's services are registered under. */
+export const INTEGRATION_DOMAIN = 'woow_ha_records';
+
 export interface ServiceResult {
   /** HTTP status code */
   status: number;
@@ -15,6 +18,34 @@ export interface ServiceResult {
   body: any;
   /** Extracted service_response if present, otherwise raw body */
   data: any;
+}
+
+/**
+ * The service names Home Assistant has registered under the integration's
+ * domain, read from `GET /api/services`.
+ *
+ * This is the service registry itself, so it answers "is this service
+ * registered?" directly — unlike the Developer Tools page, whose markup is
+ * frontend-rendered and changes between HA releases.
+ */
+export async function listRegisteredServices(token: string): Promise<string[]> {
+  const res = await fetch(`${HA_BASE}/api/services`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    throw new Error(`GET /api/services failed: ${res.status} ${await res.text()}`);
+  }
+
+  const domains: Array<{ domain: string; services: Record<string, unknown> }> = await res.json();
+  const entry = domains.find(d => d.domain === INTEGRATION_DOMAIN);
+  if (!entry) {
+    throw new Error(
+      `Domain "${INTEGRATION_DOMAIN}" is not registered. Registered domains: ` +
+        domains.map(d => d.domain).sort().join(', '),
+    );
+  }
+
+  return Object.keys(entry.services ?? {});
 }
 
 export class HAServicesClient {
@@ -40,7 +71,7 @@ export class HAServicesClient {
   ): Promise<ServiceResult> {
     const wantResponse = opts.returnResponse !== false;
     const qs = wantResponse ? '?return_response' : '';
-    const url = `${HA_BASE}/api/services/woow_ha_records/${this.area}_${service}${qs}`;
+    const url = `${HA_BASE}/api/services/${INTEGRATION_DOMAIN}/${this.area}_${service}${qs}`;
 
     const res = await fetch(url, {
       method: 'POST',
