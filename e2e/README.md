@@ -46,6 +46,16 @@ npm run report                 # open the HTML report
 ```
 
 Defaults to user `admin` / `admin123`; override with `HA_USERNAME` / `HA_PASSWORD`.
+
+Against an instance whose password you do not have, set `HA_TOKEN` to a
+long-lived access token instead and the login flow is skipped. The browser
+tests work either way — the token is injected into `localStorage` before any
+Home Assistant JS runs:
+
+```bash
+HA_BASE_URL=http://192.168.2.6:8123 HA_TOKEN=eyJ... npm test
+```
+
 Tests run sequentially (`workers: 1`) and build on each other's data — do not
 enable parallelism.
 
