@@ -29,7 +29,7 @@ TRANSLATIONS = COMPONENT / "translations"
 SERVICES_YAML = COMPONENT / "services.yaml"
 
 
-def _load(path: Path) -> dict:
+def _load_json(path: Path) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
@@ -44,60 +44,61 @@ def _key_paths(node: object, prefix: str = "") -> set[str]:
     }
 
 
-@pytest.mark.parametrize("language", ["en", "zh-Hant"])
-def test_translation_has_every_strings_key(language: str) -> None:
-    """Each translation file carries exactly the keys strings.json defines.
+class TestTranslations:
+    """Every language file stays in lockstep with strings.json."""
 
-    This is the regression guard for issue #4. Repairing the 113 keys that
-    were missing does nothing to stop the 114th from drifting; this does.
-    """
-    expected = _key_paths(_load(STRINGS))
-    actual = _key_paths(_load(TRANSLATIONS / f"{language}.json"))
+    @pytest.mark.parametrize("language", ["en", "zh-Hant"])
+    def test_translation_has_every_strings_key(self, language: str) -> None:
+        """Each translation file carries exactly the keys strings.json defines.
 
-    missing = sorted(expected - actual)
-    extra = sorted(actual - expected)
+        This is the regression guard for issue #4. Repairing the 113 keys that
+        were missing does nothing to stop the 114th from drifting; this does.
+        """
+        expected = _key_paths(_load_json(STRINGS))
+        actual = _key_paths(_load_json(TRANSLATIONS / f"{language}.json"))
 
-    assert not missing, (
-        f"translations/{language}.json is missing {len(missing)} key(s) that "
-        f"strings.json defines: {missing}"
+        missing = sorted(expected - actual)
+        extra = sorted(actual - expected)
+
+        assert not missing, (
+            f"translations/{language}.json is missing {len(missing)} key(s) "
+            f"that strings.json defines: {missing}"
+        )
+        assert not extra, (
+            f"translations/{language}.json defines {len(extra)} key(s) that "
+            f"strings.json does not: {extra}"
+        )
+
+    def test_en_translation_is_a_verbatim_copy_of_strings(self) -> None:
+        """en.json is strings.json, byte for byte — not a hand-maintained file.
+
+        Key parity alone would not have caught issue #4's root cause: before
+        the merge, ha_finance's en.json had drifted in *values* too. Comparing
+        the text keeps the two files genuinely interchangeable.
+        """
+        source = STRINGS.read_text(encoding="utf-8")
+        english = (TRANSLATIONS / "en.json").read_text(encoding="utf-8")
+
+        assert english == source, (
+            "translations/en.json has diverged from strings.json. It is a "
+            "verbatim copy, never edited by hand: copy strings.json over it."
+        )
+
+    @pytest.mark.xfail(
+        reason="19 asset and note services have no strings.json entries — #13",
+        strict=True,
     )
-    assert not extra, (
-        f"translations/{language}.json defines {len(extra)} key(s) that "
-        f"strings.json does not: {extra}"
-    )
+    def test_every_service_has_ui_strings(self) -> None:
+        """Every service in services.yaml is described in strings.json.
 
+        Remove the xfail marker when #13 lands; that is #13's completion
+        condition.
+        """
+        declared = set(yaml.safe_load(SERVICES_YAML.read_text(encoding="utf-8")))
+        described = set(_load_json(STRINGS).get("services", {}))
 
-def test_en_translation_is_a_verbatim_copy_of_strings() -> None:
-    """en.json is strings.json, byte for byte — not a hand-maintained file.
-
-    Key parity alone would not have caught issue #4's root cause: before the
-    merge, ha_finance's en.json had drifted in *values* too. Comparing the
-    text keeps the two files genuinely interchangeable.
-    """
-    source = STRINGS.read_text(encoding="utf-8")
-    english = (TRANSLATIONS / "en.json").read_text(encoding="utf-8")
-
-    assert english == source, (
-        "translations/en.json has diverged from strings.json. It is a verbatim "
-        "copy, never edited by hand: copy strings.json over it."
-    )
-
-
-@pytest.mark.xfail(
-    reason="19 asset and note services have no strings.json entries — see #13",
-    strict=True,
-)
-def test_every_service_has_ui_strings() -> None:
-    """Every service in services.yaml is described in strings.json.
-
-    Remove the xfail marker when #13 lands; that is #13's completion
-    condition.
-    """
-    declared = set(yaml.safe_load(SERVICES_YAML.read_text(encoding="utf-8")))
-    described = set(_load(STRINGS).get("services", {}))
-
-    undescribed = sorted(declared - described)
-    assert not undescribed, (
-        f"{len(undescribed)} service(s) in services.yaml have no entry in "
-        f"strings.json.services: {undescribed}"
-    )
+        undescribed = sorted(declared - described)
+        assert not undescribed, (
+            f"{len(undescribed)} service(s) in services.yaml have no entry in "
+            f"strings.json.services: {undescribed}"
+        )
