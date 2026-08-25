@@ -71,6 +71,30 @@
     }
   },
   "exceptions": {
+    "account_not_found": {
+      "message": "找不到帳戶「{account_id}」。"
+    },
+    "transaction_not_found": {
+      "message": "找不到交易「{transaction_id}」。"
+    },
+    "plan_not_found": {
+      "message": "找不到計畫「{plan_id}」。"
+    },
+    "transaction_failed": {
+      "message": "建立交易失敗。"
+    },
+    "invalid_name": {
+      "message": "帳戶名稱不可為空。"
+    },
+    "duplicate_name": {
+      "message": "名稱為「{name}」的帳戶已存在。"
+    },
+    "create_failed": {
+      "message": "建立筆記失敗。"
+    },
+    "delete_failed": {
+      "message": "刪除筆記失敗。"
+    },
     "member_not_found": {
       "message": "找不到成員「{member_id}」。"
     },
@@ -100,12 +124,247 @@
     },
     "member_exists": {
       "message": "成員「{member_id}」已存在。"
-    },
-    "create_failed": {
-      "message": "建立成員失敗。"
     }
   },
   "services": {
+    "finance_get_accounts": {
+      "name": "取得帳戶列表",
+      "description": "列出所有財務帳戶及其目前餘額。"
+    },
+    "finance_get_account": {
+      "name": "取得帳戶",
+      "description": "取得指定帳戶的完整資料，包含交易紀錄與週期計畫。",
+      "fields": {
+        "account_id": {
+          "name": "帳戶 ID",
+          "description": "帳戶的唯一識別碼。"
+        }
+      }
+    },
+    "finance_get_chart_data": {
+      "name": "取得圖表資料",
+      "description": "取得帳戶的每月收入與支出圖表資料。",
+      "fields": {
+        "account_id": {
+          "name": "帳戶 ID",
+          "description": "帳戶的唯一識別碼。"
+        },
+        "months": {
+          "name": "月數",
+          "description": "要涵蓋的月份數量（預設 6）。"
+        }
+      }
+    },
+    "finance_export_csv": {
+      "name": "匯出 CSV",
+      "description": "將帳戶的所有交易紀錄匯出為 CSV 文字。",
+      "fields": {
+        "account_id": {
+          "name": "帳戶 ID",
+          "description": "帳戶的唯一識別碼。"
+        }
+      }
+    },
+    "finance_add_transaction": {
+      "name": "新增交易",
+      "description": "為帳戶新增一筆交易（收入或支出）。",
+      "fields": {
+        "account_id": {
+          "name": "帳戶 ID",
+          "description": "帳戶的唯一識別碼。"
+        },
+        "amount": {
+          "name": "金額",
+          "description": "交易金額。正數為收入，負數為支出。"
+        },
+        "note": {
+          "name": "備註",
+          "description": "選填的交易說明。"
+        },
+        "transaction_type": {
+          "name": "交易類型",
+          "description": "類型：manual（手動，預設）、recurring（週期）或 adjustment（調整）。"
+        }
+      }
+    },
+    "finance_update_transaction": {
+      "name": "更新交易",
+      "description": "修改既有交易的金額與／或備註。餘額會依差額調整。",
+      "fields": {
+        "account_id": {
+          "name": "帳戶 ID",
+          "description": "帳戶的唯一識別碼。"
+        },
+        "transaction_id": {
+          "name": "交易 ID",
+          "description": "交易的唯一識別碼（如 tx_abcd1234）。"
+        },
+        "amount": {
+          "name": "金額",
+          "description": "新的金額。餘額會依與原金額的差額調整。"
+        },
+        "note": {
+          "name": "備註",
+          "description": "新的備註。"
+        }
+      }
+    },
+    "finance_delete_transaction": {
+      "name": "刪除交易",
+      "description": "刪除一筆交易並回復其對帳戶餘額的影響。",
+      "fields": {
+        "account_id": {
+          "name": "帳戶 ID",
+          "description": "帳戶的唯一識別碼。"
+        },
+        "transaction_id": {
+          "name": "交易 ID",
+          "description": "交易的唯一識別碼。"
+        }
+      }
+    },
+    "finance_add_plan": {
+      "name": "新增週期計畫",
+      "description": "建立新的週期性收支計畫，並依排程自動執行。",
+      "fields": {
+        "account_id": {
+          "name": "帳戶 ID",
+          "description": "帳戶的唯一識別碼。"
+        },
+        "title": {
+          "name": "標題",
+          "description": "易讀的計畫名稱（如「每月房租」）。"
+        },
+        "amount": {
+          "name": "金額",
+          "description": "週期金額。正數為收入，負數為支出。"
+        },
+        "frequency": {
+          "name": "頻率",
+          "description": "重複週期：daily（每日）、weekly（每週）、monthly（每月）或 yearly（每年）。"
+        },
+        "day": {
+          "name": "日期",
+          "description": "重複發生日。每月／每年為 1-28，每週為 1-7（週一至週日）。"
+        },
+        "month": {
+          "name": "月份",
+          "description": "月份（1-12），僅用於每年頻率。預設 1。"
+        },
+        "active": {
+          "name": "啟用",
+          "description": "建立時是否啟用此計畫。預設為是。"
+        }
+      }
+    },
+    "finance_update_plan": {
+      "name": "更新週期計畫",
+      "description": "修改既有週期計畫的設定。",
+      "fields": {
+        "account_id": {
+          "name": "帳戶 ID",
+          "description": "帳戶的唯一識別碼。"
+        },
+        "plan_id": {
+          "name": "計畫 ID",
+          "description": "計畫的唯一識別碼（如 plan_abcd1234）。"
+        },
+        "title": {
+          "name": "標題",
+          "description": "新的計畫名稱。"
+        },
+        "amount": {
+          "name": "金額",
+          "description": "新的週期金額。"
+        },
+        "frequency": {
+          "name": "頻率",
+          "description": "新的頻率：daily（每日）、weekly（每週）、monthly（每月）或 yearly（每年）。"
+        },
+        "day": {
+          "name": "日期",
+          "description": "新的重複發生日。"
+        },
+        "month": {
+          "name": "月份",
+          "description": "新的月份（僅每年頻率）。"
+        },
+        "active": {
+          "name": "啟用",
+          "description": "啟用或停用此計畫。"
+        }
+      }
+    },
+    "finance_delete_plan": {
+      "name": "刪除週期計畫",
+      "description": "移除週期計畫及其關聯的感應器實體。",
+      "fields": {
+        "account_id": {
+          "name": "帳戶 ID",
+          "description": "帳戶的唯一識別碼。"
+        },
+        "plan_id": {
+          "name": "計畫 ID",
+          "description": "計畫的唯一識別碼。"
+        }
+      }
+    },
+    "finance_add_account": {
+      "name": "新增帳戶",
+      "description": "建立新的財務帳戶，可選填初始餘額。",
+      "fields": {
+        "name": {
+          "name": "名稱",
+          "description": "帳戶的顯示名稱。"
+        },
+        "initial_balance": {
+          "name": "初始餘額",
+          "description": "起始餘額。預設 0。"
+        }
+      }
+    },
+    "finance_update_account": {
+      "name": "更新帳戶",
+      "description": "重新命名帳戶或更新其備註。",
+      "fields": {
+        "account_id": {
+          "name": "帳戶 ID",
+          "description": "帳戶的唯一識別碼。"
+        },
+        "name": {
+          "name": "名稱",
+          "description": "新的帳戶名稱。不可為空，也不可與其他帳戶重複。"
+        },
+        "notes": {
+          "name": "備註",
+          "description": "帳戶的自由格式備註。"
+        }
+      }
+    },
+    "finance_delete_account": {
+      "name": "刪除帳戶",
+      "description": "刪除帳戶及其所有交易、計畫與感應器實體。",
+      "fields": {
+        "account_id": {
+          "name": "帳戶 ID",
+          "description": "要刪除的帳戶。"
+        }
+      }
+    },
+    "finance_adjust_balance": {
+      "name": "調整餘額",
+      "description": "將帳戶餘額設定為指定數值，並為差額建立一筆調整交易。",
+      "fields": {
+        "account_id": {
+          "name": "帳戶 ID",
+          "description": "帳戶的唯一識別碼。"
+        },
+        "new_balance": {
+          "name": "新餘額",
+          "description": "目標餘額數值。"
+        }
+      }
+    },
     "health_get_members": {
       "name": "取得成員列表",
       "description": "列出所有家庭成員及其紀錄類型。"

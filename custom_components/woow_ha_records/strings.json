@@ -90,10 +90,10 @@
       "message": "Account with name '{name}' already exists."
     },
     "create_failed": {
-      "message": "Failed to create account: {reason}."
+      "message": "Failed to create note."
     },
     "delete_failed": {
-      "message": "Failed to delete account '{account_id}'."
+      "message": "Failed to delete note."
     },
     "member_not_found": {
       "message": "Member '{member_id}' not found."
