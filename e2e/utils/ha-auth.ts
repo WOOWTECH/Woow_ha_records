@@ -7,6 +7,9 @@ import { type Page, type BrowserContext } from '@playwright/test';
 const HA_BASE = process.env.HA_BASE_URL || 'http://localhost:18125';
 const HA_USER = process.env.HA_USERNAME || 'admin';
 const HA_PASS = process.env.HA_PASSWORD || 'admin';
+// A long-lived access token, for instances where we have no password —
+// the same variable the k3s scripts use.
+const HA_TOKEN = process.env.HA_TOKEN;
 
 export interface HATokens {
   access_token: string;
@@ -14,8 +17,13 @@ export interface HATokens {
   expires_in: number;
 }
 
-/** Get HA access token via REST auth flow */
+/** Get an HA access token: HA_TOKEN if supplied, otherwise the REST auth flow */
 export async function getHAToken(): Promise<HATokens> {
+  if (HA_TOKEN) {
+    // A long-lived token needs no exchange and does not expire in any run.
+    return { access_token: HA_TOKEN, refresh_token: '', expires_in: 315_360_000 };
+  }
+
   // Step 1: Start login flow
   const flowRes = await fetch(`${HA_BASE}/auth/login_flow`, {
     method: 'POST',

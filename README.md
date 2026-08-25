@@ -2,29 +2,27 @@
   <img src="https://brands.home-assistant.io/_/homeassistant/icon.png" alt="Home Assistant" width="120" />
 </p>
 
-<h1 align="center">WOOW HA Records Suite</h1>
+<h1 align="center">Woow HA Records</h1>
 
 <p align="center">
-  <strong>A comprehensive Home Assistant custom component suite for personal and family record management</strong>
+  <strong>Household records inside Home Assistant — finance, assets, health, and notes, in one integration</strong>
 </p>
 
 <p align="center">
   <a href="#quick-start-for-ai-agents">AI Agent Quick Start</a> •
   <a href="#command-index">Command Index</a> •
-  <a href="#health-record-api-reference">Health Record API</a> •
-  <a href="#asset-record-api-reference">Asset Record API</a> •
-  <a href="#note-record-api-reference">Note Record API</a> •
-  <a href="#finance-api-reference">Finance API</a> •
+  <a href="#architecture">Architecture</a> •
+  <a href="docs/api/README.md">API Reference</a> •
   <a href="#screenshots">Screenshots</a> •
   <a href="#installation">Installation</a>
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Home%20Assistant-2025.1+-blue?logo=homeassistant" alt="Home Assistant" />
+  <img src="https://img.shields.io/badge/Home%20Assistant-2025.12+-blue?logo=homeassistant" alt="Home Assistant" />
   <img src="https://img.shields.io/badge/Python-3.12+-yellow?logo=python" alt="Python" />
   <img src="https://img.shields.io/badge/HACS-Compatible-green?logo=homeassistantcommunitystore" alt="HACS" />
   <img src="https://img.shields.io/badge/License-GPL--3.0-red" alt="License" />
-  <img src="https://img.shields.io/badge/WebSocket%20Commands-34-blue" alt="WebSocket Commands" />
+  <img src="https://img.shields.io/badge/WebSocket%20Commands-37-blue" alt="WebSocket Commands" />
   <img src="https://img.shields.io/badge/Tests-252%20total-brightgreen" alt="Tests" />
 </p>
 
@@ -47,7 +45,7 @@ All commands use Home Assistant's WebSocket API at `ws://<host>:8123/api/websock
 ```json
 {
   "id": 1,
-  "type": "ha_health_record/get_members"
+  "type": "woow_ha_records/health/get_members"
 }
 ```
 
@@ -73,19 +71,19 @@ Responses arrive as:
 
 | Domain | Commands | Auth Pattern | Use Case |
 |--------|----------|-------------|----------|
-| `ha_health_record` | 12 | 3 public reads, 9 admin writes | Track health metrics per family member |
-| `ha_asset_record` | 4 | 1 public read, 3 admin writes | Manage household assets with warranty tracking |
-| `ha_note_record` | 6 | 1 public read, 5 admin writes | Organize notes with categories and markdown |
-| `ha_finance` | 12 | All public (no admin required) | Multi-account financial tracking with recurring plans |
+| the `health` Area | 12 | 3 public reads, 9 admin writes | Track health metrics per family member |
+| the `asset` Area | 4 | 1 public read, 3 admin writes | Manage household assets with warranty tracking |
+| the `note` Area | 6 | 1 public read, 5 admin writes | Organize notes with categories and markdown |
+| the `finance` Area | 12 | All public (no admin required) | Multi-account financial tracking with recurring plans |
 
 ### Discovery Sequence
 
 When first connecting, discover available data in this order:
 
-1. **Health**: Call `ha_health_record/get_members` to list all members and their record types
-2. **Assets**: Call `ha_asset_record/list` to list all tracked assets
-3. **Notes**: Call `ha_note_record/get_data` to list all categories and notes
-4. **Finance**: Call `ha_finance/accounts` to list all financial accounts
+1. **Health**: Call `woow_ha_records/health/get_members` to list all members and their record types
+2. **Assets**: Call `woow_ha_records/asset/list` to list all tracked assets
+3. **Notes**: Call `woow_ha_records/note/get_data` to list all categories and notes
+4. **Finance**: Call `woow_ha_records/finance/accounts` to list all financial accounts
 
 ### Data Storage
 
@@ -97,50 +95,53 @@ All data is stored locally in Home Assistant's `.storage/` directory. No cloud s
 
 ## Command Index
 
-All 34 WebSocket commands at a glance:
+All 37 WebSocket commands at a glance:
 
-Full request/response specifications live in [`docs/api/`](docs/api/README.md), one folder per integration:
-[health](docs/api/ha_health_record/websocket.md) ·
-[asset](docs/api/ha_asset_record/websocket.md) ·
-[note](docs/api/ha_note_record/websocket.md) ·
-[finance](docs/api/ha_finance/websocket.md)
+Full request/response specifications live in [`docs/api/`](docs/api/README.md), one folder per Area:
+[health](docs/api/health/websocket.md) ·
+[asset](docs/api/asset/websocket.md) ·
+[note](docs/api/note/websocket.md) ·
+[finance](docs/api/finance/websocket.md)
 
 | # | Command | Auth | Description |
 |---|---------|------|-------------|
-| 1 | `ha_health_record/get_members` | Public | List all members with record types and latest values |
-| 2 | `ha_health_record/get_records` | Public | Query records by time range across all members |
-| 3 | `ha_health_record/export_csv` | Public | Export a member's records as CSV |
-| 4 | `ha_health_record/log_record` | Admin | Log a health record entry |
-| 5 | `ha_health_record/update_record` | Admin | Update an existing record's value, note, or timestamp |
-| 6 | `ha_health_record/delete_record` | Admin | Delete a specific record |
-| 7 | `ha_health_record/add_record_type` | Admin | Add a custom record type to a member |
-| 8 | `ha_health_record/update_record_type` | Admin | Update record type name, unit, or defaults |
-| 9 | `ha_health_record/delete_record_type` | Admin | Delete a record type and clean up entities |
-| 10 | `ha_health_record/add_member` | Admin | Add a new family member (creates ConfigEntry) |
-| 11 | `ha_health_record/update_member` | Admin | Update member name or note |
-| 12 | `ha_health_record/delete_member` | Admin | Delete a member and all associated data |
-| 13 | `ha_asset_record/list` | Public | List all assets with full details |
-| 14 | `ha_asset_record/create` | Admin | Create a new asset |
-| 15 | `ha_asset_record/update` | Admin | Update asset fields |
-| 16 | `ha_asset_record/delete` | Admin | Delete an asset |
-| 17 | `ha_note_record/get_data` | Public | List all categories and notes |
-| 18 | `ha_note_record/create_category` | Admin | Create a new note category |
-| 19 | `ha_note_record/create_note` | Admin | Create a new note in a category |
-| 20 | `ha_note_record/update_note` | Admin | Update note title, content, or pinned state |
-| 21 | `ha_note_record/delete_note` | Admin | Delete a note and clean up entities |
-| 22 | `ha_note_record/delete_category` | Admin | Delete a category (cascade-deletes all notes) |
-| 23 | `ha_finance/accounts` | Public | List all financial accounts |
-| 24 | `ha_finance/account` | Public | Get account details with transactions and plans |
-| 25 | `ha_finance/add_transaction` | Public | Add a transaction to an account |
-| 26 | `ha_finance/update_transaction` | Public | Update a transaction's amount or note |
-| 27 | `ha_finance/delete_transaction` | Public | Delete a transaction (reverses balance) |
-| 28 | `ha_finance/add_plan` | Public | Add a recurring plan |
-| 29 | `ha_finance/update_plan` | Public | Update a recurring plan |
-| 30 | `ha_finance/delete_plan` | Public | Delete a recurring plan |
-| 31 | `ha_finance/chart_data` | Public | Get monthly income vs. expense aggregation |
-| 32 | `ha_finance/add_account` | Public | Create a new account (via ConfigEntry) |
-| 33 | `ha_finance/update_account` | Public | Update account name or notes |
-| 34 | `ha_finance/delete_account` | Public | Delete an account (via ConfigEntry removal) |
+| 1 | `woow_ha_records/health/get_members` | Public | List all members with record types and latest values |
+| 2 | `woow_ha_records/health/get_records` | Public | Query records by time range across all members |
+| 3 | `woow_ha_records/health/export_csv` | Public | Export a member's records as CSV |
+| 4 | `woow_ha_records/health/log_record` | Admin | Log a health record entry |
+| 5 | `woow_ha_records/health/update_record` | Admin | Update an existing record's value, note, or timestamp |
+| 6 | `woow_ha_records/health/delete_record` | Admin | Delete a specific record |
+| 7 | `woow_ha_records/health/add_record_type` | Admin | Add a custom record type to a member |
+| 8 | `woow_ha_records/health/update_record_type` | Admin | Update record type name, unit, or defaults |
+| 9 | `woow_ha_records/health/delete_record_type` | Admin | Delete a record type and clean up entities |
+| 10 | `woow_ha_records/health/add_member` | Admin | Add a new member |
+| 11 | `woow_ha_records/health/update_member` | Admin | Update member name or note |
+| 12 | `woow_ha_records/health/delete_member` | Admin | Delete a member and all associated data |
+| 13 | `woow_ha_records/asset/list` | Public | List all assets with full details |
+| 14 | `woow_ha_records/asset/create` | Admin | Create a new asset |
+| 15 | `woow_ha_records/asset/update` | Admin | Update asset fields |
+| 16 | `woow_ha_records/asset/delete` | Admin | Delete an asset |
+| 17 | `woow_ha_records/asset/create_category` | Admin | Create an asset category |
+| 18 | `woow_ha_records/asset/update_category` | Admin | Rename an asset category |
+| 19 | `woow_ha_records/asset/delete_category` | Admin | Delete an asset category |
+| 20 | `woow_ha_records/note/get_data` | Public | List all categories and notes |
+| 21 | `woow_ha_records/note/create_category` | Admin | Create a new note category |
+| 22 | `woow_ha_records/note/create_note` | Admin | Create a new note in a category |
+| 23 | `woow_ha_records/note/update_note` | Admin | Update note title, content, or pinned state |
+| 24 | `woow_ha_records/note/delete_note` | Admin | Delete a note and clean up entities |
+| 25 | `woow_ha_records/note/delete_category` | Admin | Delete a category (cascade-deletes all notes) |
+| 26 | `woow_ha_records/finance/accounts` | Public | List all financial accounts |
+| 27 | `woow_ha_records/finance/account` | Public | Get account details with transactions and plans |
+| 28 | `woow_ha_records/finance/add_transaction` | Public | Add a transaction to an account |
+| 29 | `woow_ha_records/finance/update_transaction` | Public | Update a transaction's amount or note |
+| 30 | `woow_ha_records/finance/delete_transaction` | Public | Delete a transaction (reverses balance) |
+| 31 | `woow_ha_records/finance/add_plan` | Public | Add a recurring plan |
+| 32 | `woow_ha_records/finance/update_plan` | Public | Update a recurring plan |
+| 33 | `woow_ha_records/finance/delete_plan` | Public | Delete a recurring plan |
+| 34 | `woow_ha_records/finance/chart_data` | Public | Get monthly income vs. expense aggregation |
+| 35 | `woow_ha_records/finance/add_account` | Public | Create a new account (via ConfigEntry) |
+| 36 | `woow_ha_records/finance/update_account` | Public | Update account name or notes |
+| 37 | `woow_ha_records/finance/delete_account` | Public | Delete an account (via ConfigEntry removal) |
 
 ---
 
@@ -149,56 +150,56 @@ Full request/response specifications live in [`docs/api/`](docs/api/README.md), 
 ### Track a New Family Member's Health
 
 ```
-1. ha_health_record/add_member      → name: "Baby Ming"
-2. ha_health_record/add_record_type → member_id: "baby_ming", name: "Weight", unit: "kg"
-3. ha_health_record/add_record_type → member_id: "baby_ming", name: "Temperature", unit: "°C"
-4. ha_health_record/log_record      → member_id: "baby_ming", record_type: "weight", value: 8.5
-5. ha_health_record/get_records     → start_time/end_time for range queries
-6. ha_health_record/export_csv      → member_id: "baby_ming" for data export
+1. woow_ha_records/health/add_member      → name: "Baby Ming"
+2. woow_ha_records/health/add_record_type → member_id: "baby_ming", name: "Weight", unit: "kg"
+3. woow_ha_records/health/add_record_type → member_id: "baby_ming", name: "Temperature", unit: "°C"
+4. woow_ha_records/health/log_record      → member_id: "baby_ming", record_type: "weight", value: 8.5
+5. woow_ha_records/health/get_records     → start_time/end_time for range queries
+6. woow_ha_records/health/export_csv      → member_id: "baby_ming" for data export
 ```
 
 ### Manage Household Assets
 
 ```
-1. ha_asset_record/create  → name: "MacBook Pro", brand: "Apple", category: "Electronics", value: 52900
-2. ha_asset_record/update  → asset_id: "...", warranty_until: "2026-06-15T00:00:00Z"
-3. ha_asset_record/update  → asset_id: "...", maintenance_md: "## Battery replaced 2025-03"
-4. ha_asset_record/list    → check all assets, filter by category in your logic
+1. woow_ha_records/asset/create  → name: "MacBook Pro", brand: "Apple", category: "Electronics", value: 52900
+2. woow_ha_records/asset/update  → asset_id: "...", warranty_until: "2026-06-15T00:00:00Z"
+3. woow_ha_records/asset/update  → asset_id: "...", maintenance_md: "## Battery replaced 2025-03"
+4. woow_ha_records/asset/list    → check all assets, filter by category in your logic
 ```
 
 ### Organize Project Notes
 
 ```
-1. ha_note_record/create_category → name: "Work Projects"
-2. ha_note_record/create_note     → category_id: "...", title: "Q1 Goals", content: "# Goals\n- ..."
-3. ha_note_record/update_note     → note_id: "...", content: "updated content", pinned: true
-4. ha_note_record/get_data        → retrieve all categories and notes for search/filtering
+1. woow_ha_records/note/create_category → name: "Work Projects"
+2. woow_ha_records/note/create_note     → category_id: "...", title: "Q1 Goals", content: "# Goals\n- ..."
+3. woow_ha_records/note/update_note     → note_id: "...", content: "updated content", pinned: true
+4. woow_ha_records/note/get_data        → retrieve all categories and notes for search/filtering
 ```
 
 ### Set Up Family Finances
 
 ```
-1. ha_finance/add_account       → name: "Family Account", initial_balance: 50000
-2. ha_finance/add_transaction   → account_id: "...", amount: -500, note: "Groceries"
-3. ha_finance/add_transaction   → account_id: "...", amount: 50000, note: "Monthly salary"
-4. ha_finance/add_plan          → account_id: "...", title: "Rent", amount: -15000, frequency: "monthly", day: 1
-5. ha_finance/chart_data        → account_id: "...", months: 6 for income vs expense chart
+1. woow_ha_records/finance/add_account       → name: "Family Account", initial_balance: 50000
+2. woow_ha_records/finance/add_transaction   → account_id: "...", amount: -500, note: "Groceries"
+3. woow_ha_records/finance/add_transaction   → account_id: "...", amount: 50000, note: "Monthly salary"
+4. woow_ha_records/finance/add_plan          → account_id: "...", title: "Rent", amount: -15000, frequency: "monthly", day: 1
+5. woow_ha_records/finance/chart_data        → account_id: "...", months: 6 for income vs expense chart
 ```
 
 ### Cross-Component Daily Routine
 
 ```
 Morning:
-  ha_health_record/log_record → weight measurement
-  ha_finance/add_transaction  → breakfast expense
+  woow_ha_records/health/log_record → weight measurement
+  woow_ha_records/finance/add_transaction  → breakfast expense
 
 Work:
-  ha_note_record/create_note  → meeting notes
+  woow_ha_records/note/create_note  → meeting notes
 
 Evening:
-  ha_health_record/log_record → temperature check
-  ha_finance/add_transaction  → dinner expense
-  ha_finance/chart_data       → review today's spending
+  woow_ha_records/health/log_record → temperature check
+  woow_ha_records/finance/add_transaction  → dinner expense
+  woow_ha_records/finance/chart_data       → review today's spending
 ```
 
 ---
@@ -233,105 +234,90 @@ All error codes used across the suite:
 | `error` | note, finance | Generic internal error |
 
 ---
-
 ## Architecture
+
+One Home Assistant domain, one config entry, four Areas that share a runtime and
+nothing else. Accounts and Members are records inside their Area's store, not
+config entries of their own — see
+[ADR-0001](docs/adr/0001-merge-four-integrations-into-one-domain.md).
 
 ### System Overview
 
 ```mermaid
 graph TB
-    subgraph "Home Assistant Core"
-        HA[Home Assistant]
+    subgraph HA["Home Assistant Core"]
         ER[Entity Registry]
         DR[Device Registry]
-        WS[WebSocket API]
-        ST[Persistent Storage]
+        WSAPI[WebSocket API]
+        SVC[Service Registry]
+        FE[Frontend / Sidebar]
     end
 
-    subgraph "WOOW HA Records Suite"
-        subgraph "Health Record"
-            HR_CF[Config Flow] --> HR_INIT[__init__]
-            HR_INIT --> HR_COORD[Coordinator]
-            HR_COORD --> HR_STORE[Data Store]
-            HR_INIT --> HR_PANEL[Panel + WS API]
-            HR_INIT --> HR_ENT[Entities]
-        end
+    subgraph INT["woow_ha_records (one config entry)"]
+        INIT["__init__.py"]
+        CF[config_flow.py]
+        SREG["services.py<br/>45 as area_verb"]
+        WREG["websocket.py<br/>37 as area/verb"]
+        PANEL["panel.py<br/>4 sidebar panels"]
+        DISP["sensor · text · number<br/>switch · datetime · button<br/>platform dispatchers"]
 
-        subgraph "Asset Record"
-            AR_CF[Config Flow] --> AR_INIT[__init__]
-            AR_INIT --> AR_COORD[Coordinator]
-            AR_COORD --> AR_STORE[Data Store]
-            AR_INIT --> AR_PANEL[Panel + WS API]
-            AR_INIT --> AR_ENT[Entities]
-        end
-
-        subgraph "Note Record"
-            NR_CF[Config Flow] --> NR_INIT[__init__]
-            NR_INIT --> NR_STORE[Shared Store]
-            NR_INIT --> NR_PANEL[Panel + WS API]
-            NR_INIT --> NR_ENT[Entities]
-        end
-
-        subgraph "Finance"
-            FI_CF[Config Flow] --> FI_INIT[__init__]
-            FI_INIT --> FI_COORD[Coordinator]
-            FI_COORD --> FI_STORE[Shared Store]
-            FI_INIT --> FI_PANEL[Panel + WS API]
-            FI_INIT --> FI_ENT[Entities]
+        subgraph AREAS["areas/"]
+            FIN["finance<br/>FinanceArea → store<br/>1 coordinator per Account"]
+            AST["asset<br/>AssetCoordinator → store"]
+            HLT["health<br/>HealthArea → store<br/>1 coordinator per Member"]
+            NOT["note<br/>NoteStore → store"]
         end
     end
 
-    subgraph "Frontend Panels"
-        HR_JS[Health Panel<br/>Vanilla Web Components]
-        AR_JS[Asset Panel<br/>Lit Element]
-        NR_JS[Note Panel<br/>Vendored Dependencies]
-        FI_JS[Finance Panel<br/>Lit Element 3.3.3]
+    subgraph STORE["Persistent Storage — one file per Area"]
+        SF[(woow_ha_records_finance)]
+        SA[(woow_ha_records_asset)]
+        SH[(woow_ha_records_health)]
+        SN[(woow_ha_records_note)]
     end
 
-    HR_PANEL --> WS
-    AR_PANEL --> WS
-    NR_PANEL --> WS
-    FI_PANEL --> WS
-
-    HR_STORE --> ST
-    AR_STORE --> ST
-    NR_STORE --> ST
-    FI_STORE --> ST
-
-    HR_ENT --> ER
-    AR_ENT --> ER
-    NR_ENT --> ER
-    FI_ENT --> ER
-
-    HR_JS --> WS
-    AR_JS --> WS
-    NR_JS --> WS
-    FI_JS --> WS
+    CF --> INIT
+    INIT --> FIN & AST & HLT & NOT
+    INIT --> SREG & WREG & PANEL & DISP
+    SREG --> SVC
+    WREG --> WSAPI
+    PANEL --> FE
+    DISP --> ER
+    DISP --> DR
+    FIN --> SF
+    AST --> SA
+    HLT --> SH
+    NOT --> SN
 ```
+
+Every Area keeps its own store file. Finance transactions and health records are
+retained permanently, so a shared file would mean every note edit rewrites an
+ever-growing ledger, and one corrupt write would take all four Areas down
+together.
 
 ### Data Flow
 
 ```mermaid
 sequenceDiagram
-    participant U as User (Browser/AI)
-    participant P as Frontend Panel
-    participant W as WebSocket API
-    participant C as Coordinator
-    participant S as Data Store
-    participant E as HA Entity
+    participant U as Panel / Automation / AI agent
+    participant W as WebSocket or Service
+    participant A as Area
+    participant S as Area store
+    participant E as Entities
 
-    U->>P: User interaction / AI command
-    P->>W: WebSocket command
-    W->>C: Process request
-    C->>S: Read/Write data
-    S-->>C: Data response
-    C->>E: Update entity state
-    C-->>W: Result
-    W-->>P: Response
-    P-->>U: UI update / JSON result
+    U->>W: woow_ha_records/finance/add_transaction<br/>or woow_ha_records.finance_add_transaction
+    W->>A: locate the Account's coordinator
+    A->>A: apply the change in memory
+    A->>S: debounced write
+    A-->>E: dispatcher signal
+    E->>E: reconcile — add or drop entities
+    W-->>U: result
 ```
 
----
+Structural edits — a Member added, a Record Type removed — used to reload the
+config entry to rebuild entities. With one entry covering four Areas that would
+blip the other three, and a reload re-reads the store, which a debounced write
+may not have reached yet. The platforms listen for a dispatcher signal instead.
 
 ## Screenshots
 
@@ -373,25 +359,30 @@ Configure components through Home Assistant's standard integration flow.
 
 1. Open HACS in your Home Assistant instance
 2. Click the three-dot menu → **Custom repositories**
-3. Add this repository URL with category **Integration**
-4. Search for "WOOW HA Records" and install
+3. Add `https://github.com/WOOWTECH/Woow_ha_records` with category **Integration**
+4. Search for "Woow HA Records" and download
 5. Restart Home Assistant
 
 ### Manual Installation
 
-1. Copy the desired component directories from `custom_components/` to your Home Assistant's `custom_components/` directory:
+1. Copy `custom_components/woow_ha_records/` into your Home Assistant's
+   `custom_components/` directory:
 
 ```
 custom_components/
-├── ha_health_record/
-├── ha_asset_record/
-├── ha_note_record/
-└── ha_finance/
+└── woow_ha_records/
 ```
 
 2. Restart Home Assistant
 
----
+### Upgrading from 1.x
+
+Version 2.0 replaced the four separate integrations (`ha_finance`,
+`ha_asset_record`, `ha_health_record`, `ha_note_record`) with this one. It is a
+clean break with no migration: remove the old integrations, delete their
+`custom_components/` directories, install this one, and re-enter your data.
+Entity IDs, service names, and WebSocket commands all changed — see
+[ADR-0001](docs/adr/0001-merge-four-integrations-into-one-domain.md).
 
 ## Configuration
 
@@ -471,7 +462,7 @@ Disposable Home Assistant instance on a local k3s cluster, used as the release g
 | `ha-test.yaml` | Namespace + PVC + Deployment (initContainer clones the branch) + Service |
 | `onboard.sh` | Automates fresh-HA onboarding (creates owner user, saves refresh token) |
 | `token.sh` | Mints a fresh access token from the saved refresh token |
-| `bootstrap.sh` | Creates the first ha_finance / ha_health_record config entries via the config-flow REST API |
+| `bootstrap.sh` | Creates the first the finance Area / the health Area config entries via the config-flow REST API |
 | `retention_test.py` | Seeds 1,100 transactions + 10,100 records and verifies all are retained (also after pod restart) |
 
 ---
@@ -480,77 +471,47 @@ Disposable Home Assistant instance on a local k3s cluster, used as the release g
 
 ```
 Woow_ha_records/
+├── CONTEXT.md                        # Glossary: Area, Account, Member, Record Type
+├── docs/adr/                         # Why the four became one (ADR-0001)
 ├── custom_components/
-│   ├── ha_health_record/        # Health metrics tracking
-│   │   ├── __init__.py          # Component lifecycle & multi-member setup
-│   │   ├── config_flow.py       # Config entry flow
-│   │   ├── coordinator.py       # Data update coordinator
-│   │   ├── panel.py             # WebSocket API (12 commands)
-│   │   ├── store.py             # Persistent data store
-│   │   ├── sensor.py            # Sensor platform
-│   │   ├── button.py            # Quick-log button platform
-│   │   ├── number.py            # Number input platform
-│   │   ├── text.py              # Text input platform
-│   │   ├── frontend/            # Custom panel (vanilla Web Components)
-│   │   └── manifest.json
-│   │
-│   ├── ha_asset_record/         # Asset management
-│   │   ├── __init__.py          # Single-instance lifecycle
-│   │   ├── config_flow.py
-│   │   ├── coordinator.py
-│   │   ├── websocket.py         # WebSocket API (4 commands)
-│   │   ├── store.py
-│   │   ├── sensor.py
-│   │   ├── frontend/            # Custom panel (Lit Element)
-│   │   └── manifest.json
-│   │
-│   ├── ha_note_record/          # Note management
-│   │   ├── __init__.py          # Shared store architecture
-│   │   ├── config_flow.py
-│   │   ├── store.py
-│   │   ├── websocket_api.py     # WebSocket API (6 commands)
-│   │   ├── switch.py            # Switch platform
-│   │   ├── text.py              # Text platform
-│   │   ├── frontend/            # Custom panel (vendored dependencies)
-│   │   │   └── vendor/          # Offline-capable third-party libs
-│   │   └── manifest.json
-│   │
-│   └── ha_finance/              # Financial tracking
-│       ├── __init__.py          # Multi-account lifecycle
-│       ├── config_flow.py
-│       ├── coordinator.py
-│       ├── panel.py             # WebSocket API (12 commands)
-│       ├── store.py
-│       ├── models.py            # Data models
-│       ├── frontend/            # Custom panel (Lit Element 3.3.3)
-│       └── manifest.json
-│
-├── tests/                       # Unit tests (109 tests)
-│   ├── test_health_record/
-│   ├── test_asset_record/
-│   ├── test_note_record/
-│   └── test_finance/
-│
-├── e2e/                         # E2E browser tests (143 tests)
-│   ├── tests/
-│   ├── utils/
-│   ├── k3s/                     # Disposable k3s HA E2E harness
-│   └── playwright.config.ts
-│
-├── docs/
-│   ├── api/                     # Per-integration API reference (WebSocket + services)
-│   ├── design/                  # Design documents
-│   ├── plans/                   # Implementation plans
-│   ├── archive/                 # Fulfilled / superseded documents
-│   └── screenshots/             # Panel screenshots
-│
-├── hacs.json                    # HACS configuration
-├── pyproject.toml               # Project configuration
-├── requirements_test.txt        # Test dependencies
-└── LICENSE                      # GPL-3.0
+│   └── woow_ha_records/
+│       ├── __init__.py               # Brings up all four Areas from one config entry
+│       ├── config_flow.py            # One flow; Accounts and Members are not entries
+│       ├── const.py                  # Area names and the helpers that scope every id
+│       ├── runtime.py                # Live state for every Area
+│       ├── services.py               # Registers 45 services as <area>_<verb>
+│       ├── websocket.py              # Registers 37 commands as <area>/<verb>
+│       ├── panel.py                  # One table drives all four sidebar panels
+│       ├── sensor.py  text.py  number.py       # Platform dispatchers: Home Assistant
+│       ├── switch.py  datetime.py  button.py   # discovers these, they fan out to Areas
+│       ├── services.yaml  strings.json  translations/
+│       ├── frontend/{finance,asset,health,note}/   # One panel bundle per Area
+│       └── areas/
+│           ├── finance/              # Account, Transaction, Recurring Plan
+│           │   ├── area.py           # Owns the store and a coordinator per Account
+│           │   ├── coordinator.py  models.py  store.py
+│           │   ├── services.py  websocket.py  sensor.py
+│           ├── asset/                # Asset, Category
+│           │   ├── coordinator.py  entity.py
+│           │   ├── services.py  websocket.py
+│           │   └── datetime.py  number.py  text.py
+│           ├── health/               # Member, Record Type, Record
+│           │   ├── area.py           # Owns the store and a coordinator per Member
+│           │   ├── coordinator.py  platform.py
+│           │   ├── services.py  websocket.py
+│           │   └── sensor.py  number.py  text.py  button.py
+│           └── note/                 # Note, Category
+│               ├── store.py  entity.py
+│               ├── services.py  websocket_api.py
+│               └── switch.py  text.py
+├── tests/{finance,asset,health,note}/  # pytest, no running Home Assistant needed
+└── e2e/                                # Playwright against a running HA; k3s retention
 ```
 
----
+Each Area owns its own store file (`woow_ha_records_<area>`) and shares nothing
+with the others. See [CONTEXT.md](CONTEXT.md) for the vocabulary and
+[ADR-0001](docs/adr/0001-merge-four-integrations-into-one-domain.md) for why
+there is one integration rather than four.
 
 ## Development
 
@@ -584,10 +545,10 @@ npx playwright test
 
 | Component | Version | Domain |
 |-----------|---------|--------|
-| Health Record | 1.1.0 | `ha_health_record` |
-| Asset Record | 1.0.2 | `ha_asset_record` |
-| Note Record | 1.0.2 | `ha_note_record` |
-| Finance Record | 1.1.0 | `ha_finance` |
+| Health Record | 1.1.0 | the `health` Area |
+| Asset Record | 1.0.2 | the `asset` Area |
+| Note Record | 1.0.2 | the `note` Area |
+| Finance Record | 1.1.0 | the `finance` Area |
 
 ---
 

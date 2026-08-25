@@ -13,7 +13,7 @@ let token: string;
 let ws: HAWebSocketClient;
 const accountIds: Record<string, string> = {};
 
-test.describe('ha_finance E2E Tests', () => {
+test.describe('finance Area E2E Tests', () => {
   test.beforeAll(async () => {
     const tokens = await getHAToken();
     token = tokens.access_token;

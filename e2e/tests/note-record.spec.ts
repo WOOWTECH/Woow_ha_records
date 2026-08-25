@@ -8,7 +8,7 @@ let ws: HAWebSocketClient;
 const categoryIds: Record<string, string> = {};
 const noteIds: string[] = [];
 
-test.describe('ha_note_record E2E Tests', () => {
+test.describe('note Area E2E Tests', () => {
   test.beforeAll(async () => {
     const tokens = await getHAToken();
     token = tokens.access_token;

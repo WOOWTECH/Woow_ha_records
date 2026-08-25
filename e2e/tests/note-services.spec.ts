@@ -1,5 +1,5 @@
 /**
- * E2E tests for ha_note_record HA Services.
+ * E2E tests for the note Area's HA services.
  *
  * Tests 9 services via REST API:
  *   Query (ONLY):  list_notes, get_note, list_categories, export_markdown
@@ -22,7 +22,7 @@ import { EDGE_CASES } from '../utils/test-data';
 
 test.describe.configure({ retries: 0 });
 
-const DOMAIN = 'ha_note_record';
+const DOMAIN = 'note';
 
 let token: string;
 let svc: HAServicesClient;
@@ -38,7 +38,7 @@ let noteId3 = '';  // markdown heavy
 const extraNoteIds: string[] = [];
 const extraCatIds: string[] = [];
 
-test.describe('ha_note_record Services E2E Tests', () => {
+test.describe('note Area Services E2E Tests', () => {
   test.beforeAll(async () => {
     const tokens = await getHAToken();
     token = tokens.access_token;
@@ -672,13 +672,13 @@ test.describe('ha_note_record Services E2E Tests', () => {
   // Round 4: Browser UI Verification
   // ═══════════════════════════════════════════════════════════
   test.describe('Round 4: Browser UI Verification', () => {
-    test('4.1 ha_note_record services listed in Developer Tools', async ({ page }) => {
+    test('4.1 note services listed in Developer Tools', async ({ page }) => {
       await loginAndNavigate(page, 'developer-tools/service');
       await page.waitForLoadState('networkidle');
       await page.waitForTimeout(2000);
 
       const content = await page.content();
-      expect(content).toContain('ha_note_record');
+      expect(content).toContain('note_');
     });
 
     test('4.2 Note panel loads correctly', async ({ page }) => {

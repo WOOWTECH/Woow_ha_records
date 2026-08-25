@@ -7,7 +7,7 @@ let token: string;
 let ws: HAWebSocketClient;
 const createdAssetIds: string[] = [];
 
-test.describe('ha_asset_record E2E Tests', () => {
+test.describe('asset Area E2E Tests', () => {
   test.beforeAll(async () => {
     const tokens = await getHAToken();
     token = tokens.access_token;

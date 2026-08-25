@@ -110,12 +110,12 @@ export class HAWebSocketClient {
   // ─── Health Record Helpers ──────────────────────────────────
 
   async healthGetMembers() {
-    return this.sendCommand({ type: 'ha_health_record/get_members' });
+    return this.sendCommand({ type: 'woow_ha_records/health/get_members' });
   }
 
   async healthAddMember(name: string, memberId?: string, note = '') {
     return this.sendCommand({
-      type: 'ha_health_record/add_member',
+      type: 'woow_ha_records/health/add_member',
       name,
       ...(memberId ? { member_id: memberId } : {}),
       note,
@@ -124,7 +124,7 @@ export class HAWebSocketClient {
 
   async healthUpdateMember(memberId: string, name: string, note = '') {
     return this.sendCommand({
-      type: 'ha_health_record/update_member',
+      type: 'woow_ha_records/health/update_member',
       member_id: memberId,
       name,
       note,
@@ -139,7 +139,7 @@ export class HAWebSocketClient {
     defaultValueMode: 'fixed' | 'last_value' = 'fixed',
   ) {
     return this.sendCommand({
-      type: 'ha_health_record/add_record_type',
+      type: 'woow_ha_records/health/add_record_type',
       member_id: memberId,
       name,
       unit,
@@ -156,7 +156,7 @@ export class HAWebSocketClient {
     timestamp?: string,
   ) {
     return this.sendCommand({
-      type: 'ha_health_record/log_record',
+      type: 'woow_ha_records/health/log_record',
       member_id: memberId,
       record_type: recordType,
       value,
@@ -167,7 +167,7 @@ export class HAWebSocketClient {
 
   async healthGetRecords(startTime: string, endTime: string) {
     return this.sendCommand({
-      type: 'ha_health_record/get_records',
+      type: 'woow_ha_records/health/get_records',
       start_time: startTime,
       end_time: endTime,
     });
@@ -180,7 +180,7 @@ export class HAWebSocketClient {
     updates: { value?: number; note?: string; new_timestamp?: string; record_id?: string },
   ) {
     return this.sendCommand({
-      type: 'ha_health_record/update_record',
+      type: 'woow_ha_records/health/update_record',
       member_id: memberId,
       type_id: typeId,
       timestamp,
@@ -190,7 +190,7 @@ export class HAWebSocketClient {
 
   async healthDeleteRecord(memberId: string, typeId: string, timestamp: string, recordId?: string) {
     return this.sendCommand({
-      type: 'ha_health_record/delete_record',
+      type: 'woow_ha_records/health/delete_record',
       member_id: memberId,
       type_id: typeId,
       timestamp,
@@ -200,7 +200,7 @@ export class HAWebSocketClient {
 
   async healthExportCsv(memberId: string) {
     return this.sendCommand({
-      type: 'ha_health_record/export_csv',
+      type: 'woow_ha_records/health/export_csv',
       member_id: memberId,
     });
   }
@@ -208,7 +208,7 @@ export class HAWebSocketClient {
   // ─── Asset Record Helpers ──────────────────────────────────
 
   async assetList() {
-    return this.sendCommand({ type: 'ha_asset_record/list' });
+    return this.sendCommand({ type: 'woow_ha_records/asset/list' });
   }
 
   async assetCreate(data: {
@@ -221,42 +221,42 @@ export class HAWebSocketClient {
     manual_md?: string;
     maintenance_md?: string;
   }) {
-    return this.sendCommand({ type: 'ha_asset_record/create', ...data });
+    return this.sendCommand({ type: 'woow_ha_records/asset/create', ...data });
   }
 
   async assetUpdate(assetId: string, data: Record<string, any>) {
-    return this.sendCommand({ type: 'ha_asset_record/update', asset_id: assetId, ...data });
+    return this.sendCommand({ type: 'woow_ha_records/asset/update', asset_id: assetId, ...data });
   }
 
   async assetDelete(assetId: string) {
-    return this.sendCommand({ type: 'ha_asset_record/delete', asset_id: assetId });
+    return this.sendCommand({ type: 'woow_ha_records/asset/delete', asset_id: assetId });
   }
 
   async assetCreateCategory(name: string) {
-    return this.sendCommand({ type: 'ha_asset_record/create_category', name });
+    return this.sendCommand({ type: 'woow_ha_records/asset/create_category', name });
   }
 
   async assetUpdateCategory(categoryId: string, name: string) {
-    return this.sendCommand({ type: 'ha_asset_record/update_category', category_id: categoryId, name });
+    return this.sendCommand({ type: 'woow_ha_records/asset/update_category', category_id: categoryId, name });
   }
 
   async assetDeleteCategory(categoryId: string) {
-    return this.sendCommand({ type: 'ha_asset_record/delete_category', category_id: categoryId });
+    return this.sendCommand({ type: 'woow_ha_records/asset/delete_category', category_id: categoryId });
   }
 
   // ─── Note Record Helpers ──────────────────────────────────
 
   async noteGetData() {
-    return this.sendCommand({ type: 'ha_note_record/get_data' });
+    return this.sendCommand({ type: 'woow_ha_records/note/get_data' });
   }
 
   async noteCreateCategory(name: string) {
-    return this.sendCommand({ type: 'ha_note_record/create_category', name });
+    return this.sendCommand({ type: 'woow_ha_records/note/create_category', name });
   }
 
   async noteCreateNote(categoryId: string, title: string, content = '', pinned = false) {
     return this.sendCommand({
-      type: 'ha_note_record/create_note',
+      type: 'woow_ha_records/note/create_note',
       category_id: categoryId,
       title,
       content,
@@ -266,33 +266,33 @@ export class HAWebSocketClient {
 
   async noteUpdateNote(noteId: string, updates: { title?: string; content?: string; pinned?: boolean }) {
     return this.sendCommand({
-      type: 'ha_note_record/update_note',
+      type: 'woow_ha_records/note/update_note',
       note_id: noteId,
       ...updates,
     });
   }
 
   async noteDeleteNote(noteId: string) {
-    return this.sendCommand({ type: 'ha_note_record/delete_note', note_id: noteId });
+    return this.sendCommand({ type: 'woow_ha_records/note/delete_note', note_id: noteId });
   }
 
   async noteDeleteCategory(categoryId: string) {
-    return this.sendCommand({ type: 'ha_note_record/delete_category', category_id: categoryId });
+    return this.sendCommand({ type: 'woow_ha_records/note/delete_category', category_id: categoryId });
   }
 
   // ─── Finance Helpers ──────────────────────────────────────
 
   async financeGetAccounts() {
-    return this.sendCommand({ type: 'ha_finance/accounts' });
+    return this.sendCommand({ type: 'woow_ha_records/finance/accounts' });
   }
 
   async financeGetAccount(accountId: string) {
-    return this.sendCommand({ type: 'ha_finance/account', account_id: accountId });
+    return this.sendCommand({ type: 'woow_ha_records/finance/account', account_id: accountId });
   }
 
   async financeAddAccount(name: string, initialBalance = 0) {
     return this.sendCommand({
-      type: 'ha_finance/add_account',
+      type: 'woow_ha_records/finance/add_account',
       name,
       initial_balance: initialBalance,
     });
@@ -300,19 +300,19 @@ export class HAWebSocketClient {
 
   async financeUpdateAccount(accountId: string, updates: { name?: string; notes?: string }) {
     return this.sendCommand({
-      type: 'ha_finance/update_account',
+      type: 'woow_ha_records/finance/update_account',
       account_id: accountId,
       ...updates,
     });
   }
 
   async financeDeleteAccount(accountId: string) {
-    return this.sendCommand({ type: 'ha_finance/delete_account', account_id: accountId });
+    return this.sendCommand({ type: 'woow_ha_records/finance/delete_account', account_id: accountId });
   }
 
   async financeAddTransaction(accountId: string, amount: number, note = '', type = 'manual') {
     return this.sendCommand({
-      type: 'ha_finance/add_transaction',
+      type: 'woow_ha_records/finance/add_transaction',
       account_id: accountId,
       amount,
       note,
@@ -326,7 +326,7 @@ export class HAWebSocketClient {
     updates: { amount?: number; note?: string },
   ) {
     return this.sendCommand({
-      type: 'ha_finance/update_transaction',
+      type: 'woow_ha_records/finance/update_transaction',
       account_id: accountId,
       transaction_id: transactionId,
       ...updates,
@@ -335,7 +335,7 @@ export class HAWebSocketClient {
 
   async financeDeleteTransaction(accountId: string, transactionId: string) {
     return this.sendCommand({
-      type: 'ha_finance/delete_transaction',
+      type: 'woow_ha_records/finance/delete_transaction',
       account_id: accountId,
       transaction_id: transactionId,
     });
@@ -351,7 +351,7 @@ export class HAWebSocketClient {
     active = true,
   ) {
     return this.sendCommand({
-      type: 'ha_finance/add_plan',
+      type: 'woow_ha_records/finance/add_plan',
       account_id: accountId,
       title,
       amount,
@@ -368,7 +368,7 @@ export class HAWebSocketClient {
     updates: Record<string, any>,
   ) {
     return this.sendCommand({
-      type: 'ha_finance/update_plan',
+      type: 'woow_ha_records/finance/update_plan',
       account_id: accountId,
       plan_id: planId,
       ...updates,
@@ -377,7 +377,7 @@ export class HAWebSocketClient {
 
   async financeDeletePlan(accountId: string, planId: string) {
     return this.sendCommand({
-      type: 'ha_finance/delete_plan',
+      type: 'woow_ha_records/finance/delete_plan',
       account_id: accountId,
       plan_id: planId,
     });
@@ -385,7 +385,7 @@ export class HAWebSocketClient {
 
   async financeGetChartData(accountId: string, months = 6) {
     return this.sendCommand({
-      type: 'ha_finance/chart_data',
+      type: 'woow_ha_records/finance/chart_data',
       account_id: accountId,
       months,
     });

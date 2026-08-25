@@ -26,7 +26,7 @@ REFRESH_FILE = "/tmp/ha-records-test.refresh"
 
 FINANCE_TX = 1100       # old limit: 1000
 HEALTH_RECORDS = 10100  # old limit: 10000
-ACCOUNT_ID = "retention_test_acct"    # created by bootstrap.sh
+ACCOUNT_ID = "retention_test"         # derived by finance_add_account from the name
 MEMBER_ID = "retention_test_member"   # created by bootstrap.sh
 
 
@@ -70,15 +70,15 @@ def call(domain: str, service: str, data: dict, response: bool = False,
 
 
 def finance_state() -> tuple[int, float]:
-    """Return (transaction_count, balance) via ha_finance.get_account."""
-    resp = call("ha_finance", "get_account", {"account_id": ACCOUNT_ID}, response=True)
+    """Return (transaction_count, balance) via woow_ha_records.finance_get_account."""
+    resp = call("woow_ha_records", "finance_get_account", {"account_id": ACCOUNT_ID}, response=True)
     account = resp.get("account", {})
     return len(account.get("transactions", [])), account.get("balance", -1.0)
 
 
 def health_record_count() -> int:
     resp = call(
-        "ha_health_record", "get_records",
+        "woow_ha_records", "health_get_records",
         {"start_time": "2000-01-01T00:00:00+00:00", "end_time": "2100-01-01T00:00:00+00:00"},
         response=True,
     )
@@ -94,17 +94,17 @@ def check(name: str, actual, expected) -> bool:
 def seed() -> bool:
     print(f"== Seeding finance: {FINANCE_TX} transactions ==")
     for i in range(FINANCE_TX):
-        call("ha_finance", "add_transaction",
+        call("woow_ha_records", "finance_add_transaction",
              {"account_id": ACCOUNT_ID, "amount": 1.0, "note": f"tx_{i}"})
         if (i + 1) % 100 == 0:
             print(f"  {i + 1}/{FINANCE_TX}")
 
     print(f"== Seeding health: {HEALTH_RECORDS} records ==")
     # type_id is auto-generated from name: "Feeding" -> "feeding"
-    call("ha_health_record", "add_record_type",
+    call("woow_ha_records", "health_add_record_type",
          {"member_id": MEMBER_ID, "name": "Feeding", "unit": "ml"})
     for i in range(HEALTH_RECORDS):
-        call("ha_health_record", "log_record",
+        call("woow_ha_records", "health_log_record",
              {"member_id": MEMBER_ID, "record_type": "feeding", "value": float(i)})
         if (i + 1) % 500 == 0:
             print(f"  {i + 1}/{HEALTH_RECORDS}")

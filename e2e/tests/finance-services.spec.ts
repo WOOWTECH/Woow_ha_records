@@ -1,9 +1,9 @@
 /**
- * E2E tests for ha_finance HA Services (REST API).
+ * E2E tests for the finance Area's HA services (REST API).
  *
  * These tests exercise the 14 services registered via services.py,
  * called through the REST API endpoint:
- *   POST /api/services/ha_finance/<service_name>?return_response
+ *   POST /api/services/woow_ha_records/finance_<verb>?return_response
  *
  * Structure:
  *   Round 1 — Happy path: full CRUD lifecycle for accounts, transactions, plans
@@ -42,7 +42,7 @@ let planId2 = '';
 /** Wait for config entry reload to complete */
 const waitReload = (ms = 3000) => new Promise(r => setTimeout(r, ms));
 
-test.describe('ha_finance Services E2E Tests', () => {
+test.describe('finance Area Services E2E Tests', () => {
   test.beforeAll(async () => {
     // Prefer long-lived token from env; fall back to auth flow
     if (process.env.HA_TOKEN) {
@@ -51,7 +51,7 @@ test.describe('ha_finance Services E2E Tests', () => {
       const tokens = await getHAToken();
       token = tokens.access_token;
     }
-    svc = new HAServicesClient(token, 'ha_finance');
+    svc = new HAServicesClient(token, 'finance');
     ws = new HAWebSocketClient(token);
     await ws.connect();
 
@@ -698,12 +698,12 @@ test.describe('ha_finance Services E2E Tests', () => {
   // ═══════════════════════════════════════════════════════════
   test.describe('Round 4: Browser UI Verification', () => {
 
-    test('4.1 ha_finance services listed in Developer Tools', async ({ page }) => {
+    test('4.1 finance services listed in Developer Tools', async ({ page }) => {
       await loginAndNavigate(page, 'developer-tools/service');
       await page.waitForTimeout(5000);
 
       const content = await page.content();
-      expect(content).toContain('ha_finance');
+      expect(content).toContain('finance_');
     });
 
     test('4.2 Finance panel loads correctly', async ({ page }) => {

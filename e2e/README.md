@@ -5,7 +5,7 @@ questions and cannot substitute for each other.
 
 | | `run-tests.sh` | `k3s/` |
 |---|---|---|
-| **Question it answers** | Do the four integrations behave correctly? | Is data actually kept permanently? |
+| **Question it answers** | Do the four Areas behave correctly? | Is data actually kept permanently? |
 | **Needs** | A Home Assistant that is already running | A k3s cluster; creates its own HA |
 | **HA lifecycle** | Not managed — you point it at one | Deployed, seeded, restarted, torn down |
 | **Runner** | Playwright (TypeScript) | Plain Python + bash, no Playwright |
@@ -46,6 +46,16 @@ npm run report                 # open the HTML report
 ```
 
 Defaults to user `admin` / `admin123`; override with `HA_USERNAME` / `HA_PASSWORD`.
+
+Against an instance whose password you do not have, set `HA_TOKEN` to a
+long-lived access token instead and the login flow is skipped. The browser
+tests work either way — the token is injected into `localStorage` before any
+Home Assistant JS runs:
+
+```bash
+HA_BASE_URL=http://192.168.2.6:8123 HA_TOKEN=eyJ... npm test
+```
+
 Tests run sequentially (`workers: 1`) and build on each other's data — do not
 enable parallelism.
 
@@ -57,7 +67,7 @@ Shared helpers in `utils/`: `ha-auth.ts` (login flow → access token),
 
 ## Harness 2 — k3s, disposable HA, retention only
 
-Proves that `ha_finance` transactions and `ha_health_record` records survive
+Proves that finance transactions and health records survive
 past the limits that used to trim them (1,000 and 10,000 respectively), and
 survive a pod restart.
 
