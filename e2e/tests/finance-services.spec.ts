@@ -9,7 +9,7 @@
  *   Round 1 — Happy path: full CRUD lifecycle for accounts, transactions, plans
  *   Round 2 — Edge cases: invalid inputs, boundary values, injection attempts
  *   Round 3 — Cross-path consistency: data created via services visible via WS and vice versa
- *   Round 4 — Browser UI: services appear in Developer Tools
+ *   Round 4 — Registration: services on the registry, and the panel loads
  *   Round 5 — Cleanup: delete test account, verify services persist
  *
  * Note: HA returns HTTP 500 for ServiceValidationError (not 400).
@@ -18,7 +18,7 @@
 
 import { test, expect } from '@playwright/test';
 import { getHAToken, loginAndNavigate } from '../utils/ha-auth';
-import { HAServicesClient } from '../utils/services-client';
+import { HAServicesClient, listRegisteredServices } from '../utils/services-client';
 import { HAWebSocketClient } from '../utils/ws-client';
 import { EDGE_CASES } from '../utils/test-data';
 
@@ -694,16 +694,28 @@ test.describe('finance Area Services E2E Tests', () => {
   });
 
   // ═══════════════════════════════════════════════════════════
-  // Round 4: Browser UI — Services in Developer Tools
+  // Round 4: Service registration & panel load
   // ═══════════════════════════════════════════════════════════
-  test.describe('Round 4: Browser UI Verification', () => {
+  test.describe('Round 4: Service Registration & Panel Load', () => {
 
-    test('4.1 finance services listed in Developer Tools', async ({ page }) => {
-      await loginAndNavigate(page, 'developer-tools/service');
-      await page.waitForTimeout(5000);
-
-      const content = await page.content();
-      expect(content).toContain('finance_');
+    test('4.1 finance services registered under the integration domain', async () => {
+      const registered = await listRegisteredServices(token);
+      expect(registered).toEqual(expect.arrayContaining([
+        'finance_get_accounts',
+        'finance_get_account',
+        'finance_get_chart_data',
+        'finance_export_csv',
+        'finance_add_transaction',
+        'finance_update_transaction',
+        'finance_delete_transaction',
+        'finance_add_plan',
+        'finance_update_plan',
+        'finance_delete_plan',
+        'finance_add_account',
+        'finance_update_account',
+        'finance_delete_account',
+        'finance_adjust_balance',
+      ]));
     });
 
     test('4.2 Finance panel loads correctly', async ({ page }) => {

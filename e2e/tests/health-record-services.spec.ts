@@ -9,7 +9,7 @@
  *   Round 1 — Happy path: full CRUD lifecycle for members, record types, records
  *   Round 2 — Edge cases: invalid inputs, boundary values, injection attempts
  *   Round 3 — Cross-path consistency: data created via services visible via WS and vice versa
- *   Round 4 — Browser UI: services appear in Developer Tools
+ *   Round 4 — Registration: services on the registry, and the panel loads
  *
  * Note: HA returns HTTP 500 for ServiceValidationError (not 400).
  * Note: Retries are disabled because tests are sequential and stateful.
@@ -17,7 +17,7 @@
 
 import { test, expect } from '@playwright/test';
 import { getHAToken, loginAndNavigate } from '../utils/ha-auth';
-import { HAServicesClient } from '../utils/services-client';
+import { HAServicesClient, listRegisteredServices } from '../utils/services-client';
 import { HAWebSocketClient } from '../utils/ws-client';
 import { EDGE_CASES } from '../utils/test-data';
 
@@ -482,16 +482,26 @@ test.describe('health Area Services E2E Tests', () => {
   });
 
   // ═══════════════════════════════════════════════════════════
-  // Round 4: Browser UI — Services in Developer Tools
+  // Round 4: Service registration & panel load
   // ═══════════════════════════════════════════════════════════
-  test.describe('Round 4: Browser UI Verification', () => {
+  test.describe('Round 4: Service Registration & Panel Load', () => {
 
-    test('4.1 Services listed in Developer Tools', async ({ page }) => {
-      await loginAndNavigate(page, 'developer-tools/service');
-      await page.waitForTimeout(5000);
-
-      const content = await page.content();
-      expect(content).toContain('health_');
+    test('4.1 health services registered under the integration domain', async () => {
+      const registered = await listRegisteredServices(token);
+      expect(registered).toEqual(expect.arrayContaining([
+        'health_get_members',
+        'health_get_records',
+        'health_export_csv',
+        'health_log_record',
+        'health_update_record',
+        'health_delete_record',
+        'health_add_record_type',
+        'health_update_record_type',
+        'health_delete_record_type',
+        'health_add_member',
+        'health_update_member',
+        'health_delete_member',
+      ]));
     });
 
     test('4.2 Health record panel loads correctly', async ({ page }) => {

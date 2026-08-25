@@ -10,13 +10,13 @@
  *   1. Happy path CRUD lifecycle
  *   2. Edge cases & error handling
  *   3. Cross-path consistency (services ↔ WebSocket)
- *   4. Browser UI verification
+ *   4. Service registration & panel load
  *   5. Cleanup & final verification
  */
 
 import { test, expect } from '@playwright/test';
 import { getHAToken, loginAndNavigate } from '../utils/ha-auth';
-import { HAServicesClient } from '../utils/services-client';
+import { HAServicesClient, listRegisteredServices } from '../utils/services-client';
 import { HAWebSocketClient } from '../utils/ws-client';
 import { EDGE_CASES } from '../utils/test-data';
 
@@ -669,16 +669,22 @@ test.describe('note Area Services E2E Tests', () => {
   });
 
   // ═══════════════════════════════════════════════════════════
-  // Round 4: Browser UI Verification
+  // Round 4: Service registration & panel load
   // ═══════════════════════════════════════════════════════════
-  test.describe('Round 4: Browser UI Verification', () => {
-    test('4.1 note services listed in Developer Tools', async ({ page }) => {
-      await loginAndNavigate(page, 'developer-tools/service');
-      await page.waitForLoadState('networkidle');
-      await page.waitForTimeout(2000);
-
-      const content = await page.content();
-      expect(content).toContain('note_');
+  test.describe('Round 4: Service Registration & Panel Load', () => {
+    test('4.1 note services registered under the integration domain', async () => {
+      const registered = await listRegisteredServices(token);
+      expect(registered).toEqual(expect.arrayContaining([
+        'note_list_notes',
+        'note_get_note',
+        'note_list_categories',
+        'note_export_markdown',
+        'note_create_note',
+        'note_update_note',
+        'note_delete_note',
+        'note_create_category',
+        'note_delete_category',
+      ]));
     });
 
     test('4.2 Note panel loads correctly', async ({ page }) => {

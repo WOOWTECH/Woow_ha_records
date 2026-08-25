@@ -10,13 +10,13 @@
  *   1. Happy path CRUD lifecycle
  *   2. Edge cases & error handling
  *   3. Cross-path consistency (services ↔ WebSocket)
- *   4. Browser UI verification
+ *   4. Service registration & panel load
  *   5. Cleanup & final verification
  */
 
 import { test, expect } from '@playwright/test';
 import { getHAToken, loginAndNavigate } from '../utils/ha-auth';
-import { HAServicesClient } from '../utils/services-client';
+import { HAServicesClient, listRegisteredServices } from '../utils/services-client';
 import { HAWebSocketClient } from '../utils/ws-client';
 import { EDGE_CASES } from '../utils/test-data';
 
@@ -643,16 +643,23 @@ test.describe('asset Area Services E2E Tests', () => {
   });
 
   // ═══════════════════════════════════════════════════════════
-  // Round 4: Browser UI Verification
+  // Round 4: Service registration & panel load
   // ═══════════════════════════════════════════════════════════
-  test.describe('Round 4: Browser UI Verification', () => {
-    test('4.1 asset services listed in Developer Tools', async ({ page }) => {
-      await loginAndNavigate(page, 'developer-tools/service');
-      await page.waitForLoadState('networkidle');
-      await page.waitForTimeout(2000);
-
-      const content = await page.content();
-      expect(content).toContain('asset_');
+  test.describe('Round 4: Service Registration & Panel Load', () => {
+    test('4.1 asset services registered under the integration domain', async () => {
+      const registered = await listRegisteredServices(token);
+      expect(registered).toEqual(expect.arrayContaining([
+        'asset_list_assets',
+        'asset_get_asset',
+        'asset_list_categories',
+        'asset_export_csv',
+        'asset_create_asset',
+        'asset_update_asset',
+        'asset_delete_asset',
+        'asset_create_category',
+        'asset_update_category',
+        'asset_delete_category',
+      ]));
     });
 
     test('4.2 Asset panel loads correctly', async ({ page }) => {
