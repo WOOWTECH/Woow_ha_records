@@ -13,7 +13,6 @@ from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.util import dt as dt_util
 
 from ...const import device_id
-
 from .const import AREA, DOMAIN
 
 if TYPE_CHECKING:

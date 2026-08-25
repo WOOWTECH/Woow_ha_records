@@ -22,7 +22,8 @@ from homeassistant.core import (
     SupportsResponse,
 )
 from homeassistant.exceptions import ServiceValidationError
-from homeassistant.helpers import device_registry as dr, entity_registry as er
+from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import entity_registry as er
 
 from ...const import device_id
 from ...runtime import get_data
@@ -386,22 +387,3 @@ SERVICE_HANDLERS = {
     "create_category": (handle_create_category, SupportsResponse.OPTIONAL),
     "delete_category": (handle_delete_category, SupportsResponse.OPTIONAL),
 }
-
-
-def async_register_services(hass: HomeAssistant) -> None:
-    """Register all ha_note_record services."""
-    for name, (handler, response_type) in _SERVICE_HANDLERS.items():
-        hass.services.async_register(
-            DOMAIN,
-            name,
-            handler,
-            supports_response=response_type,
-        )
-    _LOGGER.debug("Registered %d services for %s", len(_SERVICE_HANDLERS), DOMAIN)
-
-
-def async_unregister_services(hass: HomeAssistant) -> None:
-    """Remove all ha_note_record services."""
-    for name in _SERVICE_HANDLERS:
-        hass.services.async_remove(DOMAIN, name)
-    _LOGGER.debug("Unregistered services for %s", DOMAIN)

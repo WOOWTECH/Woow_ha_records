@@ -118,8 +118,6 @@ Error Codes
 """
 from __future__ import annotations
 
-from homeassistant.components import websocket_api
-
 import csv
 import io
 import logging
@@ -128,20 +126,14 @@ from datetime import datetime
 from typing import Any
 
 import voluptuous as vol
-
+from homeassistant.components import websocket_api
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers import entity_registry as er
 
-from .const import (
-    CONF_RECORD_NAME,
-    CONF_RECORD_SETS,
-    CONF_RECORD_TYPE,
-    CONF_RECORD_UNIT,
-    DOMAIN,
-    EVENT_RECORD_LOGGED,
-)
 from ...runtime import get_data
 from .area import HealthArea
+from .const import (
+    EVENT_RECORD_LOGGED,
+)
 from .coordinator import HealthRecordCoordinator
 
 _LOGGER = logging.getLogger(__name__)

@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
+import logging
+import uuid
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
 from functools import partial
-import logging
 from types import MappingProxyType
 from typing import Any
-import uuid
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
@@ -23,7 +23,6 @@ from .const import (
     CATEGORY_ID_PREFIX,
     DOMAIN,
     FIELD_BRAND,
-    FIELD_CATEGORY,
     FIELD_CATEGORY_ID,
     FIELD_MAINTENANCE_MD,
     FIELD_MANUAL_MD,

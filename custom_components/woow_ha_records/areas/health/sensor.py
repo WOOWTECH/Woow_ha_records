@@ -16,11 +16,11 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from ...const import unique_id
 from .area import HealthArea
 from .const import AREA
-from .platform import async_setup_record_entities
 from .coordinator import (
     HealthRecordCoordinator,
     signal_record_updated,
 )
+from .platform import async_setup_record_entities
 
 _LOGGER = logging.getLogger(__name__)
 

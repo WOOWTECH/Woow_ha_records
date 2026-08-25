@@ -7,7 +7,6 @@ import logging
 import time
 from pathlib import Path
 
-
 from homeassistant.components import frontend, panel_custom
 from homeassistant.components.http import StaticPathConfig
 from homeassistant.core import HomeAssistant, callback

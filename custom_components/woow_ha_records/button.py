@@ -9,8 +9,8 @@ from __future__ import annotations
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .areas.health.button import async_setup_area as _setup_health
 from . import WoowHaRecordsConfigEntry
+from .areas.health.button import async_setup_area as _setup_health
 
 
 async def async_setup_entry(

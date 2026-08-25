@@ -70,34 +70,24 @@ Transaction Types
 from __future__ import annotations
 
 import logging
-import time
 from typing import TYPE_CHECKING, Any
 
 import voluptuous as vol
-
 from homeassistant.components import websocket_api
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import device_registry as dr
 
-from .const import (
-    CONF_ACCOUNT_ID,
-    CONF_ACCOUNT_NAME,
-    CONF_INITIAL_BALANCE,
-    DOMAIN,
-    FREQUENCY_DAILY,
-    FREQUENCY_MONTHLY,
-    FREQUENCY_OPTIONS,
-    FREQUENCY_WEEKLY,
-    FREQUENCY_YEARLY,
-    TRANSACTION_MANUAL,
-)
 from ...const import device_id
 from ...runtime import get_data
 from .area import FinanceArea, generate_account_id
-from .const import AREA
-from .coordinator import FinanceCoordinator, get_coordinator_for_account
+from .const import (
+    AREA,
+    DOMAIN,
+    FREQUENCY_OPTIONS,
+    TRANSACTION_MANUAL,
+)
+from .coordinator import get_coordinator_for_account
 from .models import RecurringPlan, Transaction
-
 
 if TYPE_CHECKING:
     from .store import FinanceStore
@@ -682,8 +672,8 @@ async def ws_get_chart_data(
     Errors
         ``not_found`` -- No account exists with the given *account_id*.
     """
-    from datetime import datetime
     from collections import defaultdict
+    from datetime import datetime
 
     store = _get_store(hass)
     await store.async_load()

@@ -17,7 +17,7 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 
 from ...const import signal_entities_changed
-from .const import DEFAULT_LOW_BALANCE_THRESHOLD, AREA
+from .const import AREA, DEFAULT_LOW_BALANCE_THRESHOLD
 from .coordinator import FinanceCoordinator
 from .models import Account
 from .store import FinanceStore

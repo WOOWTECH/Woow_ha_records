@@ -23,22 +23,22 @@ from custom_components.woow_ha_records.areas.health.coordinator import HealthRec
 MOCK_MEMBER_ID = "test_member"
 MOCK_MEMBER_NAME = "Test Member"
 
+# Record Set definitions are stored data now, not config entry options, so the
+# fixture speaks the store's shape.
 MOCK_RECORD_SETS = [
+    {"type_id": "feeding", "name": "Feeding", "unit": "ml"},
+    {"type_id": "sleep", "name": "Sleep", "unit": "min"},
+    {"type_id": "weight", "name": "Weight", "unit": "kg"},
+]
+
+# The old config-entry options shape, still used by the mock entry below.
+MOCK_RECORD_SET_OPTIONS = [
     {
-        CONF_RECORD_TYPE: "feeding",
-        CONF_RECORD_NAME: "Feeding",
-        CONF_RECORD_UNIT: "ml",
-    },
-    {
-        CONF_RECORD_TYPE: "sleep",
-        CONF_RECORD_NAME: "Sleep",
-        CONF_RECORD_UNIT: "min",
-    },
-    {
-        CONF_RECORD_TYPE: "weight",
-        CONF_RECORD_NAME: "Weight",
-        CONF_RECORD_UNIT: "kg",
-    },
+        CONF_RECORD_TYPE: rs["type_id"],
+        CONF_RECORD_NAME: rs["name"],
+        CONF_RECORD_UNIT: rs["unit"],
+    }
+    for rs in MOCK_RECORD_SETS
 ]
 
 
@@ -57,7 +57,7 @@ def mock_config_entry(hass: HomeAssistant):
             CONF_MEMBER_NAME: MOCK_MEMBER_NAME,
         },
         source="user",
-        options={CONF_RECORD_SETS: MOCK_RECORD_SETS},
+        options={CONF_RECORD_SETS: MOCK_RECORD_SET_OPTIONS},
         unique_id=MOCK_MEMBER_ID,
         discovery_keys=MappingProxyType({}),
     )

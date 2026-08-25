@@ -90,19 +90,17 @@ Error codes
 
 from __future__ import annotations
 
-from datetime import datetime
 import logging
+from datetime import datetime
 from typing import Any
 
 import voluptuous as vol
-
 from homeassistant.components import websocket_api
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.util import dt as dt_util
 
 from ...runtime import get_data
 from .const import (
-    DOMAIN,
     FIELD_BRAND,
     FIELD_CATEGORY_ID,
     FIELD_MAINTENANCE_MD,

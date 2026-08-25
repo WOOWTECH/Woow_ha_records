@@ -22,7 +22,6 @@ from .const import (
     ATTR_RAW_CONTENT,
     ATTR_TITLE,
     ATTR_UPDATED_AT,
-    DOMAIN,
     ICON_NOTE,
     MAX_NOTE_CONTENT_LENGTH,
 )

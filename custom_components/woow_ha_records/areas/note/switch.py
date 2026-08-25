@@ -14,7 +14,7 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from ...const import unique_id
-from .const import AREA, ATTR_NOTE_ID, DOMAIN, ICON_PINNED, ICON_UNPINNED
+from .const import AREA, ATTR_NOTE_ID, ICON_PINNED, ICON_UNPINNED
 from .entity import HaNoteRecordEntity
 from .store import Category, HaNoteRecordStore, Note
 

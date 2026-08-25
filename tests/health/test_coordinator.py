@@ -109,112 +109,59 @@ class TestHealthRecordCoordinator:
         assert coordinator.record_sets["feeding"].name == "Feeding"
         assert coordinator.record_sets["feeding"].unit == "ml"
 
-    async def test_async_load_empty_storage(self, coordinator):
-        """Test loading with empty storage."""
-        coordinator._store.async_load = AsyncMock(return_value=None)
-        await coordinator.async_load()
+    async def test_load_from_dict_empty(self, coordinator):
+        """A Member with nothing stored against it has no records."""
+        coordinator.load_from_dict({})
         assert len(coordinator.records) == 0
 
-    async def test_async_load_v2_data(self, coordinator):
-        """Test loading v2 format data."""
-        v2_data = {
-            "record_sets": {
-                "feeding": {
-                    "current_value": 200.0,
-                    "current_note": "loaded",
-                    "last_record": {
+    async def test_load_from_dict(self, coordinator):
+        """Record Sets and Records both come back off the Area store."""
+        coordinator.load_from_dict(
+            {
+                "name": "Test Member",
+                "record_sets": [
+                    {
+                        "type_id": "feeding",
+                        "name": "Feeding",
+                        "unit": "ml",
+                        "current_value": 200.0,
+                        "current_note": "loaded",
+                        "last_record": {
+                            "value": 200.0,
+                            "note": "loaded",
+                            "timestamp": "2025-06-15T10:00:00+00:00",
+                        },
+                    },
+                ],
+                "records": [
+                    {
+                        "id": "abc123",
+                        "record_type": "feeding",
+                        "record_name": "Feeding",
                         "value": 200.0,
+                        "unit": "ml",
                         "note": "loaded",
                         "timestamp": "2025-06-15T10:00:00+00:00",
                     },
-                },
-            },
-            "records": [
-                {
-                    "id": "abc123",
-                    "record_type": "feeding",
-                    "record_name": "Feeding",
-                    "value": 200.0,
-                    "unit": "ml",
-                    "note": "loaded",
-                    "timestamp": "2025-06-15T10:00:00+00:00",
-                },
-            ],
-        }
-        coordinator._store.async_load = AsyncMock(return_value=v2_data)
-        await coordinator.async_load()
-
+                ],
+            }
+        )
         assert coordinator.record_sets["feeding"].current_value == 200.0
-        assert coordinator.record_sets["feeding"].current_note == "loaded"
+        assert coordinator.record_sets["feeding"].unit == "ml"
         assert len(coordinator.records) == 1
+        assert coordinator.records[0]["id"] == "abc123"
 
-    async def test_migrate_v1_to_v2(self, coordinator):
-        """Test v1 to v2 data migration."""
-        v1_data = {
-            "activity_sets": {
-                "feeding": {
-                    "current_amount": 180.0,
-                    "current_note": "feed note",
-                    "last_record": {
-                        "amount": 180.0,
-                        "note": "feed note",
-                        "timestamp": "2025-01-10T08:00:00",
-                    },
-                },
-            },
-            "growth_sets": {
-                "weight": {
-                    "current_value": 3.5,
-                    "current_note": "",
-                    "last_record": {
-                        "value": 3.5,
-                        "note": "",
-                        "timestamp": "2025-01-10T09:00:00",
-                    },
-                },
-            },
-            "activity_records": [
-                {
-                    "id": "rec1",
-                    "activity_type": "feeding",
-                    "activity_name": "Feeding",
-                    "amount": 180.0,
-                    "unit": "ml",
-                    "note": "feed note",
-                    "timestamp": "2025-01-10T08:00:00",
-                },
-            ],
-            "growth_records": [
-                {
-                    "id": "rec2",
-                    "growth_type": "weight",
-                    "growth_name": "Weight",
-                    "value": 3.5,
-                    "unit": "kg",
-                    "note": "",
-                    "timestamp": "2025-01-10T09:00:00",
-                },
-            ],
-        }
+    async def test_to_dict_round_trip(self, coordinator):
+        """What a Member writes out is what it reads back."""
+        coordinator.add_record_type("temperature", "Temperature", "C")
+        restored = HealthRecordCoordinator(
+            coordinator.hass, coordinator.area, "other", "Other"
+        )
+        restored.load_from_dict(coordinator.to_dict())
+        assert restored.member_name == coordinator.member_name
+        assert set(restored.record_sets) == set(coordinator.record_sets)
+        assert restored.record_sets["temperature"].unit == "C"
 
-        migrated = HealthRecordCoordinator._migrate_v1_to_v2(v1_data)
-
-        # Check record_sets migration
-        assert "feeding" in migrated["record_sets"]
-        assert migrated["record_sets"]["feeding"]["current_value"] == 180.0
-        assert "weight" in migrated["record_sets"]
-        assert migrated["record_sets"]["weight"]["current_value"] == 3.5
-
-        # Check records migration
-        assert len(migrated["records"]) == 2
-        feeding_rec = next(r for r in migrated["records"] if r["record_type"] == "feeding")
-        assert feeding_rec["value"] == 180.0
-        weight_rec = next(r for r in migrated["records"] if r["record_type"] == "weight")
-        assert weight_rec["value"] == 3.5
-
-        # Records should be sorted by timestamp
-        timestamps = [r["timestamp"] for r in migrated["records"]]
-        assert timestamps == sorted(timestamps)
 
     async def test_log_record_basic(self, coordinator):
         """Test basic record logging."""
@@ -414,8 +361,7 @@ class TestHealthRecordCoordinator:
         assert math.isinf(record.value)
 
     async def test_device_info(self, coordinator):
-        """Test device info generation."""
+        """The device identifier is scoped to the Area."""
         info = coordinator.get_device_info()
-        assert ("ha_health_record", "test_member") in info["identifiers"]
+        assert ("woow_ha_records", "health_test_member") in info["identifiers"]
         assert info["name"] == "Test Member"
-
