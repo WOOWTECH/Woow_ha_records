@@ -9,7 +9,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from homeassistant.components.switch import SwitchEntity
+from homeassistant.components.switch import ENTITY_ID_FORMAT, SwitchEntity
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
@@ -35,7 +35,9 @@ async def async_setup_area(
     for note in store.notes:
         category = store.get_category(note.category_id)
         if category:
-            entities.append(HaNoteRecordSwitchEntity(store, note, category))
+            entity = HaNoteRecordSwitchEntity(store, note, category)
+            entity.async_repair_registry_entity_id(hass)
+            entities.append(entity)
             known_note_ids.add(note.id)
 
     async_add_entities(entities)
@@ -79,6 +81,10 @@ class HaNoteRecordSwitchEntity(HaNoteRecordEntity, SwitchEntity):
     Unique ID pattern
         ``{DOMAIN}_{category_id}_{note_id}_pinned``
 
+    Entity ID
+        Suggested via ``_apply_entity_id`` so a long note title cannot push the
+        object_id past Home Assistant's 255-character limit.
+
     Name
         ``"{note_title} Pinned"`` (set directly, not via translation key).
 
@@ -97,6 +103,7 @@ class HaNoteRecordSwitchEntity(HaNoteRecordEntity, SwitchEntity):
         super().__init__(store, note, category)
         self._attr_unique_id = unique_id(AREA, category.id, note.id, "pinned")
         self._attr_name = f"{note.title} Pinned"
+        self._apply_entity_id(ENTITY_ID_FORMAT)
 
     @property
     def is_on(self) -> bool | None:
