@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import logging
 
-from homeassistant.components.text import TextEntity, TextMode
+from homeassistant.components.text import ENTITY_ID_FORMAT, TextEntity, TextMode
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
@@ -48,7 +48,9 @@ async def async_setup_area(
     for note in store.notes:
         category = store.get_category(note.category_id)
         if category:
-            entities.append(HaNoteRecordTextEntity(store, note, category))
+            entity = HaNoteRecordTextEntity(store, note, category)
+            entity.async_repair_registry_entity_id(hass)
+            entities.append(entity)
             known_note_ids.add(note.id)
 
     async_add_entities(entities)
@@ -102,6 +104,10 @@ class HaNoteRecordTextEntity(HaNoteRecordEntity, TextEntity):
     Unique ID pattern
         ``{DOMAIN}_{category_id}_{note_id}_content``
 
+    Entity ID
+        Suggested via ``_apply_entity_id`` so a long note title cannot push the
+        object_id past Home Assistant's 255-character limit.
+
     Name
         The note title, set directly (not via translation key).
     """
@@ -119,6 +125,7 @@ class HaNoteRecordTextEntity(HaNoteRecordEntity, TextEntity):
         super().__init__(store, note, category)
         self._attr_unique_id = unique_id(AREA, category.id, note.id, "content")
         self._attr_name = note.title
+        self._apply_entity_id(ENTITY_ID_FORMAT)
 
     @property
     def native_value(self) -> str | None:
