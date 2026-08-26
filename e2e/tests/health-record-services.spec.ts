@@ -10,9 +10,16 @@
  *   Round 2 — Edge cases: invalid inputs, boundary values, injection attempts
  *   Round 3 — Cross-path consistency: data created via services visible via WS and vice versa
  *   Round 4 — Registration: services on the registry, and the panel loads
+ *   Round 5 — Cleanup: delete the test Members, verify services persist
  *
  * Note: HA returns HTTP 500 for ServiceValidationError (not 400).
  * Note: Retries are disabled because tests are sequential and stateful.
+ * Note: no hook here may touch the suite's own data. Playwright discards the
+ *   worker process after a failed test and starts a fresh one for the rest of
+ *   the file, so beforeAll and afterAll run again mid-suite; a hook that
+ *   deleted the test Members would take every later test down with it. The
+ *   leftover sweep therefore lives in test 1.1, which never re-runs, and the
+ *   end-of-run cleanup in Round 5.
  */
 
 import { test, expect } from '@playwright/test';
@@ -21,7 +28,9 @@ import { HAServicesClient, listRegisteredServices } from '../utils/services-clie
 import { HAWebSocketClient } from '../utils/ws-client';
 import { EDGE_CASES } from '../utils/test-data';
 
-// Disable retries — sequential stateful tests can't recover from re-running beforeAll
+// Disable retries — sequential stateful tests can't recover from re-running
+// a test against data an earlier test consumed. This does not stop the worker
+// being recycled after a failure; see the note on hooks above.
 test.describe.configure({ retries: 0 });
 
 let token: string;
@@ -31,6 +40,12 @@ let ws: HAWebSocketClient;
 const SVC_MEMBER = 'svc_test_member';
 const SVC_MEMBER_2 = 'svc_test_member_2';
 const SVC_MEMBER_EDGE = 'svc_edge_member';
+
+// Every Member id this spec ever creates, named once so the sweep in 1.1 and
+// the cleanup in Round 5 cannot drift from what the tests actually make. Ids
+// are dependable here, unlike finance's derived Account ids: add_member takes
+// the id from the caller.
+const ALL_TEST_MEMBER_IDS = [SVC_MEMBER, SVC_MEMBER_2, SVC_MEMBER_EDGE];
 
 /**
  * Query windows are computed at run time.
@@ -82,6 +97,21 @@ const RANGE_END = isoWithOffset(new Date(RUN_AT.getTime() + DAY_MS));
 /** Wait for config entry reload to complete */
 const waitReload = (ms = 3000) => new Promise(r => setTimeout(r, ms));
 
+/**
+ * Delete a Member this spec knows exists, and assert it went.
+ *
+ * Every cleanup here goes through this rather than swallowing its result: a
+ * delete that fails silently leaves a Member behind for the next run to trip
+ * over, and nothing in this run says so. Test 2.5 asserts inline instead,
+ * because there the delete is the contract under test rather than tidying up
+ * after one.
+ */
+async function deleteMemberOk(memberId: string): Promise<void> {
+  const r = await svc.deleteMember(memberId);
+  expect(r.status, `deleting Member ${memberId}`).toBe(200);
+  expect(r.data.success).toBe(true);
+}
+
 test.describe('health Area Services E2E Tests', () => {
   test.beforeAll(async () => {
     // Prefer long-lived token from env; fall back to auth flow
@@ -94,19 +124,16 @@ test.describe('health Area Services E2E Tests', () => {
     svc = new HAServicesClient(token);
     ws = new HAWebSocketClient(token);
     await ws.connect();
-
-    // Cleanup leftover test members from previous runs
-    for (const mid of [SVC_MEMBER, SVC_MEMBER_2, SVC_MEMBER_EDGE]) {
-      try { await svc.deleteMember(mid); } catch { /* ignore */ }
-    }
-    await waitReload(5000);
+    // Nothing is deleted here on purpose: this hook runs again whenever a test
+    // fails and Playwright recycles the worker. Test 1.1 sweeps instead.
   });
 
   test.afterAll(async () => {
-    for (const mid of [SVC_MEMBER, SVC_MEMBER_2, SVC_MEMBER_EDGE]) {
-      try { await svc.deleteMember(mid); } catch { /* ignore */ }
-    }
-    await ws.close();
+    // Nothing to clean up here on purpose, for the same reason: deleting the
+    // test Members from this hook would break every test after the first
+    // failure. Round 5 deletes what Rounds 1 and 2 created, and 1.1 sweeps up
+    // after a run that died early.
+    try { await ws.close(); } catch { /* ignore */ }
   });
 
   // ═══════════════════════════════════════════════════════════
@@ -114,7 +141,27 @@ test.describe('health Area Services E2E Tests', () => {
   // ═══════════════════════════════════════════════════════════
   test.describe('Round 1: Happy Path CRUD Lifecycle', () => {
 
-    test('1.1 add_member — create test member', async () => {
+    test('1.1 add_member — create test member (sweeps leftovers from a dead run)', async () => {
+      // A run that died mid-file leaves this spec's Members behind. Delete them
+      // here, asserting each one: they were just read back from the service, so
+      // a failure is a real one, not a leftover that wasn't there.
+      const before = await svc.getMembers();
+      expect(before.status).toBe(200);
+      const leftovers = before.data.members.filter((m: any) =>
+        ALL_TEST_MEMBER_IDS.includes(m.id),
+      );
+      for (const member of leftovers) {
+        await deleteMemberOk(member.id);
+      }
+      if (leftovers.length > 0) await waitReload(5000);
+
+      // The slate the rest of the file is written against
+      const clean = await svc.getMembers();
+      expect(clean.status).toBe(200);
+      expect(
+        clean.data.members.filter((m: any) => ALL_TEST_MEMBER_IDS.includes(m.id)),
+      ).toEqual([]);
+
       const r = await svc.addMember('Services Test Member', SVC_MEMBER, 'Created by e2e test');
       expect(r.status).toBe(200);
       expect(r.data.success).toBe(true);
@@ -559,6 +606,47 @@ test.describe('health Area Services E2E Tests', () => {
 
       const content = await page.content();
       expect(content.length).toBeGreaterThan(1000);
+    });
+  });
+
+  // ═══════════════════════════════════════════════════════════
+  // Round 5: Cleanup — delete the Members this spec created
+  //
+  // Tests rather than an afterAll, for the reason at the top of the file: an
+  // afterAll re-runs mid-suite whenever a failure recycles the worker.
+  // ═══════════════════════════════════════════════════════════
+  test.describe('Round 5: Cleanup & Final Verification', () => {
+
+    test('5.1 delete_member — remove every Member this spec created', async () => {
+      const r = await svc.getMembers();
+      expect(r.status).toBe(200);
+      // Delete what is actually there rather than asserting a count first: if
+      // the test that creates one of these Members is the one that failed, a
+      // count assertion here would fail too, and #20 exists to stop one failure
+      // becoming two. 5.2 is what proves the cleanup was complete.
+      const mine = r.data.members.filter((m: any) =>
+        ALL_TEST_MEMBER_IDS.includes(m.id),
+      );
+
+      for (const member of mine) {
+        await deleteMemberOk(member.id);
+      }
+      await waitReload(5000);
+    });
+
+    test('5.2 get_members — no test Members remain', async () => {
+      const r = await svc.getMembers();
+      expect(r.status).toBe(200);
+      const remaining = r.data.members.filter((m: any) =>
+        ALL_TEST_MEMBER_IDS.includes(m.id),
+      );
+      expect(remaining).toEqual([]);
+    });
+
+    test('5.3 services still callable after cleanup', async () => {
+      const r = await svc.getMembers();
+      expect(r.status).toBe(200);
+      expect(r.data.members).toBeInstanceOf(Array);
     });
   });
 });

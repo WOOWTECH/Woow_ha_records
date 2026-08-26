@@ -12,6 +12,13 @@
  *   3. Cross-path consistency (services ↔ WebSocket)
  *   4. Service registration & panel load
  *   5. Cleanup & final verification
+ *
+ * Note: no hook here may touch the suite's own data. Playwright discards the
+ *   worker process after a failed test and starts a fresh one for the rest of
+ *   the file, so beforeAll and afterAll run again mid-suite; a hook that
+ *   deleted the test Notes would take every later test down with it. The
+ *   leftover sweep therefore lives in test 1.1, which never re-runs, and the
+ *   end-of-run cleanup in Round 5.
  */
 
 import { test, expect } from '@playwright/test';
@@ -20,6 +27,9 @@ import { HAServicesClient, listRegisteredServices } from '../utils/services-clie
 import { HAWebSocketClient } from '../utils/ws-client';
 import { EDGE_CASES } from '../utils/test-data';
 
+// Disable retries — sequential stateful tests can't recover from re-running
+// a test against data an earlier test consumed. This does not stop the worker
+// being recycled after a failure; see the note on hooks above.
 test.describe.configure({ retries: 0 });
 
 const DOMAIN = 'note';
@@ -34,9 +44,41 @@ let catId2 = '';
 let noteId1 = '';  // full fields (pinned + content)
 let noteId2 = '';  // minimal (title only)
 let noteId3 = '';  // markdown heavy
-// Edge-case note/category IDs for cleanup
-const extraNoteIds: string[] = [];
-const extraCatIds: string[] = [];
+
+// The prefix every Note title and Category name in this file starts with.
+// Matching on it supersedes the id lists this spec used to keep: a list only
+// holds what was appended to it, so anything created and not appended survived
+// the sweep. Keep every new SvcTest* name in step with this constant.
+const TEST_PREFIX = 'SvcTest';
+
+/** Is this Note one of ours? A Note is named by its title. */
+const isTestTitle = (x: any): boolean =>
+  typeof x?.title === 'string' && x.title.startsWith(TEST_PREFIX);
+
+/** Is this Category one of ours? */
+const isTestName = (x: any): boolean =>
+  typeof x?.name === 'string' && x.name.startsWith(TEST_PREFIX);
+
+/**
+ * Delete a Note this spec knows exists, and assert it went.
+ *
+ * Every cleanup here goes through this rather than swallowing its result: a
+ * delete that fails silently in Round 2 surfaces as an unrelated failure in
+ * Round 5. Tests 1.16 and 2.3 assert inline instead, because there the delete
+ * is the contract under test rather than tidying up after one.
+ */
+async function deleteNoteOk(noteId: string): Promise<void> {
+  const r = await svc.noteDeleteNote(noteId);
+  expect(r.status, `deleting Note ${noteId}`).toBe(200);
+  expect(r.data.success).toBe(true);
+}
+
+/** Delete a Category this spec knows exists, and assert it went. */
+async function deleteCategoryOk(categoryId: string): Promise<void> {
+  const r = await svc.noteDeleteCategory(categoryId);
+  expect(r.status, `deleting Category ${categoryId}`).toBe(200);
+  expect(r.data.success).toBe(true);
+}
 
 test.describe('note Area Services E2E Tests', () => {
   test.beforeAll(async () => {
@@ -45,47 +87,15 @@ test.describe('note Area Services E2E Tests', () => {
     svc = new HAServicesClient(token, DOMAIN);
     ws = new HAWebSocketClient(token);
     await ws.connect();
-
-    // Clean up leftover test data from previous runs
-    const initial = await svc.noteListNotes();
-    if (initial.status === 200) {
-      for (const note of initial.data.notes || []) {
-        if (note.title?.startsWith('SvcTest')) {
-          try { await svc.noteDeleteNote(note.id); } catch { /* ignore */ }
-        }
-      }
-      for (const cat of initial.data.categories || []) {
-        if (cat.name?.startsWith('SvcTest')) {
-          try { await svc.noteDeleteCategory(cat.id); } catch { /* ignore */ }
-        }
-      }
-    }
+    // Nothing is deleted here on purpose: this hook runs again whenever a test
+    // fails and Playwright recycles the worker. Test 1.1 sweeps instead.
   });
 
   test.afterAll(async () => {
-    // Best-effort cleanup
-    for (const nid of [noteId1, noteId2, noteId3, ...extraNoteIds]) {
-      if (nid) try { await svc.noteDeleteNote(nid); } catch { /* ignore */ }
-    }
-    for (const cid of [catId1, catId2, ...extraCatIds]) {
-      if (cid) try { await svc.noteDeleteCategory(cid); } catch { /* ignore */ }
-    }
-    // Final sweep — clean any remaining SvcTest items
-    try {
-      const final = await svc.noteListNotes();
-      if (final.status === 200) {
-        for (const note of final.data.notes || []) {
-          if (note.title?.startsWith('SvcTest')) {
-            try { await svc.noteDeleteNote(note.id); } catch { /* ignore */ }
-          }
-        }
-        for (const cat of final.data.categories || []) {
-          if (cat.name?.startsWith('SvcTest')) {
-            try { await svc.noteDeleteCategory(cat.id); } catch { /* ignore */ }
-          }
-        }
-      }
-    } catch { /* ignore */ }
+    // Nothing to clean up here on purpose, for the same reason: deleting this
+    // spec's Notes from this hook would break every test after the first
+    // failure. Round 5 deletes what the tests created, and 1.1 sweeps up after
+    // a run that died early.
     try { await ws.close(); } catch { /* ignore */ }
   });
 
@@ -93,13 +103,29 @@ test.describe('note Area Services E2E Tests', () => {
   // Round 1: Happy Path CRUD Lifecycle
   // ═══════════════════════════════════════════════════════════
   test.describe('Round 1: Happy Path CRUD Lifecycle', () => {
-    test('1.1 list_notes — initially no SvcTest data', async () => {
+    test('1.1 list_notes — clean slate (sweeps leftovers from a dead run)', async () => {
+      const before = await svc.noteListNotes();
+      expect(before.status).toBe(200);
+      expect(Array.isArray(before.data.notes)).toBe(true);
+      expect(Array.isArray(before.data.categories)).toBe(true);
+
+      // A run that died mid-file leaves this spec's Notes and Categories
+      // behind. Delete them here, asserting each one: they were just read back
+      // from the service, so a failure is a real one, not a leftover that
+      // wasn't there. Notes go first — deleting a Category cascades to the
+      // Notes in it, which would leave the Note deletes with nothing to hit.
+      for (const note of before.data.notes.filter(isTestTitle)) {
+        await deleteNoteOk(note.id);
+      }
+      for (const cat of before.data.categories.filter(isTestName)) {
+        await deleteCategoryOk(cat.id);
+      }
+
+      // The slate the rest of the file is written against
       const r = await svc.noteListNotes();
       expect(r.status).toBe(200);
-      expect(Array.isArray(r.data.notes)).toBe(true);
-      expect(Array.isArray(r.data.categories)).toBe(true);
-      const svcNotes = r.data.notes.filter((n: any) => n.title?.startsWith('SvcTest'));
-      expect(svcNotes.length).toBe(0);
+      expect(r.data.notes.filter(isTestTitle)).toEqual([]);
+      expect(r.data.categories.filter(isTestName)).toEqual([]);
     });
 
     test('1.2 list_categories — returns array', async () => {
@@ -340,7 +366,6 @@ test.describe('note Area Services E2E Tests', () => {
     test('2.11 create_category — duplicate name returns error', async () => {
       const c = await svc.noteCreateCategory('SvcTest DupCategory');
       expect(c.status).toBe(200);
-      extraCatIds.push(c.data.category.id);
 
       const r = await svc.noteCreateCategory('SvcTest DupCategory');
       expect(r.status).not.toBe(200);
@@ -349,13 +374,12 @@ test.describe('note Area Services E2E Tests', () => {
       const r2 = await svc.noteCreateCategory('svctest dupcategory');
       expect(r2.status).not.toBe(200);
 
-      await svc.noteDeleteCategory(c.data.category.id);
+      await deleteCategoryOk(c.data.category.id);
     });
 
     test('2.12 create_note — duplicate title in same category returns error', async () => {
       const c = await svc.noteCreateNote(catId1, 'SvcTest DupTitle');
       expect(c.status).toBe(200);
-      extraNoteIds.push(c.data.note.id);
 
       const r = await svc.noteCreateNote(catId1, 'SvcTest DupTitle');
       expect(r.status).not.toBe(200);
@@ -364,25 +388,23 @@ test.describe('note Area Services E2E Tests', () => {
       const r2 = await svc.noteCreateNote(catId1, 'svctest duptitle');
       expect(r2.status).not.toBe(200);
 
-      await svc.noteDeleteNote(c.data.note.id);
+      await deleteNoteOk(c.data.note.id);
     });
 
     test('2.13 update_note — duplicate title (excluding self) returns error', async () => {
       // Create two notes
       const n1 = await svc.noteCreateNote(catId1, 'SvcTest TitleA');
       expect(n1.status).toBe(200);
-      extraNoteIds.push(n1.data.note.id);
 
       const n2 = await svc.noteCreateNote(catId1, 'SvcTest TitleB');
       expect(n2.status).toBe(200);
-      extraNoteIds.push(n2.data.note.id);
 
       // Try to rename n2 to n1's title
       const r = await svc.noteUpdateNote(n2.data.note.id, { title: 'SvcTest TitleA' });
       expect(r.status).not.toBe(200);
 
-      await svc.noteDeleteNote(n1.data.note.id);
-      await svc.noteDeleteNote(n2.data.note.id);
+      await deleteNoteOk(n1.data.note.id);
+      await deleteNoteOk(n2.data.note.id);
     });
 
     // ─── 2.D Length limits ────────────────────────────────
@@ -391,8 +413,7 @@ test.describe('note Area Services E2E Tests', () => {
       expect(name.length).toBe(100);
       const r = await svc.noteCreateCategory(name);
       expect(r.status).toBe(200);
-      extraCatIds.push(r.data.category.id);
-      await svc.noteDeleteCategory(r.data.category.id);
+      await deleteCategoryOk(r.data.category.id);
     });
 
     test('2.15 create_category — over max length (101 chars) returns error', async () => {
@@ -407,8 +428,7 @@ test.describe('note Area Services E2E Tests', () => {
       expect(title.length).toBe(200);
       const r = await svc.noteCreateNote(catId1, title);
       expect(r.status).toBe(200);
-      extraNoteIds.push(r.data.note.id);
-      await svc.noteDeleteNote(r.data.note.id);
+      await deleteNoteOk(r.data.note.id);
     });
 
     test('2.17 create_note — over max title length (201 chars) returns error', async () => {
@@ -423,8 +443,7 @@ test.describe('note Area Services E2E Tests', () => {
       const r = await svc.noteCreateNote(catId1, 'SvcTest MaxContent', { content });
       expect(r.status).toBe(200);
       expect(r.data.note.content.length).toBe(100000);
-      extraNoteIds.push(r.data.note.id);
-      await svc.noteDeleteNote(r.data.note.id);
+      await deleteNoteOk(r.data.note.id);
     });
 
     test('2.19 create_note — over max content length (100001 chars) returns error', async () => {
@@ -441,14 +460,14 @@ test.describe('note Area Services E2E Tests', () => {
       expect(r.status).toBe(200);
       expect(r.data.note.title).toBe('SvcTest ' + EDGE_CASES.UNICODE_TEXT);
       expect(r.data.note.content).toBe(EDGE_CASES.UNICODE_TEXT);
-      await svc.noteDeleteNote(r.data.note.id);
+      await deleteNoteOk(r.data.note.id);
     });
 
     test('2.21 create_note — emoji in title preserved', async () => {
       const r = await svc.noteCreateNote(catId1, 'SvcTest ' + EDGE_CASES.EMOJI_HEAVY);
       expect(r.status).toBe(200);
       expect(r.data.note.title).toBe('SvcTest ' + EDGE_CASES.EMOJI_HEAVY);
-      await svc.noteDeleteNote(r.data.note.id);
+      await deleteNoteOk(r.data.note.id);
     });
 
     // ─── 2.F Injection attempts ──────────────────────────
@@ -458,14 +477,14 @@ test.describe('note Area Services E2E Tests', () => {
       });
       expect(r.status).toBe(200);
       expect(r.data.note.content).toBe(EDGE_CASES.HTML_INJECTION);
-      await svc.noteDeleteNote(r.data.note.id);
+      await deleteNoteOk(r.data.note.id);
     });
 
     test('2.23 create_note — SQL injection in title stored safely', async () => {
       const r = await svc.noteCreateNote(catId1, 'SvcTest ' + EDGE_CASES.SQL_INJECTION);
       expect(r.status).toBe(200);
       expect(r.data.note.title).toBe('SvcTest ' + EDGE_CASES.SQL_INJECTION);
-      await svc.noteDeleteNote(r.data.note.id);
+      await deleteNoteOk(r.data.note.id);
     });
 
     test('2.24 create_note — XSS in content stored safely', async () => {
@@ -474,7 +493,7 @@ test.describe('note Area Services E2E Tests', () => {
       });
       expect(r.status).toBe(200);
       expect(r.data.note.content).toBe(EDGE_CASES.IMG_XSS);
-      await svc.noteDeleteNote(r.data.note.id);
+      await deleteNoteOk(r.data.note.id);
     });
 
     test('2.25 create_note — markdown injection in content stored safely', async () => {
@@ -483,7 +502,7 @@ test.describe('note Area Services E2E Tests', () => {
       });
       expect(r.status).toBe(200);
       expect(r.data.note.content).toBe(EDGE_CASES.MARKDOWN_INJECTION);
-      await svc.noteDeleteNote(r.data.note.id);
+      await deleteNoteOk(r.data.note.id);
     });
 
     // ─── 2.G Partial update preserves fields ─────────────
@@ -503,7 +522,7 @@ test.describe('note Area Services E2E Tests', () => {
       expect(r.data.note.title).toBe('SvcTest PartialUp');
       expect(r.data.note.pinned).toBe(true);
 
-      await svc.noteDeleteNote(tempId);
+      await deleteNoteOk(tempId);
     });
 
     // ─── 2.H Response mode tests ─────────────────────────
@@ -535,10 +554,13 @@ test.describe('note Area Services E2E Tests', () => {
       );
       expect(r.status).toBe(200);
 
-      // Clean up
+      // Clean up. Best-effort on purpose: the call above ran without
+      // return_response, so it reports nothing about what it made, and this
+      // test is about the response mode rather than the Note. If it is there it
+      // must delete cleanly; Round 5 sweeps it either way.
       const list = await svc.noteListNotes();
       const found = list.data.notes.find((n: any) => n.title === 'SvcTest FireAndForget');
-      if (found) await svc.noteDeleteNote(found.id);
+      if (found) await deleteNoteOk(found.id);
     });
 
     // ─── 2.I Markdown export with special content ────────
@@ -554,14 +576,14 @@ test.describe('note Area Services E2E Tests', () => {
       // The markdown should NOT contain the empty category
       expect(r.data.markdown_content).not.toContain('# SvcTest EmptyCat');
 
-      await svc.noteDeleteCategory(tempCatId);
+      await deleteCategoryOk(tempCatId);
     });
 
     test('2.33 create_note — special chars in title', async () => {
       const r = await svc.noteCreateNote(catId1, 'SvcTest ' + EDGE_CASES.SPECIAL_CHARS);
       expect(r.status).toBe(200);
       expect(r.data.note.title).toBe('SvcTest ' + EDGE_CASES.SPECIAL_CHARS);
-      await svc.noteDeleteNote(r.data.note.id);
+      await deleteNoteOk(r.data.note.id);
     });
 
     // ─── 2.J Pinned toggle ───────────────────────────────
@@ -581,7 +603,7 @@ test.describe('note Area Services E2E Tests', () => {
       expect(r2.status).toBe(200);
       expect(r2.data.note.pinned).toBe(true);
 
-      await svc.noteDeleteNote(tempId);
+      await deleteNoteOk(tempId);
     });
   });
 
@@ -594,14 +616,9 @@ test.describe('note Area Services E2E Tests', () => {
     let wsNoteId = '';
     let wsCatId = '';
 
-    test.afterAll(async () => {
-      for (const id of [crossNoteId, wsNoteId]) {
-        if (id) try { await svc.noteDeleteNote(id); } catch { /* ignore */ }
-      }
-      for (const id of [crossCatId, wsCatId]) {
-        if (id) try { await svc.noteDeleteCategory(id); } catch { /* ignore */ }
-      }
-    });
+    // No afterAll here either — a nested one is recycled with the worker just
+    // like the outer hooks, and would strand the rest of Round 3 against data
+    // it deleted. Everything below is named SvcTest*, so Round 5 sweeps it.
 
     test('3.1 Note created via services visible via WebSocket', async () => {
       const c = await svc.noteCreateNote(catId1, 'SvcTest CrossPathNote', {
@@ -704,32 +721,24 @@ test.describe('note Area Services E2E Tests', () => {
     test('5.1 delete all remaining test notes', async () => {
       const r = await svc.noteListNotes();
       expect(r.status).toBe(200);
-      for (const note of r.data.notes) {
-        if (note.title?.startsWith('SvcTest')) {
-          const d = await svc.noteDeleteNote(note.id);
-          expect(d.status).toBe(200);
-        }
+      for (const note of r.data.notes.filter(isTestTitle)) {
+        await deleteNoteOk(note.id);
       }
     });
 
     test('5.2 delete all remaining test categories', async () => {
       const r = await svc.noteListCategories();
       expect(r.status).toBe(200);
-      for (const cat of r.data.categories) {
-        if (cat.name?.startsWith('SvcTest')) {
-          const d = await svc.noteDeleteCategory(cat.id);
-          expect(d.status).toBe(200);
-        }
+      for (const cat of r.data.categories.filter(isTestName)) {
+        await deleteCategoryOk(cat.id);
       }
     });
 
     test('5.3 list_notes — no test data remains', async () => {
       const r = await svc.noteListNotes();
       expect(r.status).toBe(200);
-      const svcNotes = r.data.notes.filter((n: any) => n.title?.startsWith('SvcTest'));
-      expect(svcNotes.length).toBe(0);
-      const svcCats = r.data.categories.filter((c: any) => c.name?.startsWith('SvcTest'));
-      expect(svcCats.length).toBe(0);
+      expect(r.data.notes.filter(isTestTitle)).toEqual([]);
+      expect(r.data.categories.filter(isTestName)).toEqual([]);
     });
 
     test('5.4 services still callable after cleanup', async () => {

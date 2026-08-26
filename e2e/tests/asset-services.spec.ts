@@ -12,6 +12,13 @@
  *   3. Cross-path consistency (services ↔ WebSocket)
  *   4. Service registration & panel load
  *   5. Cleanup & final verification
+ *
+ * Note: no hook here may touch the suite's own data. Playwright discards the
+ *   worker process after a failed test and starts a fresh one for the rest of
+ *   the file, so beforeAll and afterAll run again mid-suite; a hook that
+ *   deleted the test Assets would take every later test down with it. The
+ *   leftover sweep therefore lives in test 1.1, which never re-runs, and the
+ *   end-of-run cleanup in Round 5.
  */
 
 import { test, expect } from '@playwright/test';
@@ -20,6 +27,9 @@ import { HAServicesClient, listRegisteredServices } from '../utils/services-clie
 import { HAWebSocketClient } from '../utils/ws-client';
 import { EDGE_CASES } from '../utils/test-data';
 
+// Disable retries — sequential stateful tests can't recover from re-running
+// a test against data an earlier test consumed. This does not stop the worker
+// being recycled after a failure; see the note on hooks above.
 test.describe.configure({ retries: 0 });
 
 const DOMAIN = 'asset';
@@ -34,9 +44,37 @@ let catId2 = '';
 let assetId1 = '';  // full fields
 let assetId2 = '';  // minimal
 let assetId3 = '';  // markdown content
-// Edge-case asset/category IDs for cleanup
-const extraAssetIds: string[] = [];
-const extraCatIds: string[] = [];
+
+// The prefix every Asset and Category name in this file starts with. Matching
+// on it supersedes the id lists this spec used to keep: a list only holds what
+// was appended to it, so anything created and not appended survived the sweep.
+// Keep every new SvcTest* name in step with this constant.
+const TEST_PREFIX = 'SvcTest';
+
+/** Is this Asset or Category one of ours? Both are matched by name. */
+const isTestName = (x: any): boolean =>
+  typeof x?.name === 'string' && x.name.startsWith(TEST_PREFIX);
+
+/**
+ * Delete an Asset this spec knows exists, and assert it went.
+ *
+ * Every cleanup here goes through this rather than swallowing its result: a
+ * delete that fails silently in Round 2 surfaces as an unrelated failure in
+ * Round 5. Tests 1.17 and 2.3 assert inline instead, because there the delete
+ * is the contract under test rather than tidying up after one.
+ */
+async function deleteAssetOk(assetId: string): Promise<void> {
+  const r = await svc.assetDeleteAsset(assetId);
+  expect(r.status, `deleting Asset ${assetId}`).toBe(200);
+  expect(r.data.success).toBe(true);
+}
+
+/** Delete a Category this spec knows exists, and assert it went. */
+async function deleteCategoryOk(categoryId: string): Promise<void> {
+  const r = await svc.assetDeleteCategory(categoryId);
+  expect(r.status, `deleting Category ${categoryId}`).toBe(200);
+  expect(r.data.success).toBe(true);
+}
 
 test.describe('asset Area Services E2E Tests', () => {
   test.beforeAll(async () => {
@@ -45,47 +83,15 @@ test.describe('asset Area Services E2E Tests', () => {
     svc = new HAServicesClient(token, DOMAIN);
     ws = new HAWebSocketClient(token);
     await ws.connect();
-
-    // Clean up leftover test data from previous runs
-    const initial = await svc.assetListAssets();
-    if (initial.status === 200) {
-      for (const asset of initial.data.assets || []) {
-        if (asset.name?.startsWith('SvcTest')) {
-          try { await svc.assetDeleteAsset(asset.id); } catch { /* ignore */ }
-        }
-      }
-      for (const cat of initial.data.categories || []) {
-        if (cat.name?.startsWith('SvcTest')) {
-          try { await svc.assetDeleteCategory(cat.id); } catch { /* ignore */ }
-        }
-      }
-    }
+    // Nothing is deleted here on purpose: this hook runs again whenever a test
+    // fails and Playwright recycles the worker. Test 1.1 sweeps instead.
   });
 
   test.afterAll(async () => {
-    // Best-effort cleanup
-    for (const aid of [assetId1, assetId2, assetId3, ...extraAssetIds]) {
-      if (aid) try { await svc.assetDeleteAsset(aid); } catch { /* ignore */ }
-    }
-    for (const cid of [catId1, catId2, ...extraCatIds]) {
-      if (cid) try { await svc.assetDeleteCategory(cid); } catch { /* ignore */ }
-    }
-    // Final sweep — clean any remaining SvcTest items
-    try {
-      const final = await svc.assetListAssets();
-      if (final.status === 200) {
-        for (const asset of final.data.assets || []) {
-          if (asset.name?.startsWith('SvcTest')) {
-            try { await svc.assetDeleteAsset(asset.id); } catch { /* ignore */ }
-          }
-        }
-        for (const cat of final.data.categories || []) {
-          if (cat.name?.startsWith('SvcTest')) {
-            try { await svc.assetDeleteCategory(cat.id); } catch { /* ignore */ }
-          }
-        }
-      }
-    } catch { /* ignore */ }
+    // Nothing to clean up here on purpose, for the same reason: deleting this
+    // spec's Assets from this hook would break every test after the first
+    // failure. Round 5 deletes what the tests created, and 1.1 sweeps up after
+    // a run that died early.
     try { await ws.close(); } catch { /* ignore */ }
   });
 
@@ -93,14 +99,29 @@ test.describe('asset Area Services E2E Tests', () => {
   // Round 1: Happy Path CRUD Lifecycle
   // ═══════════════════════════════════════════════════════════
   test.describe('Round 1: Happy Path CRUD Lifecycle', () => {
-    test('1.1 list_assets — initially no SvcTest data', async () => {
+    test('1.1 list_assets — clean slate (sweeps leftovers from a dead run)', async () => {
+      const before = await svc.assetListAssets();
+      expect(before.status).toBe(200);
+      expect(Array.isArray(before.data.assets)).toBe(true);
+      expect(Array.isArray(before.data.categories)).toBe(true);
+
+      // A run that died mid-file leaves this spec's Assets and Categories
+      // behind. Delete them here, asserting each one: they were just read back
+      // from the service, so a failure is a real one, not a leftover that
+      // wasn't there. Assets go first — deleting a Category cascades to the
+      // Assets in it, which would leave the Asset deletes with nothing to hit.
+      for (const asset of before.data.assets.filter(isTestName)) {
+        await deleteAssetOk(asset.id);
+      }
+      for (const cat of before.data.categories.filter(isTestName)) {
+        await deleteCategoryOk(cat.id);
+      }
+
+      // The slate the rest of the file is written against
       const r = await svc.assetListAssets();
       expect(r.status).toBe(200);
-      expect(Array.isArray(r.data.assets)).toBe(true);
-      expect(Array.isArray(r.data.categories)).toBe(true);
-      // No SvcTest assets should exist after cleanup
-      const svcAssets = r.data.assets.filter((a: any) => a.name?.startsWith('SvcTest'));
-      expect(svcAssets.length).toBe(0);
+      expect(r.data.assets.filter(isTestName)).toEqual([]);
+      expect(r.data.categories.filter(isTestName)).toEqual([]);
     });
 
     test('1.2 list_categories — returns array', async () => {
@@ -355,13 +376,12 @@ test.describe('asset Area Services E2E Tests', () => {
       const c = await svc.assetCreateAsset('SvcTest TempForUpdate');
       expect(c.status).toBe(200);
       const tempId = c.data.asset.id;
-      extraAssetIds.push(tempId);
 
       const r = await svc.assetUpdateAsset(tempId, { name: '  ' });
       expect(r.status).not.toBe(200);
 
       // Clean up
-      await svc.assetDeleteAsset(tempId);
+      await deleteAssetOk(tempId);
     });
 
     test('2.9 create_category — empty name returns error', async () => {
@@ -378,7 +398,6 @@ test.describe('asset Area Services E2E Tests', () => {
     test('2.11 create_category — duplicate name returns error', async () => {
       const c = await svc.assetCreateCategory('SvcTest DupCategory');
       expect(c.status).toBe(200);
-      extraCatIds.push(c.data.category.id);
 
       const r = await svc.assetCreateCategory('SvcTest DupCategory');
       expect(r.status).not.toBe(200);
@@ -400,12 +419,11 @@ test.describe('asset Area Services E2E Tests', () => {
       const c = await svc.assetCreateAsset('SvcTest DateUpdateTest');
       expect(c.status).toBe(200);
       const tempId = c.data.asset.id;
-      extraAssetIds.push(tempId);
 
       const r = await svc.assetUpdateAsset(tempId, { warranty_until: 'abc123' });
       expect(r.status).not.toBe(200);
 
-      await svc.assetDeleteAsset(tempId);
+      await deleteAssetOk(tempId);
     });
 
     // ─── 2.E Boundary values ─────────────────────────────
@@ -413,22 +431,20 @@ test.describe('asset Area Services E2E Tests', () => {
       const r = await svc.assetCreateAsset('SvcTest ZeroVal', { value: 0 });
       expect(r.status).toBe(200);
       expect(r.data.asset.value).toBe(0);
-      extraAssetIds.push(r.data.asset.id);
-      await svc.assetDeleteAsset(r.data.asset.id);
+      await deleteAssetOk(r.data.asset.id);
     });
 
     test('2.15 create_asset — large value accepted', async () => {
       const r = await svc.assetCreateAsset('SvcTest LargeVal', { value: 99999999 });
       expect(r.status).toBe(200);
       expect(r.data.asset.value).toBe(99999999);
-      await svc.assetDeleteAsset(r.data.asset.id);
+      await deleteAssetOk(r.data.asset.id);
     });
 
     test('2.16 create_category — max length name (100 chars) accepted', async () => {
       const r = await svc.assetCreateCategory('SvcTest' + 'A'.repeat(93));
       expect(r.status).toBe(200);
-      extraCatIds.push(r.data.category.id);
-      await svc.assetDeleteCategory(r.data.category.id);
+      await deleteCategoryOk(r.data.category.id);
     });
 
     // ─── 2.F Unicode & special characters ────────────────
@@ -439,14 +455,14 @@ test.describe('asset Area Services E2E Tests', () => {
       expect(r.status).toBe(200);
       expect(r.data.asset.name).toBe('SvcTest ' + EDGE_CASES.UNICODE_TEXT);
       expect(r.data.asset.brand).toBe(EDGE_CASES.UNICODE_TEXT);
-      await svc.assetDeleteAsset(r.data.asset.id);
+      await deleteAssetOk(r.data.asset.id);
     });
 
     test('2.18 create_asset — emoji in name preserved', async () => {
       const r = await svc.assetCreateAsset('SvcTest ' + EDGE_CASES.EMOJI_HEAVY);
       expect(r.status).toBe(200);
       expect(r.data.asset.name).toBe('SvcTest ' + EDGE_CASES.EMOJI_HEAVY);
-      await svc.assetDeleteAsset(r.data.asset.id);
+      await deleteAssetOk(r.data.asset.id);
     });
 
     // ─── 2.G Injection attempts ──────────────────────────
@@ -456,14 +472,14 @@ test.describe('asset Area Services E2E Tests', () => {
       });
       expect(r.status).toBe(200);
       expect(r.data.asset.manual_md).toBe(EDGE_CASES.HTML_INJECTION);
-      await svc.assetDeleteAsset(r.data.asset.id);
+      await deleteAssetOk(r.data.asset.id);
     });
 
     test('2.20 create_asset — SQL injection in name stored safely', async () => {
       const r = await svc.assetCreateAsset('SvcTest ' + EDGE_CASES.SQL_INJECTION);
       expect(r.status).toBe(200);
       expect(r.data.asset.name).toBe('SvcTest ' + EDGE_CASES.SQL_INJECTION);
-      await svc.assetDeleteAsset(r.data.asset.id);
+      await deleteAssetOk(r.data.asset.id);
     });
 
     test('2.21 update_asset — XSS in maintenance_md stored safely', async () => {
@@ -477,7 +493,7 @@ test.describe('asset Area Services E2E Tests', () => {
       expect(r.status).toBe(200);
       expect(r.data.asset.maintenance_md).toBe(EDGE_CASES.IMG_XSS);
 
-      await svc.assetDeleteAsset(tempId);
+      await deleteAssetOk(tempId);
     });
 
     // ─── 2.H Partial update ──────────────────────────────
@@ -499,7 +515,7 @@ test.describe('asset Area Services E2E Tests', () => {
       expect(r.data.asset.value).toBe(5000);
       expect(r.data.asset.manual_md).toBe('Original manual');
 
-      await svc.assetDeleteAsset(tempId);
+      await deleteAssetOk(tempId);
     });
 
     // ─── 2.I Response mode tests ─────────────────────────
@@ -531,10 +547,13 @@ test.describe('asset Area Services E2E Tests', () => {
       );
       expect(r.status).toBe(200);
 
-      // Clean up the created asset
+      // Clean up the created asset. Best-effort on purpose: the call above ran
+      // without return_response, so it reports nothing about what it made, and
+      // this test is about the response mode rather than the Asset. If it is
+      // there it must delete cleanly; Round 5 sweeps it either way.
       const list = await svc.assetListAssets();
       const found = list.data.assets.find((a: any) => a.name === 'SvcTest FireAndForget');
-      if (found) await svc.assetDeleteAsset(found.id);
+      if (found) await deleteAssetOk(found.id);
     });
 
     // ─── 2.J CSV with special chars ──────────────────────
@@ -551,7 +570,7 @@ test.describe('asset Area Services E2E Tests', () => {
       // CSV should contain the escaped content
       expect(r.data.csv_content).toContain('SvcTest CSV');
 
-      await svc.assetDeleteAsset(tempId);
+      await deleteAssetOk(tempId);
     });
   });
 
@@ -564,14 +583,9 @@ test.describe('asset Area Services E2E Tests', () => {
     let wsAssetId = '';
     let wsCatId = '';
 
-    test.afterAll(async () => {
-      for (const id of [crossAssetId, wsAssetId]) {
-        if (id) try { await svc.assetDeleteAsset(id); } catch { /* ignore */ }
-      }
-      for (const id of [crossCatId, wsCatId]) {
-        if (id) try { await svc.assetDeleteCategory(id); } catch { /* ignore */ }
-      }
-    });
+    // No afterAll here either — a nested one is recycled with the worker just
+    // like the outer hooks, and would strand the rest of Round 3 against data
+    // it deleted. Everything below is named SvcTest*, so Round 5 sweeps it.
 
     test('3.1 Asset created via services visible via WebSocket', async () => {
       const c = await svc.assetCreateAsset('SvcTest CrossPathAsset', {
@@ -679,32 +693,24 @@ test.describe('asset Area Services E2E Tests', () => {
     test('5.1 delete all remaining test assets', async () => {
       const r = await svc.assetListAssets();
       expect(r.status).toBe(200);
-      for (const asset of r.data.assets) {
-        if (asset.name?.startsWith('SvcTest')) {
-          const d = await svc.assetDeleteAsset(asset.id);
-          expect(d.status).toBe(200);
-        }
+      for (const asset of r.data.assets.filter(isTestName)) {
+        await deleteAssetOk(asset.id);
       }
     });
 
     test('5.2 delete all remaining test categories', async () => {
       const r = await svc.assetListCategories();
       expect(r.status).toBe(200);
-      for (const cat of r.data.categories) {
-        if (cat.name?.startsWith('SvcTest')) {
-          const d = await svc.assetDeleteCategory(cat.id);
-          expect(d.status).toBe(200);
-        }
+      for (const cat of r.data.categories.filter(isTestName)) {
+        await deleteCategoryOk(cat.id);
       }
     });
 
     test('5.3 list_assets — no test data remains', async () => {
       const r = await svc.assetListAssets();
       expect(r.status).toBe(200);
-      const svcAssets = r.data.assets.filter((a: any) => a.name?.startsWith('SvcTest'));
-      expect(svcAssets.length).toBe(0);
-      const svcCats = r.data.categories.filter((c: any) => c.name?.startsWith('SvcTest'));
-      expect(svcCats.length).toBe(0);
+      expect(r.data.assets.filter(isTestName)).toEqual([]);
+      expect(r.data.categories.filter(isTestName)).toEqual([]);
     });
 
     test('5.4 services still callable after cleanup', async () => {
