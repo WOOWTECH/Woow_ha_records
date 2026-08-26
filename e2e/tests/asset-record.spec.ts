@@ -7,12 +7,57 @@ let token: string;
 let ws: HAWebSocketClient;
 const createdAssetIds: string[] = [];
 
+/** Category name -> category id, populated by ensureCategory(). */
+const categoryIds = new Map<string, string>();
+
+/** The distinct categories the demo assets belong to. */
+const ASSET_CATEGORIES = [...new Set(ASSET_DATA.map((a) => a.category))];
+
+/**
+ * Get-or-create an asset Category and return its id.
+ *
+ * The API takes a `category_id` referencing a Category record, so every
+ * category a test wants to use has to exist first. Idempotent: the store
+ * persists between runs, and create_category rejects duplicate names.
+ */
+async function ensureCategory(name: string): Promise<string> {
+  const cached = categoryIds.get(name);
+  if (cached) return cached;
+
+  const lookup = async () => {
+    const { categories } = await ws.assetList();
+    return categories.find((c: any) => c.name.toLowerCase() === name.toLowerCase());
+  };
+
+  let category = await lookup();
+  if (!category) {
+    try {
+      category = (await ws.assetCreateCategory(name)).category;
+    } catch (e: any) {
+      // Already exists — created by an earlier run or a concurrent create.
+      // Anything else (unauthorized, not_found, timeout) is the real failure.
+      if (!/exists|duplicate/i.test(e.message)) throw e;
+      category = await lookup();
+    }
+  }
+
+  expect(category).toBeTruthy();
+  expect(category.id).toMatch(/^cat_[a-f0-9]+$/);
+  categoryIds.set(name, category.id);
+  return category.id;
+}
+
 test.describe('asset Area E2E Tests', () => {
   test.beforeAll(async () => {
     const tokens = await getHAToken();
     token = tokens.access_token;
     ws = new HAWebSocketClient(token);
     await ws.connect();
+
+    // Categories first — the creates below reference them by id.
+    for (const name of ASSET_CATEGORIES) {
+      await ensureCategory(name);
+    }
   });
 
   test.afterAll(async () => {
@@ -27,7 +72,7 @@ test.describe('asset Area E2E Tests', () => {
         const result = await ws.assetCreate({
           name: asset.name,
           brand: asset.brand,
-          category: asset.category,
+          category_id: await ensureCategory(asset.category),
           value: asset.value,
           purchase_at: asset.purchase_at,
           warranty_until: asset.warranty_until,
@@ -47,12 +92,19 @@ test.describe('asset Area E2E Tests', () => {
       const result = await ws.assetList();
       expect(result.assets.length).toBeGreaterThanOrEqual(ASSET_DATA.length);
 
+      const categoryNameById = new Map<string, string>(
+        result.categories.map((c: any): [string, string] => [c.id, c.name]),
+      );
+
       // Verify all created assets exist
+      const createdIds = new Set(createdAssetIds);
       for (const asset of ASSET_DATA) {
-        const found = result.assets.find((a: any) => a.name === asset.name);
+        const found = result.assets.find(
+          (a: any) => createdIds.has(a.id) && a.name === asset.name,
+        );
         expect(found).toBeTruthy();
         expect(found.brand).toBe(asset.brand);
-        expect(found.category).toBe(asset.category);
+        expect(categoryNameById.get(found.category_id)).toBe(asset.category);
       }
     });
 
@@ -129,7 +181,7 @@ test.describe('asset Area E2E Tests', () => {
       const result = await ws.assetCreate({
         name: EDGE_CASES.MAX_LENGTH_255,
         brand: 'EdgeTest',
-        category: '邹界測試',
+        category_id: await ensureCategory('邹界測試'),
         value: 1,
       });
       expect(result.asset).toBeTruthy();
@@ -144,7 +196,7 @@ test.describe('asset Area E2E Tests', () => {
         name: '零元資產測試',
         value: EDGE_CASES.ZERO_VALUE,
         brand: 'Test',
-        category: '測試',
+        category_id: await ensureCategory('測試'),
       });
       expect(result.asset).toBeTruthy();
       expect(result.asset.value).toBe(0);
@@ -156,7 +208,7 @@ test.describe('asset Area E2E Tests', () => {
         name: '高僸資產測試',
         value: EDGE_CASES.MAX_ASSET_VALUE,
         brand: 'Test',
-        category: '測試',
+        category_id: await ensureCategory('測試'),
       });
       expect(result.asset).toBeTruthy();
       expect(result.asset.value).toBe(999999.99);
@@ -167,7 +219,7 @@ test.describe('asset Area E2E Tests', () => {
       const result = await ws.assetCreate({
         name: EDGE_CASES.SPECIAL_CHARS,
         brand: '特殊字元',
-        category: '測試',
+        category_id: await ensureCategory('測試'),
         value: 100,
       });
       expect(result.asset).toBeTruthy();
@@ -179,7 +231,7 @@ test.describe('asset Area E2E Tests', () => {
       const result = await ws.assetCreate({
         name: EDGE_CASES.HTML_INJECTION,
         brand: 'XSS Test',
-        category: '安全測試',
+        category_id: await ensureCategory('安全測試'),
         value: 0,
       });
       expect(result.asset).toBeTruthy();
@@ -192,7 +244,7 @@ test.describe('asset Area E2E Tests', () => {
       const result = await ws.assetCreate({
         name: '日本語テスト 🎌',
         brand: '한국 브랜드',
-        category: 'Ünïcödë',
+        category_id: await ensureCategory('Ünïcödë'),
         value: 42,
         manual_md: EDGE_CASES.UNICODE_TEXT,
       });
@@ -205,7 +257,7 @@ test.describe('asset Area E2E Tests', () => {
       const result = await ws.assetCreate({
         name: '大量 Markdown 測試',
         brand: 'Test',
-        category: '測試',
+        category_id: await ensureCategory('測試'),
         value: 1,
         manual_md: EDGE_CASES.MAX_LENGTH_65535,
       });
@@ -220,7 +272,7 @@ test.describe('asset Area E2E Tests', () => {
       const created = await ws.assetCreate({
         name: '待刪除資產 DELETE-TEST',
         brand: 'Temp',
-        category: '暨時',
+        category_id: await ensureCategory('暨時'),
         value: 0,
       });
       expect(created.asset).toBeTruthy();
@@ -265,7 +317,8 @@ test.describe('asset Area E2E Tests', () => {
       expect(appleProducts.length).toBeGreaterThanOrEqual(2);
 
       // Verify we can find by category
-      const appliances = result.assets.filter((a: any) => a.category === '家電');
+      const applianceId = await ensureCategory('家電');
+      const appliances = result.assets.filter((a: any) => a.category_id === applianceId);
       expect(appliances.length).toBeGreaterThanOrEqual(4);
     });
   });
@@ -276,7 +329,7 @@ test.describe('asset Area E2E Tests', () => {
       const result = await ws.assetCreate({
         name: '穩定性測試資産 #' + Date.now(),
         brand: 'Stability',
-        category: '穩定性',
+        category_id: await ensureCategory('穩定性'),
         value: 777,
       });
       expect(result.asset).toBeTruthy();

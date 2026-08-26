@@ -214,7 +214,8 @@ export class HAWebSocketClient {
   async assetCreate(data: {
     name: string;
     brand?: string;
-    category?: string;
+    /** Reference to a Category record id (`cat_<hex>`), not a category name. */
+    category_id?: string;
     value?: number;
     purchase_at?: string;
     warranty_until?: string;
