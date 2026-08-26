@@ -14,6 +14,11 @@
  *
  * Note: HA returns HTTP 500 for ServiceValidationError (not 400).
  * Note: Retries are disabled because tests are sequential and stateful.
+ * Note: no hook here may touch the suite's own data. Playwright discards the
+ *   worker process after a failed test and starts a fresh one for the rest of
+ *   the file, so beforeAll and afterAll run again mid-suite; a hook that
+ *   deleted the test Account would take every later test down with it. The
+ *   leftover sweep therefore lives in test 1.1, which never re-runs.
  */
 
 import { test, expect } from '@playwright/test';
@@ -22,16 +27,34 @@ import { HAServicesClient, listRegisteredServices } from '../utils/services-clie
 import { HAWebSocketClient } from '../utils/ws-client';
 import { EDGE_CASES } from '../utils/test-data';
 
-// Disable retries — sequential stateful tests can't recover from re-running beforeAll
+// Disable retries — sequential stateful tests can't recover from re-running
+// a test against data an earlier test consumed. This does not stop the worker
+// being recycled after a failure; see the note on hooks above.
 test.describe.configure({ retries: 0 });
 
 let token: string;
 let svc: HAServicesClient;
 let ws: HAWebSocketClient;
 
-// Test account identifiers (derived from name via HA config flow)
+// Test account identifiers (the id is derived from the name by the Area)
 const ACCT_NAME = 'Svc Test Account';
 const ACCT_ID = 'svc_test_account';
+const RENAMED_ACCT_NAME = 'Renamed Test Account';
+const NEGATIVE_ACCT_NAME = 'Negative Balance Test';
+const UNICODE_ACCT_NAME = '家庭帳戶 💰 Test';
+const POST_DELETE_ACCT_NAME = 'Post-Delete Test';
+
+// Every Account name this spec ever creates, named once so the sweep in 1.1
+// cannot drift from what the tests actually make. The sweep matches on names
+// rather than on derived ids: a name of only non-ASCII characters hashes to an
+// id nothing here can predict, so an id list silently misses those leftovers.
+const ALL_TEST_ACCT_NAMES = [
+  ACCT_NAME,
+  RENAMED_ACCT_NAME,
+  NEGATIVE_ACCT_NAME,
+  UNICODE_ACCT_NAME,
+  POST_DELETE_ACCT_NAME,
+];
 
 // Saved IDs from create operations (populated during tests)
 let txId1 = '';
@@ -41,6 +64,20 @@ let planId2 = '';
 
 /** Wait for config entry reload to complete */
 const waitReload = (ms = 3000) => new Promise(r => setTimeout(r, ms));
+
+/**
+ * Delete an Account this spec knows exists, and assert it went.
+ *
+ * Every cleanup here goes through this rather than swallowing its result: a
+ * delete that fails silently in Round 1 or 2 surfaces as an unrelated failure
+ * in Round 5. Test 5.1 asserts inline instead, because there the delete is the
+ * contract under test rather than tidying up after one.
+ */
+async function deleteAccountOk(accountId: string): Promise<void> {
+  const r = await svc.financeDeleteAccount(accountId);
+  expect(r.status, `deleting Account ${accountId}`).toBe(200);
+  expect(r.data.success).toBe(true);
+}
 
 test.describe('finance Area Services E2E Tests', () => {
   test.beforeAll(async () => {
@@ -54,19 +91,13 @@ test.describe('finance Area Services E2E Tests', () => {
     svc = new HAServicesClient(token, 'finance');
     ws = new HAWebSocketClient(token);
     await ws.connect();
-
-    // Cleanup leftover test accounts from previous runs
-    for (const aid of [ACCT_ID, 'renamed_test_account', 'negative_balance_test', '家庭帳戶_💰_test', 'post_delete_test']) {
-      try { await svc.financeDeleteAccount(aid); } catch { /* ignore */ }
-    }
-    await waitReload(5000);
   });
 
   test.afterAll(async () => {
-    // Best-effort cleanup of any test accounts
-    for (const aid of [ACCT_ID, 'renamed_test_account', 'negative_balance_test', '家庭帳戶_💰_test', 'post_delete_test']) {
-      try { await svc.financeDeleteAccount(aid); } catch { /* ignore */ }
-    }
+    // Nothing to clean up here on purpose: this hook runs again whenever a test
+    // fails and Playwright recycles the worker, so deleting the test Account
+    // from it would break every test after the first failure. Round 5 deletes
+    // what Round 1 created, and 1.1 sweeps up after a run that died early.
     try { await ws.close(); } catch { /* ignore */ }
   });
 
@@ -75,11 +106,25 @@ test.describe('finance Area Services E2E Tests', () => {
   // ═══════════════════════════════════════════════════════════
   test.describe('Round 1: Happy Path CRUD Lifecycle', () => {
 
-    test('1.1 get_accounts — initially empty (no test accounts)', async () => {
+    test('1.1 get_accounts — clean slate (sweeps leftovers from a dead run)', async () => {
+      const before = await svc.financeGetAccounts();
+      expect(before.status).toBe(200);
+      expect(before.data.accounts).toBeInstanceOf(Array);
+
+      // A run that died mid-file leaves this spec's Accounts behind. Delete
+      // them, asserting each one: they were just read back from the service, so
+      // a failure here is a real one, not a leftover that wasn't there.
+      const leftovers = before.data.accounts.filter((a: any) =>
+        ALL_TEST_ACCT_NAMES.includes(a.name),
+      );
+      for (const acct of leftovers) {
+        await deleteAccountOk(acct.id);
+      }
+      if (leftovers.length > 0) await waitReload(5000);
+
+      // The slate the rest of the file is written against
       const r = await svc.financeGetAccounts();
       expect(r.status).toBe(200);
-      expect(r.data.accounts).toBeInstanceOf(Array);
-      // No test accounts should exist at this point
       const testAcct = r.data.accounts.find((a: any) => a.id === ACCT_ID);
       expect(testAcct).toBeFalsy();
     });
@@ -280,7 +325,7 @@ test.describe('finance Area Services E2E Tests', () => {
 
     test('1.19 update_account — rename and add notes', async () => {
       const r = await svc.financeUpdateAccount(ACCT_ID, {
-        name: 'Renamed Test Account',
+        name: RENAMED_ACCT_NAME,
         notes: 'Updated notes for testing',
       });
       expect(r.status).toBe(200);
@@ -288,7 +333,7 @@ test.describe('finance Area Services E2E Tests', () => {
 
       const check = await svc.financeGetAccounts();
       const acct = check.data.accounts.find((a: any) => a.id === ACCT_ID);
-      expect(acct.name).toBe('Renamed Test Account');
+      expect(acct.name).toBe(RENAMED_ACCT_NAME);
       expect(acct.notes).toBe('Updated notes for testing');
     });
   });
@@ -362,9 +407,9 @@ test.describe('finance Area Services E2E Tests', () => {
 
     // ─── 2.B Duplicate prevention ─────────────────────────
     test('2.11 add_account — duplicate name returns error', async () => {
-      // Account was renamed to "Renamed Test Account" in test 1.19.
+      // Account was renamed to RENAMED_ACCT_NAME in test 1.19.
       // The duplicate name check in services.py should reject this.
-      const r = await svc.financeAddAccount('Renamed Test Account');
+      const r = await svc.financeAddAccount(RENAMED_ACCT_NAME);
       expect(r.status).not.toBe(200);
     });
 
@@ -589,21 +634,21 @@ test.describe('finance Area Services E2E Tests', () => {
     // avoid disrupting the coordinator for the main test account.
 
     test('2.20 add_account — negative initial_balance accepted', async () => {
-      const r = await svc.financeAddAccount('Negative Balance Test', -1000);
+      const r = await svc.financeAddAccount(NEGATIVE_ACCT_NAME, -1000);
       // This may succeed or fail depending on config flow
       if (r.status === 200) {
         const acctId = r.data.account_id;
         await waitReload(5000);
         const check = await svc.financeGetAccount(acctId);
         expect(check.data.account.balance).toBe(-1000);
-        // Cleanup
-        await svc.financeDeleteAccount(acctId);
+
+        await deleteAccountOk(acctId);
         await waitReload(5000);
       }
     });
 
     test('2.21 add_account — Unicode name with emoji', async () => {
-      const r = await svc.financeAddAccount('家庭帳戶 💰 Test');
+      const r = await svc.financeAddAccount(UNICODE_ACCT_NAME);
       expect(r.status).toBe(200);
       expect(r.data.success).toBe(true);
       const acctId = r.data.account_id;
@@ -612,10 +657,9 @@ test.describe('finance Area Services E2E Tests', () => {
       const check = await svc.financeGetAccounts();
       const acct = check.data.accounts.find((a: any) => a.id === acctId);
       expect(acct).toBeTruthy();
-      expect(acct.name).toBe('家庭帳戶 💰 Test');
+      expect(acct.name).toBe(UNICODE_ACCT_NAME);
 
-      // Cleanup
-      await svc.financeDeleteAccount(acctId);
+      await deleteAccountOk(acctId);
       await waitReload(5000);
     });
   });
@@ -747,14 +791,13 @@ test.describe('finance Area Services E2E Tests', () => {
     });
 
     test('5.3 add_account still callable after all accounts deleted', async () => {
-      const r = await svc.financeAddAccount('Post-Delete Test', 0);
+      const r = await svc.financeAddAccount(POST_DELETE_ACCT_NAME, 0);
       expect(r.status).toBe(200);
       expect(r.data.success).toBe(true);
       const postId = r.data.account_id;
       await waitReload(5000);
 
-      // Cleanup
-      await svc.financeDeleteAccount(postId);
+      await deleteAccountOk(postId);
       await waitReload(3000);
     });
   });
