@@ -30,12 +30,12 @@ No script hardcodes a port.
 
 ## Harness 1 — Playwright, against an existing HA
 
-345 tests across 9 spec files:
+376 tests across 9 spec files:
 
 | Spec pattern | Tests | Surface exercised |
 |---|---|---|
-| `*-record.spec.ts` (4 files) | 104 | **WebSocket** — the commands the custom panels send |
-| `*-services.spec.ts` (4 files) | 230 | **REST services** — `POST /api/services/<domain>/<service>`, the surface documented for automations and AI agents |
+| `*-record.spec.ts` (4 files) | 132 | **WebSocket** — the commands the custom panels send |
+| `*-services.spec.ts` (4 files) | 233 | **REST services** — `POST /api/services/<domain>/<service>`, the surface documented for automations and AI agents |
 | `integration.spec.ts` | 11 | **Browser UI** — panel navigation, persistence across reload |
 
 ```bash
