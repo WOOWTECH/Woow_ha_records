@@ -45,6 +45,10 @@ spec:
               rm -rf /tmp/repo
               git clone --depth 1 -b main \
                 "https://${GIT_USER}:${GIT_TOKEN}@github.com/WOOWTECH/Woow_ha_records.git" /tmp/repo
+              # Replace the directory rather than copy over it. A plain copy
+              # leaves retired integrations behind on the PVC, and they keep
+              # registering their own domains beside the merged one.
+              rm -rf /config/custom_components
               mkdir -p /config/custom_components
               cp -r /tmp/repo/custom_components/. /config/custom_components/
           envFrom:
