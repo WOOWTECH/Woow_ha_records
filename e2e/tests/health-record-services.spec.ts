@@ -32,6 +32,53 @@ const SVC_MEMBER = 'svc_test_member';
 const SVC_MEMBER_2 = 'svc_test_member_2';
 const SVC_MEMBER_EDGE = 'svc_edge_member';
 
+/**
+ * Query windows are computed at run time.
+ *
+ * Records logged without an explicit timestamp land at "now", so a hardcoded
+ * calendar window stops matching them the moment that month passes — which is
+ * what silently broke this suite (issue #9). Everything below derives from a
+ * single instant captured when the file loads, so every window agrees.
+ */
+const DAY_MS = 24 * 60 * 60 * 1000;
+/**
+ * The whole-hour offset the suite renders its instants in. Presentation only —
+ * every window below names an absolute instant, and the backend compares in
+ * UTC, so any zone would match the same records. +08 keeps the wire format
+ * this file already used.
+ */
+const TZ_OFFSET_HOURS = 8;
+const TZ_OFFSET_MS = TZ_OFFSET_HOURS * 60 * 60 * 1000;
+
+/** Render an instant as ISO 8601 in that offset, to the second. */
+const isoWithOffset = (d: Date): string =>
+  new Date(d.getTime() + TZ_OFFSET_MS)
+    .toISOString()
+    .replace(/\.\d{3}Z$/, `+${String(TZ_OFFSET_HOURS).padStart(2, '0')}:00`);
+
+/** Midnight of the offset's calendar day containing `d`. */
+const startOfOffsetDay = (d: Date): Date => {
+  const shifted = new Date(d.getTime() + TZ_OFFSET_MS);
+  shifted.setUTCHours(0, 0, 0, 0);
+  return new Date(shifted.getTime() - TZ_OFFSET_MS);
+};
+
+const RUN_AT = new Date();
+
+/** The one record logged with an explicit timestamp — a day before the run. */
+const BACKDATED_AT = new Date(RUN_AT.getTime() - DAY_MS);
+const BACKDATED_NOTE = 'Yesterday record';
+const BACKDATED_TS = isoWithOffset(BACKDATED_AT);
+/** Its own calendar day, used to single that record out from the "now" ones. */
+const BACKDATED_DAY_START = isoWithOffset(startOfOffsetDay(BACKDATED_AT));
+const BACKDATED_DAY_END = isoWithOffset(
+  new Date(startOfOffsetDay(BACKDATED_AT).getTime() + DAY_MS - 1000),
+);
+
+/** Wide enough for every record this run creates: backdated plus "now". */
+const RANGE_START = isoWithOffset(new Date(RUN_AT.getTime() - 2 * DAY_MS));
+const RANGE_END = isoWithOffset(new Date(RUN_AT.getTime() + DAY_MS));
+
 /** Wait for config entry reload to complete */
 const waitReload = (ms = 3000) => new Promise(r => setTimeout(r, ms));
 
@@ -151,8 +198,8 @@ test.describe('health Area Services E2E Tests', () => {
     });
 
     test('1.9 log_record — log with custom timestamp', async () => {
-      const ts = '2026-05-14T08:00:00+08:00';
-      const r = await svc.logRecord(SVC_MEMBER, 'weight', 4.1, 'Yesterday record', ts);
+      const ts = BACKDATED_TS;
+      const r = await svc.logRecord(SVC_MEMBER, 'weight', 4.1, BACKDATED_NOTE, ts);
       expect(r.status).toBe(200);
       expect(r.data.success).toBe(true);
     });
@@ -164,7 +211,7 @@ test.describe('health Area Services E2E Tests', () => {
     });
 
     test('1.11 get_records — query records in range', async () => {
-      const r = await svc.getRecords('2026-05-01T00:00:00+08:00', '2026-05-31T23:59:59+08:00');
+      const r = await svc.getRecords(RANGE_START, RANGE_END);
       expect(r.status).toBe(200);
 
       const myRecords = r.data.records.filter((rec: any) => rec.member_id === SVC_MEMBER);
@@ -191,9 +238,14 @@ test.describe('health Area Services E2E Tests', () => {
 
     test('1.12 update_record — update value and note', async () => {
       // Get a record to update
-      const records = await svc.getRecords('2026-05-14T00:00:00+08:00', '2026-05-14T23:59:59+08:00');
+      const records = await svc.getRecords(BACKDATED_DAY_START, BACKDATED_DAY_END);
+      // Match the note too: the day window alone would also admit a "now"
+      // record if the HA clock ran behind the test host's across midnight.
       const target = records.data.records.find(
-        (rec: any) => rec.record_type === 'weight' && rec.member_id === SVC_MEMBER,
+        (rec: any) =>
+          rec.record_type === 'weight' &&
+          rec.member_id === SVC_MEMBER &&
+          rec.note === BACKDATED_NOTE,
       );
       expect(target).toBeTruthy();
 
@@ -225,7 +277,7 @@ test.describe('health Area Services E2E Tests', () => {
     });
 
     test('1.14 delete_record — delete temperature record by record_id', async () => {
-      const records = await svc.getRecords('2026-05-01T00:00:00+08:00', '2026-05-31T23:59:59+08:00');
+      const records = await svc.getRecords(RANGE_START, RANGE_END);
       const target = records.data.records.find(
         (rec: any) => rec.record_type === 'temperature' && rec.member_id === SVC_MEMBER,
       );
@@ -236,7 +288,7 @@ test.describe('health Area Services E2E Tests', () => {
       expect(r.data.success).toBe(true);
 
       // Verify deletion
-      const after = await svc.getRecords('2026-05-01T00:00:00+08:00', '2026-05-31T23:59:59+08:00');
+      const after = await svc.getRecords(RANGE_START, RANGE_END);
       const remaining = after.data.records.filter(
         (rec: any) => rec.record_type === 'temperature' && rec.member_id === SVC_MEMBER,
       );
@@ -327,7 +379,7 @@ test.describe('health Area Services E2E Tests', () => {
     });
 
     test('2.12 get_records — invalid start_time returns error', async () => {
-      const r = await svc.getRecords('invalid-date', '2026-05-31T23:59:59+08:00');
+      const r = await svc.getRecords('invalid-date', RANGE_END);
       expect(r.status).not.toBe(200);
     });
 
@@ -376,7 +428,7 @@ test.describe('health Area Services E2E Tests', () => {
       expect(r.status).toBe(200);
 
       // Verify the note is stored as-is (not executed)
-      const records = await svc.getRecords('2026-05-01T00:00:00+08:00', '2026-05-31T23:59:59+08:00');
+      const records = await svc.getRecords(RANGE_START, RANGE_END);
       const injected = records.data.records.find(
         (rec: any) => rec.note === EDGE_CASES.HTML_INJECTION && rec.member_id === SVC_MEMBER,
       );
@@ -449,10 +501,7 @@ test.describe('health Area Services E2E Tests', () => {
     });
 
     test('3.2 Records logged via services visible via WebSocket', async () => {
-      const result = await ws.healthGetRecords(
-        '2026-05-01T00:00:00+08:00',
-        '2026-05-31T23:59:59+08:00',
-      );
+      const result = await ws.healthGetRecords(RANGE_START, RANGE_END);
       const svcRecords = result.records.filter(
         (r: any) => r.member_id === SVC_MEMBER && r.record_type === 'weight',
       );
@@ -465,7 +514,7 @@ test.describe('health Area Services E2E Tests', () => {
       await ws.healthLogRecord(SVC_MEMBER, 'weight', 5.5, 'Logged via WS');
 
       // Query via services REST API
-      const r = await svc.getRecords('2026-05-01T00:00:00+08:00', '2026-05-31T23:59:59+08:00');
+      const r = await svc.getRecords(RANGE_START, RANGE_END);
       const wsRecord = r.data.records.find(
         (rec: any) => rec.note === 'Logged via WS' && rec.member_id === SVC_MEMBER,
       );
