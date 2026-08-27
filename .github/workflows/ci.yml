@@ -5,10 +5,23 @@
 # is POSIX-only. On Windows collection dies before the first test. So this file
 # is not a safety net over a suite someone runs locally — it is the suite.
 #
-# One Home Assistant version, pinned, everywhere: requirements_test.txt,
-# manifest.json and hacs.json all say 2026.7.2. The version this CI proves is
-# the version the integration declares it needs, and nothing declares support
-# for a version nothing tests.
+# One Home Assistant version, pinned, everywhere: requirements_test.txt says
+# 2026.7.2 and hacs.json declares the same minimum. The version this CI proves
+# is the version the integration declares it needs, and nothing declares
+# support for a version nothing tests.
+#
+# There is no `validate` job yet. hassfest and the HACS action were tried here
+# first, and hassfest surfaced four pre-existing problems, none of them caused
+# by this workflow: three manifest keys Home Assistant's schema does not
+# define, a `panel` translations section that three panels genuinely use via
+# hass.localize() but the schema does not allow, 14 exception messages that
+# quote their placeholders, and the HACS check itself, which never ran because
+# hassfest failed before it. The first is fixed here because this workflow
+# caused half of it. The rest are a translations-architecture decision and a
+# collision with an open PR, and each deserves its own change rather than
+# being rushed through this one. Adding the job before they are settled would
+# mean shipping a red light on day one, which is a light everyone learns to
+# ignore.
 name: CI
 
 on:
@@ -55,26 +68,6 @@ jobs:
           name: pytest-results
           path: pytest-results.xml
           retention-days: 14
-
-  validate:
-    name: validate
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-
-      - name: hassfest
-        uses: home-assistant/actions/hassfest@master
-
-      - name: HACS
-        uses: hacs/action@main
-        with:
-          category: integration
-          # `woow_ha_records` is not registered in home-assistant/brands, so this
-          # check cannot pass from inside this repo — clearing it means opening a
-          # PR against someone else's repository and waiting on their review. A
-          # red light nobody here can turn green is a red light everyone learns
-          # to ignore, so it is ignored explicitly instead. Tracked separately.
-          ignore: brands
 
   lint:
     name: lint
