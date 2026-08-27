@@ -102,7 +102,7 @@
       "message": "在成員「{member_id}」中找不到紀錄類型「{record_type}」。"
     },
     "record_not_found": {
-      "message": "找不到紀錄。"
+      "message": "在成員「{member_id}」中找不到紀錄類型「{type_id}」於 {timestamp} 的紀錄。"
     },
     "invalid_datetime": {
       "message": "欄位「{field}」的日期時間格式無效：{value}"

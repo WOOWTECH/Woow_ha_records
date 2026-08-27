@@ -19,7 +19,10 @@ from __future__ import annotations
 
 import ast
 import json
+import re
+from functools import cache
 from pathlib import Path
+from typing import NamedTuple
 
 import pytest
 import yaml
@@ -43,6 +46,57 @@ def _key_paths(node: object, prefix: str = "") -> set[str]:
         for key, value in node.items()
         for path in _key_paths(value, f"{prefix}.{key}")
     }
+
+
+class _RaiseSite(NamedTuple):
+    """One ``raise ...(translation_key=...)`` found under ``areas/``."""
+
+    path: Path
+    lineno: int
+    key: str
+    supplied: frozenset[str] | None
+    """Placeholder names the site passes, or None if it passes a dict this
+    file cannot read statically (a variable, a call, a ``**`` unpacking)."""
+
+
+@cache
+def _raise_sites() -> tuple[_RaiseSite, ...]:
+    """Every translated exception raised under ``areas/``, read statically.
+
+    Reading the source with ``ast`` rather than importing it keeps the guard
+    independent of Home Assistant: a raise site is a fact about the file, and
+    every one of them must be reachable without standing up a ``hass``.
+    """
+    sites = []
+    for path in sorted((COMPONENT / "areas").rglob("*.py")):
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if not (isinstance(node, ast.Raise) and isinstance(node.exc, ast.Call)):
+                continue
+            keywords = {k.arg: k.value for k in node.exc.keywords if k.arg}
+            key = keywords.get("translation_key")
+            if not isinstance(key, ast.Constant):
+                continue
+            placeholders = keywords.get("translation_placeholders")
+            if placeholders is None:
+                supplied = frozenset()
+            elif isinstance(placeholders, ast.Dict) and all(
+                isinstance(name, ast.Constant) for name in placeholders.keys
+            ):
+                supplied = frozenset(name.value for name in placeholders.keys)
+            else:
+                supplied = None
+            sites.append(_RaiseSite(path, node.lineno, key.value, supplied))
+    return tuple(sites)
+
+
+def _placeholders_in(message: str) -> set[str]:
+    """Return the placeholder names a strings.json message interpolates.
+
+    Deliberately matches any identifier, not just lowercase words: a guard
+    that silently skipped ``{value2}`` would report parity it never checked.
+    """
+    return set(re.findall(r"\{(\w+)\}", message))
 
 
 class TestTranslations:
@@ -128,18 +182,56 @@ class TestTranslations:
         across three Areas with nothing watching them.
         """
         declared = set(_load_json(STRINGS).get("exceptions", {}))
-        raised = {
-            keyword.value.value
-            for path in (COMPONENT / "areas").rglob("*.py")
-            for node in ast.walk(ast.parse(path.read_text(encoding="utf-8")))
-            if isinstance(node, ast.Raise) and isinstance(node.exc, ast.Call)
-            for keyword in node.exc.keywords
-            if keyword.arg == "translation_key"
-            and isinstance(keyword.value, ast.Constant)
-        }
+        raised = {site.key for site in _raise_sites()}
 
         undescribed = sorted(raised - declared)
         assert not undescribed, (
             f"{len(undescribed)} exception(s) raised under areas/ have no "
             f"entry in strings.json.exceptions: {undescribed}"
+        )
+
+    def test_every_raised_exception_supplies_its_placeholders(self) -> None:
+        """Every raise site fills in every placeholder its message names.
+
+        Home Assistant formats the message inside a ``suppress(KeyError)``, so
+        one missing placeholder discards the whole ``.format()`` call and the
+        user is shown the raw template — braces, every other placeholder, and
+        all. Not one missing word: the whole message. This is the regression
+        guard for issue #27, where ``invalid_datetime`` was authored for the
+        health Area's parser, which knows the field name, and then reused from
+        the asset Area's parser, which did not.
+
+        This is #13's guard one level down: that one proves the message
+        exists, this proves it can be filled in. Extra placeholders are legal
+        and deliberately not flagged — ``str.format`` ignores them.
+        """
+        messages = _load_json(STRINGS).get("exceptions", {})
+
+        opaque = [
+            f"{site.path.relative_to(COMPONENT)}:{site.lineno} ({site.key})"
+            for site in _raise_sites()
+            if site.supplied is None
+        ]
+        assert not opaque, (
+            f"{len(opaque)} raise site(s) pass translation_placeholders this "
+            f"guard cannot read. Spell the dict out inline so a missing "
+            f"placeholder stays visible here: {opaque}"
+        )
+
+        underfilled = sorted(
+            f"{site.path.relative_to(COMPONENT)}:{site.lineno} ({site.key}) "
+            f"missing {sorted(missing)}"
+            for site in _raise_sites()
+            if site.supplied is not None
+            and (
+                missing := _placeholders_in(
+                    messages.get(site.key, {}).get("message", "")
+                )
+                - site.supplied
+            )
+        )
+        assert not underfilled, (
+            f"{len(underfilled)} raise site(s) under areas/ do not supply "
+            f"every placeholder their strings.json message names, so the "
+            f"whole message renders raw: {underfilled}"
         )
