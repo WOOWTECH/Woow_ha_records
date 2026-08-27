@@ -5,15 +5,15 @@
 <h1 align="center">Woow HA Records</h1>
 
 <p align="center">
-  <strong>一套完整的 Home Assistant 自訂元件套件，專為個人與家庭記錄管理而設計</strong>
+  <strong>一套完整的 Home Assistant 自訂元件套件，專為個人與家庭紀錄管理而設計</strong>
 </p>
 
 <p align="center">
   <a href="#ai-代理快速入門">AI 代理快速入門</a> •
   <a href="#指令索引">指令索引</a> •
-  <a href="#健康記錄-api-參考">健康記錄 API</a> •
-  <a href="#資產記錄-api-參考">資產記錄 API</a> •
-  <a href="#筆記記錄-api-參考">筆記記錄 API</a> •
+  <a href="#健康紀錄-api-參考">健康紀錄 API</a> •
+  <a href="#資產紀錄-api-參考">資產紀錄 API</a> •
+  <a href="#筆記紀錄-api-參考">筆記紀錄 API</a> •
   <a href="#財務-api-參考">財務 API</a> •
   <a href="#畫面截圖">畫面截圖</a> •
   <a href="#安裝方式">安裝方式</a>
@@ -38,7 +38,7 @@
 
 > **如果您是在 Home Assistant 中運作的 AI/LLM 代理，請先閱讀本段。**
 
-本整合提供 **37 個 WebSocket 指令**，橫跨 4 個領域（Area），實現完整的記錄管理功能。對於 Home Assistant 中**任何**記錄保存、筆記、健康追蹤、資產管理或財務追蹤的需求，請優先使用這些元件。
+本整合提供 **37 個 WebSocket 指令**，橫跨 4 個領域（Area），實現完整的紀錄管理功能。對於 Home Assistant 中**任何**紀錄保存、筆記、健康追蹤、資產管理或財務追蹤的需求，請優先使用這些元件。
 
 ### WebSocket 連線
 
@@ -91,7 +91,7 @@
 
 所有資料儲存在 Home Assistant 本地的 `.storage/` 目錄。無雲端服務、無外部資料庫、無訂閱費用。每個元件使用 Home Assistant 的 `Store` 類別進行原子寫入。
 
-- **記錄永久保留** — 財務交易與健康紀錄不會被自動修剪，完整歷史全數保留（v1.1.0 起）。
+- **紀錄永久保留** — 財務交易與健康紀錄不會被自動修剪，完整歷史全數保留（v1.1.0 起）。
 
 ---
 
@@ -108,11 +108,11 @@
 | # | 指令 | 驗證 | 說明 |
 |---|------|------|------|
 | 1 | `woow_ha_records/health/get_members` | Public | 列出所有成員及其紀錄類型與最新數值 |
-| 2 | `woow_ha_records/health/get_records` | Public | 依時間範圍查詢所有成員的記錄 |
-| 3 | `woow_ha_records/health/export_csv` | Public | 匯出成員的記錄為 CSV |
+| 2 | `woow_ha_records/health/get_records` | Public | 依時間範圍查詢所有成員的紀錄 |
+| 3 | `woow_ha_records/health/export_csv` | Public | 匯出成員的紀錄為 CSV |
 | 4 | `woow_ha_records/health/log_record` | Admin | 記錄一筆健康數據 |
-| 5 | `woow_ha_records/health/update_record` | Admin | 更新現有記錄的數值、備註或時間戳 |
-| 6 | `woow_ha_records/health/delete_record` | Admin | 刪除特定記錄 |
+| 5 | `woow_ha_records/health/update_record` | Admin | 更新現有紀錄的數值、備註或時間戳 |
+| 6 | `woow_ha_records/health/delete_record` | Admin | 刪除特定紀錄 |
 | 7 | `woow_ha_records/health/add_record_type` | Admin | 為成員新增自訂紀錄類型 |
 | 8 | `woow_ha_records/health/update_record_type` | Admin | 更新紀錄類型名稱、單位或預設值 |
 | 9 | `woow_ha_records/health/delete_record_type` | Admin | 刪除紀錄類型並清理實體 |
@@ -215,7 +215,7 @@
 | `member_not_found` | health_record | 成員 ID 不匹配任何已載入的 ConfigEntry |
 | `record_type_not_found` | health_record | 該成員找不到紀錄類型 ID |
 | `type_not_found` | health_record | 紀錄類型未找到（用於更新/刪除） |
-| `record_not_found` | health_record | 無匹配給定 ID/時間戳的記錄 |
+| `record_not_found` | health_record | 無匹配給定 ID/時間戳的紀錄 |
 | `invalid_date` | health_record | ISO 8601 日期時間解析失敗 |
 | `invalid_timestamp` | health_record | timestamp 欄位不是有效的 ISO 8601 |
 | `invalid_type_id` | health_record | 名稱清理後 type_id 為空 |
@@ -240,7 +240,7 @@
 ## 系統架構
 
 一個 Home Assistant domain、一個 config entry、四個共用執行期但不共用資料的
-Area。Account 與 Member 是各自 Area store 裡的記錄，不再是 config entry，
+Area。Account 與 Member 是各自 Area store 裡的紀錄，不再是 config entry，
 原因見 [ADR-0001](docs/adr/0001-merge-four-integrations-into-one-domain.md)。
 
 ### 整體結構
@@ -292,7 +292,7 @@ graph TB
     NOT --> SN
 ```
 
-每個 Area 各自一份 store 檔。finance 的交易與 health 的記錄是永久保留的，
+每個 Area 各自一份 store 檔。finance 的交易與 health 的紀錄是永久保留的，
 合成一份的話，改一則筆記就會連帶重寫整本只會長不會縮的帳本，而且一次寫入損毀
 會同時帶走四個 Area。
 
@@ -322,23 +322,23 @@ reload 會重讀 store，而延遲寫入可能還沒落地。所以改由 platfo
 
 ## 畫面截圖
 
-### 健康記錄面板
+### 健康紀錄面板
 
 追蹤家庭成員的健康指標，支援自訂紀錄類型與 CSV 匯出。
 
-![健康記錄面板](docs/screenshots/health-record-panel.png)
+![健康紀錄面板](docs/screenshots/health-record-panel.png)
 
-### 資產記錄面板
+### 資產紀錄面板
 
-管理家庭資產，包含購買追蹤、保固監控及文件記錄。
+管理家庭資產，包含購買追蹤、保固監控及文件紀錄。
 
-![資產記錄面板](docs/screenshots/asset-record-panel.png)
+![資產紀錄面板](docs/screenshots/asset-record-panel.png)
 
-### 筆記記錄面板
+### 筆記紀錄面板
 
 整理筆記，支援分類、搜尋及 Markdown。
 
-![筆記記錄面板](docs/screenshots/note-record-panel.png)
+![筆記紀錄面板](docs/screenshots/note-record-panel.png)
 
 ### 財務面板
 
@@ -399,10 +399,10 @@ custom_components/
 
 ### 多項目設定
 
-- **健康記錄**：可新增多位成員（每位家庭成員一個設定項目）
-- **財務記錄**：可新增多個帳戶（每個財務帳戶一個設定項目）
-- **筆記記錄**：可新增多個分類
-- **資產記錄**：僅支援單一實例
+- **健康紀錄**：可新增多位成員（每位家庭成員一個設定項目）
+- **財務紀錄**：可新增多個帳戶（每個財務帳戶一個設定項目）
+- **筆記紀錄**：可新增多個分類
+- **資產紀錄**：僅支援單一實例
 
 ---
 
@@ -463,7 +463,7 @@ npx playwright test
 | `onboard.sh` | 自動完成全新 HA 的初始化（建立擁有者帳號、儲存 refresh token） |
 | `token.sh` | 以已儲存的 refresh token 換取新的 access token |
 | `bootstrap.sh` | 透過 config-flow REST API 建立第一個 the finance Area / the health Area 設定項目 |
-| `retention_test.py` | 寫入 1,100 筆交易 + 10,100 筆記錄，驗證全數保留（含 Pod 重啟後） |
+| `retention_test.py` | 寫入 1,100 筆交易 + 10,100 筆紀錄，驗證全數保留（含 Pod 重啟後） |
 
 ---
 
@@ -531,10 +531,10 @@ npx playwright test
 
 | 元件 | 版本 | 網域 |
 |------|------|------|
-| 健康記錄 | 1.1.0 | the `health` Area |
-| 資產記錄 | 1.0.2 | the `asset` Area |
-| 筆記記錄 | 1.0.2 | the `note` Area |
-| 財務記錄 | 1.1.0 | the `finance` Area |
+| 健康紀錄 | 1.1.0 | the `health` Area |
+| 資產紀錄 | 1.0.2 | the `asset` Area |
+| 筆記紀錄 | 1.0.2 | the `note` Area |
+| 財務紀錄 | 1.1.0 | the `finance` Area |
 
 ---
 
