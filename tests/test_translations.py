@@ -17,6 +17,7 @@ real translation, so it shares only the key structure, not the values.
 """
 from __future__ import annotations
 
+import ast
 import json
 from pathlib import Path
 
@@ -84,16 +85,8 @@ class TestTranslations:
             "verbatim copy, never edited by hand: copy strings.json over it."
         )
 
-    @pytest.mark.xfail(
-        reason="19 asset and note services have no strings.json entries — #13",
-        strict=True,
-    )
     def test_every_service_has_ui_strings(self) -> None:
-        """Every service in services.yaml is described in strings.json.
-
-        Remove the xfail marker when #13 lands; that is #13's completion
-        condition.
-        """
+        """Every service in services.yaml is described in strings.json."""
         declared = set(yaml.safe_load(SERVICES_YAML.read_text(encoding="utf-8")))
         described = set(_load_json(STRINGS).get("services", {}))
 
@@ -101,4 +94,52 @@ class TestTranslations:
         assert not undescribed, (
             f"{len(undescribed)} service(s) in services.yaml have no entry in "
             f"strings.json.services: {undescribed}"
+        )
+
+    def test_every_service_field_has_ui_strings(self) -> None:
+        """Every field a service accepts is described alongside it.
+
+        A service entry that names itself but not its fields still leaves the
+        service-call dialog falling back to ``services.yaml``, which is the
+        same defect #13 fixed, one level down.
+        """
+        schemas = yaml.safe_load(SERVICES_YAML.read_text(encoding="utf-8"))
+        described = _load_json(STRINGS).get("services", {})
+
+        undescribed = sorted(
+            f"{service}.{field}"
+            for service, schema in schemas.items()
+            if service in described
+            for field in (schema or {}).get("fields") or {}
+            if field not in (described[service].get("fields") or {})
+        )
+        assert not undescribed, (
+            f"{len(undescribed)} service field(s) in services.yaml have no "
+            f"entry in strings.json.services: {undescribed}"
+        )
+
+    def test_every_raised_exception_has_a_message(self) -> None:
+        """Every ``translation_key`` raised under areas/ has a message.
+
+        Exceptions have no fallback: ``async_get_exception_message`` returns
+        the translation key itself when the lookup misses, so a missing entry
+        shows the user the literal string ``asset_not_found``. This is the
+        regression guard for issue #13, where 15 such keys had accumulated
+        across three Areas with nothing watching them.
+        """
+        declared = set(_load_json(STRINGS).get("exceptions", {}))
+        raised = {
+            keyword.value.value
+            for path in (COMPONENT / "areas").rglob("*.py")
+            for node in ast.walk(ast.parse(path.read_text(encoding="utf-8")))
+            if isinstance(node, ast.Raise) and isinstance(node.exc, ast.Call)
+            for keyword in node.exc.keywords
+            if keyword.arg == "translation_key"
+            and isinstance(keyword.value, ast.Constant)
+        }
+
+        undescribed = sorted(raised - declared)
+        assert not undescribed, (
+            f"{len(undescribed)} exception(s) raised under areas/ have no "
+            f"entry in strings.json.exceptions: {undescribed}"
         )

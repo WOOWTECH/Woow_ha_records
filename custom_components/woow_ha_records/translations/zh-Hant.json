@@ -124,6 +124,51 @@
     },
     "member_exists": {
       "message": "成員「{member_id}」已存在。"
+    },
+    "invalid_amount": {
+      "message": "交易金額必須是有效且有限的數字。"
+    },
+    "asset_not_found": {
+      "message": "找不到資產「{asset_id}」。"
+    },
+    "name_required": {
+      "message": "資產名稱不可為空。"
+    },
+    "category_error": {
+      "message": "無法儲存分類。名稱可能為空、過長，或已被其他分類使用。"
+    },
+    "category_name_required": {
+      "message": "分類名稱不可為空。"
+    },
+    "category_not_found": {
+      "message": "找不到分類「{category_id}」。"
+    },
+    "note_not_found": {
+      "message": "找不到筆記「{note_id}」。"
+    },
+    "title_required": {
+      "message": "筆記標題不可為空。"
+    },
+    "title_too_long": {
+      "message": "筆記標題超過 {max_length} 個字元的長度上限。"
+    },
+    "title_duplicate": {
+      "message": "此分類中已存在相同標題的筆記。"
+    },
+    "content_too_long": {
+      "message": "筆記內容超過 {max_length} 個字元的長度上限。"
+    },
+    "category_name_too_long": {
+      "message": "分類名稱超過 {max_length} 個字元的長度上限。"
+    },
+    "category_duplicate": {
+      "message": "已存在相同名稱的分類。"
+    },
+    "delete_category_failed": {
+      "message": "刪除分類失敗。"
+    },
+    "update_failed": {
+      "message": "更新筆記失敗。"
     }
   },
   "services": {
@@ -365,6 +410,152 @@
         }
       }
     },
+    "asset_list_assets": {
+      "name": "列出資產",
+      "description": "列出所有資產與資產分類。"
+    },
+    "asset_get_asset": {
+      "name": "取得資產",
+      "description": "取得指定資產的完整資料。",
+      "fields": {
+        "asset_id": {
+          "name": "資產 ID",
+          "description": "資產的唯一識別碼。"
+        }
+      }
+    },
+    "asset_list_categories": {
+      "name": "列出分類",
+      "description": "列出所有資產分類。"
+    },
+    "asset_export_csv": {
+      "name": "匯出 CSV",
+      "description": "將所有資產匯出為 CSV 文字。"
+    },
+    "asset_create_asset": {
+      "name": "新增資產",
+      "description": "建立新的資產，僅名稱為必填。",
+      "fields": {
+        "name": {
+          "name": "名稱",
+          "description": "資產的顯示名稱。"
+        },
+        "brand": {
+          "name": "品牌",
+          "description": "製造商或品牌名稱。"
+        },
+        "category_id": {
+          "name": "分類 ID",
+          "description": "資產所屬的分類。留空則為未分類。"
+        },
+        "value": {
+          "name": "價值",
+          "description": "資產的價值或購買金額。預設 0。"
+        },
+        "purchase_at": {
+          "name": "購買時間",
+          "description": "購買日期（ISO 8601 格式）。"
+        },
+        "warranty_until": {
+          "name": "保固到期",
+          "description": "保固到期日期（ISO 8601 格式）。"
+        },
+        "manual_md": {
+          "name": "使用說明",
+          "description": "使用說明或操作指引的 Markdown 內容。"
+        },
+        "maintenance_md": {
+          "name": "維修說明",
+          "description": "保養排程或維修說明的 Markdown 內容。"
+        }
+      }
+    },
+    "asset_update_asset": {
+      "name": "更新資產",
+      "description": "修改既有資產的一個或多個欄位，未提供的欄位維持不變。",
+      "fields": {
+        "asset_id": {
+          "name": "資產 ID",
+          "description": "資產的唯一識別碼。"
+        },
+        "name": {
+          "name": "名稱",
+          "description": "新的資產名稱。不可為空。"
+        },
+        "brand": {
+          "name": "品牌",
+          "description": "新的品牌名稱。"
+        },
+        "category_id": {
+          "name": "分類 ID",
+          "description": "資產的新分類。"
+        },
+        "value": {
+          "name": "價值",
+          "description": "新的資產價值。"
+        },
+        "purchase_at": {
+          "name": "購買時間",
+          "description": "新的購買日期（ISO 8601 格式）。傳入空字串可清除。"
+        },
+        "warranty_until": {
+          "name": "保固到期",
+          "description": "新的保固到期日期（ISO 8601 格式）。傳入空字串可清除。"
+        },
+        "manual_md": {
+          "name": "使用說明",
+          "description": "新的使用說明內容。傳入空字串可清除。"
+        },
+        "maintenance_md": {
+          "name": "維修說明",
+          "description": "新的維修說明內容。傳入空字串可清除。"
+        }
+      }
+    },
+    "asset_delete_asset": {
+      "name": "刪除資產",
+      "description": "刪除資產及其關聯的實體。",
+      "fields": {
+        "asset_id": {
+          "name": "資產 ID",
+          "description": "要刪除的資產。"
+        }
+      }
+    },
+    "asset_create_category": {
+      "name": "新增分類",
+      "description": "建立新的資產分類。",
+      "fields": {
+        "name": {
+          "name": "名稱",
+          "description": "分類的顯示名稱。不可與其他分類重複。"
+        }
+      }
+    },
+    "asset_update_category": {
+      "name": "更新分類",
+      "description": "重新命名既有的資產分類。",
+      "fields": {
+        "category_id": {
+          "name": "分類 ID",
+          "description": "分類的唯一識別碼。"
+        },
+        "name": {
+          "name": "名稱",
+          "description": "新的分類名稱。不可為空，也不可與其他分類重複。"
+        }
+      }
+    },
+    "asset_delete_category": {
+      "name": "刪除分類",
+      "description": "刪除分類及其下的所有資產。",
+      "fields": {
+        "category_id": {
+          "name": "分類 ID",
+          "description": "要刪除的分類。"
+        }
+      }
+    },
     "health_get_members": {
       "name": "取得成員列表",
       "description": "列出所有家庭成員及其紀錄類型。"
@@ -588,6 +779,102 @@
         "member_id": {
           "name": "成員 ID",
           "description": "成員的唯一識別碼。"
+        }
+      }
+    },
+    "note_list_notes": {
+      "name": "列出筆記",
+      "description": "列出所有筆記與筆記分類。"
+    },
+    "note_get_note": {
+      "name": "取得筆記",
+      "description": "取得指定筆記的完整資料。",
+      "fields": {
+        "note_id": {
+          "name": "筆記 ID",
+          "description": "筆記的唯一識別碼。"
+        }
+      }
+    },
+    "note_list_categories": {
+      "name": "列出分類",
+      "description": "列出所有筆記分類。"
+    },
+    "note_export_markdown": {
+      "name": "匯出 Markdown",
+      "description": "將所有筆記依分類匯出為 Markdown 文字。"
+    },
+    "note_create_note": {
+      "name": "新增筆記",
+      "description": "在既有分類中建立新的筆記。",
+      "fields": {
+        "category_id": {
+          "name": "分類 ID",
+          "description": "筆記所屬的分類。"
+        },
+        "title": {
+          "name": "標題",
+          "description": "筆記標題。在同一分類中不可重複，最多 200 個字元。"
+        },
+        "content": {
+          "name": "內容",
+          "description": "筆記的 Markdown 內容，最多 100000 個字元。"
+        },
+        "pinned": {
+          "name": "置頂",
+          "description": "是否將筆記置頂於分類最上方。預設為否。"
+        }
+      }
+    },
+    "note_update_note": {
+      "name": "更新筆記",
+      "description": "修改既有筆記的一個或多個欄位，未提供的欄位維持不變。",
+      "fields": {
+        "note_id": {
+          "name": "筆記 ID",
+          "description": "筆記的唯一識別碼。"
+        },
+        "title": {
+          "name": "標題",
+          "description": "新的筆記標題。在同一分類中不可重複，最多 200 個字元。"
+        },
+        "content": {
+          "name": "內容",
+          "description": "新的 Markdown 內容，最多 100000 個字元。"
+        },
+        "pinned": {
+          "name": "置頂",
+          "description": "是否將筆記置頂於分類最上方。"
+        }
+      }
+    },
+    "note_delete_note": {
+      "name": "刪除筆記",
+      "description": "刪除筆記及其關聯的實體。",
+      "fields": {
+        "note_id": {
+          "name": "筆記 ID",
+          "description": "要刪除的筆記。"
+        }
+      }
+    },
+    "note_create_category": {
+      "name": "新增分類",
+      "description": "建立新的筆記分類。",
+      "fields": {
+        "name": {
+          "name": "名稱",
+          "description": "分類的顯示名稱。不可與其他分類重複，最多 100 個字元。"
+        }
+      }
+    },
+    "note_delete_category": {
+      "name": "刪除分類",
+      "description": "刪除分類及其下的所有筆記。",
+      "fields": {
+        "category_id": {
+          "name": "分類 ID",
+          "description": "要刪除的分類。"
         }
       }
     }
