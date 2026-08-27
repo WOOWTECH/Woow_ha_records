@@ -2,12 +2,12 @@
 from __future__ import annotations
 
 from types import MappingProxyType
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock
 
 import pytest
-
 from homeassistant.core import HomeAssistant
 
+from custom_components.woow_ha_records.areas.health.area import HealthArea
 from custom_components.woow_ha_records.areas.health.const import (
     CONF_MEMBER_ID,
     CONF_MEMBER_NAME,
@@ -17,8 +17,9 @@ from custom_components.woow_ha_records.areas.health.const import (
     CONF_RECORD_UNIT,
     DOMAIN,
 )
-from custom_components.woow_ha_records.areas.health.area import HealthArea
-from custom_components.woow_ha_records.areas.health.coordinator import HealthRecordCoordinator
+from custom_components.woow_ha_records.areas.health.coordinator import (
+    HealthRecordCoordinator,
+)
 
 MOCK_MEMBER_ID = "test_member"
 MOCK_MEMBER_NAME = "Test Member"
@@ -60,6 +61,7 @@ def mock_config_entry(hass: HomeAssistant):
         options={CONF_RECORD_SETS: MOCK_RECORD_SET_OPTIONS},
         unique_id=MOCK_MEMBER_ID,
         discovery_keys=MappingProxyType({}),
+        subentries_data=(),
     )
     entry.hass = hass
     return entry

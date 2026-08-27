@@ -287,7 +287,7 @@
     },
     "finance_add_plan": {
       "name": "新增週期計畫",
-      "description": "建立新的週期性收支計畫，並依排程自動執行。",
+      "description": "建立新的週期計畫，並依排程自動執行。",
       "fields": {
         "account_id": {
           "name": "帳戶 ID",

@@ -5,7 +5,6 @@ from types import MappingProxyType
 from unittest.mock import AsyncMock
 
 import pytest
-
 from homeassistant.core import HomeAssistant
 
 from custom_components.woow_ha_records.areas.asset.const import DOMAIN
@@ -27,6 +26,7 @@ def mock_config_entry(hass: HomeAssistant):
         options={},
         unique_id=DOMAIN,
         discovery_keys=MappingProxyType({}),
+        subentries_data=(),
     )
     entry.hass = hass
     return entry
