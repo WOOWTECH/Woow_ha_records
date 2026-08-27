@@ -272,7 +272,8 @@ async def handle_update_record(call: ServiceCall) -> ServiceResponse:
 
     raise ServiceValidationError(
         f"Record not found for member '{member_id}', type '{type_id}', "
-        f"timestamp '{timestamp}'" + (f", record_id '{record_id}'" if record_id else ""),
+        f"timestamp '{timestamp}'"
+        + (f", record_id '{record_id}'" if record_id else ""),
         translation_domain=DOMAIN,
         translation_key="health.record_not_found",
         translation_placeholders={
@@ -298,7 +299,8 @@ async def handle_delete_record(call: ServiceCall) -> ServiceResponse:
 
     raise ServiceValidationError(
         f"Record not found for member '{member_id}', type '{type_id}', "
-        f"timestamp '{timestamp}'" + (f", record_id '{record_id}'" if record_id else ""),
+        f"timestamp '{timestamp}'"
+        + (f", record_id '{record_id}'" if record_id else ""),
         translation_domain=DOMAIN,
         translation_key="health.record_not_found",
         translation_placeholders={

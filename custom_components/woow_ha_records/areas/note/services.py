@@ -88,9 +88,6 @@ async def handle_export_markdown(call: ServiceCall) -> ServiceResponse:
     """Export all notes as a single Markdown string."""
     store = _get_store(call.hass)
 
-    # Build category name lookup
-    cat_map = {c.id: c.name for c in store.categories}
-
     # Group notes by category
     notes_by_cat: dict[str, list] = {}
     for note in store.notes:
@@ -135,7 +132,8 @@ async def handle_create_category(call: ServiceCall) -> ServiceResponse:
 
     if len(name) > MAX_CATEGORY_NAME_LENGTH:
         raise ServiceValidationError(
-            f"Category name exceeds maximum length of {MAX_CATEGORY_NAME_LENGTH} characters",
+            f"Category name exceeds maximum length of "
+            f"{MAX_CATEGORY_NAME_LENGTH} characters",
             translation_domain=DOMAIN,
             translation_key="note.category_name_too_long",
             translation_placeholders={"max_length": str(MAX_CATEGORY_NAME_LENGTH)},
@@ -179,7 +177,8 @@ async def handle_create_note(call: ServiceCall) -> ServiceResponse:
 
     if len(content) > MAX_NOTE_CONTENT_LENGTH:
         raise ServiceValidationError(
-            f"Note content exceeds maximum length of {MAX_NOTE_CONTENT_LENGTH} characters",
+            f"Note content exceeds maximum length of "
+            f"{MAX_NOTE_CONTENT_LENGTH} characters",
             translation_domain=DOMAIN,
             translation_key="note.content_too_long",
             translation_placeholders={"max_length": str(MAX_NOTE_CONTENT_LENGTH)},
@@ -246,7 +245,8 @@ async def handle_update_note(call: ServiceCall) -> ServiceResponse:
 
         if len(title) > MAX_NOTE_TITLE_LENGTH:
             raise ServiceValidationError(
-                f"Note title exceeds maximum length of {MAX_NOTE_TITLE_LENGTH} characters",
+                f"Note title exceeds maximum length of "
+                f"{MAX_NOTE_TITLE_LENGTH} characters",
                 translation_domain=DOMAIN,
                 translation_key="note.title_too_long",
                 translation_placeholders={"max_length": str(MAX_NOTE_TITLE_LENGTH)},
@@ -267,7 +267,8 @@ async def handle_update_note(call: ServiceCall) -> ServiceResponse:
         content = call.data["content"]
         if len(content) > MAX_NOTE_CONTENT_LENGTH:
             raise ServiceValidationError(
-                f"Note content exceeds maximum length of {MAX_NOTE_CONTENT_LENGTH} characters",
+                f"Note content exceeds maximum length of "
+                f"{MAX_NOTE_CONTENT_LENGTH} characters",
                 translation_domain=DOMAIN,
                 translation_key="note.content_too_long",
                 translation_placeholders={"max_length": str(MAX_NOTE_CONTENT_LENGTH)},
@@ -362,7 +363,9 @@ async def handle_delete_category(call: ServiceCall) -> ServiceResponse:
 
     # Clean up device registry entry
     dev_reg = dr.async_get(call.hass)
-    device = dev_reg.async_get_device(identifiers={(DOMAIN, device_id(AREA, category_id))})
+    device = dev_reg.async_get_device(
+        identifiers={(DOMAIN, device_id(AREA, category_id))}
+    )
     if device:
         dev_reg.async_remove_device(device.id)
 
