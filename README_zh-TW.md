@@ -76,13 +76,13 @@
 | the `health` Area | 12 | 3 個公開讀取，9 個管理員寫入 | 追蹤家庭成員的健康指標 |
 | the `asset` Area | 4 | 1 個公開讀取，3 個管理員寫入 | 管理家庭資產與保固追蹤 |
 | the `note` Area | 6 | 1 個公開讀取，5 個管理員寫入 | 整理筆記，支援分類與 Markdown |
-| the `finance` Area | 12 | 全部公開（無需管理員權限） | 多帳戶財務追蹤與定期計畫 |
+| the `finance` Area | 12 | 全部公開（無需管理員權限） | 多帳戶財務追蹤與週期計畫 |
 
 ### 探索順序
 
 首次連線時，建議依此順序探索可用資料：
 
-1. **健康**：呼叫 `woow_ha_records/health/get_members` 列出所有成員及其記錄類型
+1. **健康**：呼叫 `woow_ha_records/health/get_members` 列出所有成員及其紀錄類型
 2. **資產**：呼叫 `woow_ha_records/asset/list` 列出所有追蹤中的資產
 3. **筆記**：呼叫 `woow_ha_records/note/get_data` 列出所有分類與筆記
 4. **財務**：呼叫 `woow_ha_records/finance/accounts` 列出所有財務帳戶
@@ -107,15 +107,15 @@
 
 | # | 指令 | 驗證 | 說明 |
 |---|------|------|------|
-| 1 | `woow_ha_records/health/get_members` | Public | 列出所有成員及其記錄類型與最新數值 |
+| 1 | `woow_ha_records/health/get_members` | Public | 列出所有成員及其紀錄類型與最新數值 |
 | 2 | `woow_ha_records/health/get_records` | Public | 依時間範圍查詢所有成員的記錄 |
 | 3 | `woow_ha_records/health/export_csv` | Public | 匯出成員的記錄為 CSV |
 | 4 | `woow_ha_records/health/log_record` | Admin | 記錄一筆健康數據 |
 | 5 | `woow_ha_records/health/update_record` | Admin | 更新現有記錄的數值、備註或時間戳 |
 | 6 | `woow_ha_records/health/delete_record` | Admin | 刪除特定記錄 |
-| 7 | `woow_ha_records/health/add_record_type` | Admin | 為成員新增自訂記錄類型 |
-| 8 | `woow_ha_records/health/update_record_type` | Admin | 更新記錄類型名稱、單位或預設值 |
-| 9 | `woow_ha_records/health/delete_record_type` | Admin | 刪除記錄類型並清理實體 |
+| 7 | `woow_ha_records/health/add_record_type` | Admin | 為成員新增自訂紀錄類型 |
+| 8 | `woow_ha_records/health/update_record_type` | Admin | 更新紀錄類型名稱、單位或預設值 |
+| 9 | `woow_ha_records/health/delete_record_type` | Admin | 刪除紀錄類型並清理實體 |
 | 10 | `woow_ha_records/health/add_member` | Admin | 新增家庭成員 |
 | 11 | `woow_ha_records/health/update_member` | Admin | 更新成員名稱或備註 |
 | 12 | `woow_ha_records/health/delete_member` | Admin | 刪除成員及所有關聯資料 |
@@ -133,13 +133,13 @@
 | 24 | `woow_ha_records/note/delete_note` | Admin | 刪除筆記並清理實體 |
 | 25 | `woow_ha_records/note/delete_category` | Admin | 刪除分類（連鎖刪除所有筆記） |
 | 26 | `woow_ha_records/finance/accounts` | Public | 列出所有財務帳戶 |
-| 27 | `woow_ha_records/finance/account` | Public | 取得帳戶詳情（含交易與定期計畫） |
+| 27 | `woow_ha_records/finance/account` | Public | 取得帳戶詳情（含交易與週期計畫） |
 | 28 | `woow_ha_records/finance/add_transaction` | Public | 新增交易 |
 | 29 | `woow_ha_records/finance/update_transaction` | Public | 更新交易金額或備註 |
 | 30 | `woow_ha_records/finance/delete_transaction` | Public | 刪除交易（反轉餘額） |
-| 31 | `woow_ha_records/finance/add_plan` | Public | 新增定期計畫 |
-| 32 | `woow_ha_records/finance/update_plan` | Public | 更新定期計畫 |
-| 33 | `woow_ha_records/finance/delete_plan` | Public | 刪除定期計畫 |
+| 31 | `woow_ha_records/finance/add_plan` | Public | 新增週期計畫 |
+| 32 | `woow_ha_records/finance/update_plan` | Public | 更新週期計畫 |
+| 33 | `woow_ha_records/finance/delete_plan` | Public | 刪除週期計畫 |
 | 34 | `woow_ha_records/finance/chart_data` | Public | 取得月度收支彙總 |
 | 35 | `woow_ha_records/finance/add_account` | Public | 建立新帳戶（透過 ConfigEntry） |
 | 36 | `woow_ha_records/finance/update_account` | Public | 更新帳戶名稱或備註 |
@@ -213,14 +213,14 @@
 | 代碼 | 網域 | 意義 |
 |------|------|------|
 | `member_not_found` | health_record | 成員 ID 不匹配任何已載入的 ConfigEntry |
-| `record_type_not_found` | health_record | 該成員找不到記錄類型 ID |
-| `type_not_found` | health_record | 記錄類型未找到（用於更新/刪除） |
+| `record_type_not_found` | health_record | 該成員找不到紀錄類型 ID |
+| `type_not_found` | health_record | 紀錄類型未找到（用於更新/刪除） |
 | `record_not_found` | health_record | 無匹配給定 ID/時間戳的記錄 |
 | `invalid_date` | health_record | ISO 8601 日期時間解析失敗 |
 | `invalid_timestamp` | health_record | timestamp 欄位不是有效的 ISO 8601 |
 | `invalid_type_id` | health_record | 名稱清理後 type_id 為空 |
 | `invalid_member_id` | health_record | 清理後成員 ID 為空 |
-| `type_exists` | health_record | 重複的記錄類型 ID |
+| `type_exists` | health_record | 重複的紀錄類型 ID |
 | `member_exists` | health_record | 重複的成員 ID |
 | `create_failed` | health_record | 設定流程建立項目失敗 |
 | `log_failed` | health_record | 記錄過程中的內部錯誤 |
@@ -324,7 +324,7 @@ reload 會重讀 store，而延遲寫入可能還沒落地。所以改由 platfo
 
 ### 健康記錄面板
 
-追蹤家庭成員的健康指標，支援自訂記錄類型與 CSV 匯出。
+追蹤家庭成員的健康指標，支援自訂紀錄類型與 CSV 匯出。
 
 ![健康記錄面板](docs/screenshots/health-record-panel.png)
 
@@ -442,10 +442,10 @@ npx playwright test
 
 | 套件 | 測試數 | 說明 |
 |------|--------|------|
-| `health-record.spec.ts` | 28 | 成員管理、記錄類型、CRUD、CSV 匯出、時間序列 |
+| `health-record.spec.ts` | 28 | 成員管理、紀錄類型、CRUD、CSV 匯出、時間序列 |
 | `asset-record.spec.ts` | 28 | 資產 CRUD、分類、搜尋、Markdown、保固追蹤 |
 | `note-record.spec.ts` | 38 | 筆記 CRUD、分類、搜尋、Markdown、XSS 防護 |
-| `finance-record.spec.ts` | 38 | 帳戶管理、交易、定期計畫、圖表 |
+| `finance-record.spec.ts` | 38 | 帳戶管理、交易、週期計畫、圖表 |
 | `integration.spec.ts` | 11 | 跨元件整合與資料隔離 |
 
 **需求：**
