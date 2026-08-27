@@ -71,104 +71,121 @@
     }
   },
   "exceptions": {
-    "account_not_found": {
-      "message": "Account '{account_id}' not found."
+    "finance": {
+      "account_not_found": {
+        "message": "Account {account_id} not found."
+      },
+      "transaction_not_found": {
+        "message": "Transaction {transaction_id} not found."
+      },
+      "plan_not_found": {
+        "message": "Plan {plan_id} not found."
+      },
+      "transaction_failed": {
+        "message": "Failed to create transaction."
+      },
+      "invalid_name": {
+        "message": "Account name cannot be empty."
+      },
+      "duplicate_name": {
+        "message": "Account with name {name} already exists."
+      },
+      "invalid_amount": {
+        "message": "Transaction amount must be a valid, finite number."
+      }
     },
-    "transaction_not_found": {
-      "message": "Transaction '{transaction_id}' not found."
+    "asset": {
+      "invalid_datetime": {
+        "message": "Invalid datetime for {field}: {value}"
+      },
+      "asset_not_found": {
+        "message": "Asset {asset_id} not found."
+      },
+      "name_required": {
+        "message": "Asset name cannot be empty."
+      },
+      "category_error": {
+        "message": "Could not save the category. The name may be empty, too long, or already in use."
+      },
+      "category_name_required": {
+        "message": "Category name cannot be empty."
+      },
+      "category_not_found": {
+        "message": "Category {category_id} not found."
+      }
     },
-    "plan_not_found": {
-      "message": "Plan '{plan_id}' not found."
+    "health": {
+      "member_not_found": {
+        "message": "Member {member_id} not found."
+      },
+      "record_type_not_found": {
+        "message": "Record type {record_type} not found for member {member_id}."
+      },
+      "record_not_found": {
+        "message": "Record not found for member {member_id}, record type {type_id} at {timestamp}."
+      },
+      "invalid_datetime": {
+        "message": "Invalid datetime for {field}: {value}"
+      },
+      "log_failed": {
+        "message": "Failed to log record."
+      },
+      "invalid_type_id": {
+        "message": "Name must contain at least one alphanumeric character."
+      },
+      "type_exists": {
+        "message": "Record type {type_id} already exists."
+      },
+      "type_not_found": {
+        "message": "Record type {type_id} not found."
+      },
+      "invalid_member_id": {
+        "message": "Member ID is empty after sanitization."
+      },
+      "member_exists": {
+        "message": "Member {member_id} already exists."
+      }
     },
-    "transaction_failed": {
-      "message": "Failed to create transaction."
-    },
-    "invalid_name": {
-      "message": "Account name cannot be empty."
-    },
-    "duplicate_name": {
-      "message": "Account with name '{name}' already exists."
-    },
-    "create_failed": {
-      "message": "Failed to create note."
-    },
-    "delete_failed": {
-      "message": "Failed to delete note."
-    },
-    "member_not_found": {
-      "message": "Member '{member_id}' not found."
-    },
-    "record_type_not_found": {
-      "message": "Record type '{record_type}' not found for member '{member_id}'."
-    },
-    "record_not_found": {
-      "message": "Record not found for member '{member_id}', record type '{type_id}' at {timestamp}."
-    },
-    "invalid_datetime": {
-      "message": "Invalid datetime for '{field}': {value}"
-    },
-    "log_failed": {
-      "message": "Failed to log record."
-    },
-    "invalid_type_id": {
-      "message": "Name must contain at least one alphanumeric character."
-    },
-    "type_exists": {
-      "message": "Record type '{type_id}' already exists."
-    },
-    "type_not_found": {
-      "message": "Record type '{type_id}' not found."
-    },
-    "invalid_member_id": {
-      "message": "Member ID is empty after sanitization."
-    },
-    "member_exists": {
-      "message": "Member '{member_id}' already exists."
-    },
-    "invalid_amount": {
-      "message": "Transaction amount must be a valid, finite number."
-    },
-    "asset_not_found": {
-      "message": "Asset '{asset_id}' not found."
-    },
-    "name_required": {
-      "message": "Asset name cannot be empty."
-    },
-    "category_error": {
-      "message": "Could not save the category. The name may be empty, too long, or already in use."
-    },
-    "category_name_required": {
-      "message": "Category name cannot be empty."
-    },
-    "category_not_found": {
-      "message": "Category '{category_id}' not found."
-    },
-    "note_not_found": {
-      "message": "Note '{note_id}' not found."
-    },
-    "title_required": {
-      "message": "Note title cannot be empty."
-    },
-    "title_too_long": {
-      "message": "Note title exceeds the maximum length of {max_length} characters."
-    },
-    "title_duplicate": {
-      "message": "A note with this title already exists in this category."
-    },
-    "content_too_long": {
-      "message": "Note content exceeds the maximum length of {max_length} characters."
-    },
-    "category_name_too_long": {
-      "message": "Category name exceeds the maximum length of {max_length} characters."
-    },
-    "category_duplicate": {
-      "message": "A category with this name already exists."
-    },
-    "delete_category_failed": {
-      "message": "Failed to delete category."
-    },
-    "update_failed": {
-      "message": "Failed to update note."
+    "note": {
+      "create_failed": {
+        "message": "Failed to create note."
+      },
+      "delete_failed": {
+        "message": "Failed to delete note."
+      },
+      "category_name_required": {
+        "message": "Category name cannot be empty."
+      },
+      "category_not_found": {
+        "message": "Category {category_id} not found."
+      },
+      "note_not_found": {
+        "message": "Note {note_id} not found."
+      },
+      "title_required": {
+        "message": "Note title cannot be empty."
+      },
+      "title_too_long": {
+        "message": "Note title exceeds the maximum length of {max_length} characters."
+      },
+      "title_duplicate": {
+        "message": "A note with this title already exists in this category."
+      },
+      "content_too_long": {
+        "message": "Note content exceeds the maximum length of {max_length} characters."
+      },
+      "category_name_too_long": {
+        "message": "Category name exceeds the maximum length of {max_length} characters."
+      },
+      "category_duplicate": {
+        "message": "A category with this name already exists."
+      },
+      "delete_category_failed": {
+        "message": "Failed to delete category."
+      },
+      "update_failed": {
+        "message": "Failed to update note."
+      }
     }
   },
   "services": {

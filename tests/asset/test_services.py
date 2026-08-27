@@ -5,7 +5,6 @@ import json
 from pathlib import Path
 
 import pytest
-
 from homeassistant.exceptions import ServiceValidationError
 
 from custom_components.woow_ha_records.areas.asset.services import _parse_datetime
@@ -46,7 +45,7 @@ class TestParseDatetime:
         with pytest.raises(ServiceValidationError) as caught:
             _parse_datetime("not-a-date", "warranty_until")
 
-        assert caught.value.translation_key == "invalid_datetime"
+        assert caught.value.translation_key == "asset.invalid_datetime"
         assert caught.value.translation_placeholders == {
             "field": "warranty_until",
             "value": "not-a-date",
@@ -54,9 +53,8 @@ class TestParseDatetime:
 
     def test_renders_a_message_with_nothing_left_unfilled(self) -> None:
         """The placeholders raised actually fill in the published message."""
-        message = json.loads(STRINGS.read_text(encoding="utf-8"))["exceptions"][
-            "invalid_datetime"
-        ]["message"]
+        exceptions = json.loads(STRINGS.read_text(encoding="utf-8"))["exceptions"]
+        message = exceptions["asset"]["invalid_datetime"]["message"]
 
         with pytest.raises(ServiceValidationError) as caught:
             _parse_datetime("not-a-date", "purchase_at")

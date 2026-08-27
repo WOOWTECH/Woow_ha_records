@@ -71,104 +71,121 @@
     }
   },
   "exceptions": {
-    "account_not_found": {
-      "message": "找不到帳戶「{account_id}」。"
+    "finance": {
+      "account_not_found": {
+        "message": "找不到帳戶「{account_id}」。"
+      },
+      "transaction_not_found": {
+        "message": "找不到交易「{transaction_id}」。"
+      },
+      "plan_not_found": {
+        "message": "找不到計畫「{plan_id}」。"
+      },
+      "transaction_failed": {
+        "message": "建立交易失敗。"
+      },
+      "invalid_name": {
+        "message": "帳戶名稱不可為空。"
+      },
+      "duplicate_name": {
+        "message": "名稱為「{name}」的帳戶已存在。"
+      },
+      "invalid_amount": {
+        "message": "交易金額必須是有效且有限的數字。"
+      }
     },
-    "transaction_not_found": {
-      "message": "找不到交易「{transaction_id}」。"
+    "asset": {
+      "invalid_datetime": {
+        "message": "欄位「{field}」的日期時間格式無效：{value}"
+      },
+      "asset_not_found": {
+        "message": "找不到資產「{asset_id}」。"
+      },
+      "name_required": {
+        "message": "資產名稱不可為空。"
+      },
+      "category_error": {
+        "message": "無法儲存分類。名稱可能為空、過長，或已被其他分類使用。"
+      },
+      "category_name_required": {
+        "message": "分類名稱不可為空。"
+      },
+      "category_not_found": {
+        "message": "找不到分類「{category_id}」。"
+      }
     },
-    "plan_not_found": {
-      "message": "找不到計畫「{plan_id}」。"
+    "health": {
+      "member_not_found": {
+        "message": "找不到成員「{member_id}」。"
+      },
+      "record_type_not_found": {
+        "message": "在成員「{member_id}」中找不到紀錄類型「{record_type}」。"
+      },
+      "record_not_found": {
+        "message": "在成員「{member_id}」中找不到紀錄類型「{type_id}」於 {timestamp} 的紀錄。"
+      },
+      "invalid_datetime": {
+        "message": "欄位「{field}」的日期時間格式無效：{value}"
+      },
+      "log_failed": {
+        "message": "紀錄寫入失敗。"
+      },
+      "invalid_type_id": {
+        "message": "名稱必須包含至少一個英數字元。"
+      },
+      "type_exists": {
+        "message": "紀錄類型「{type_id}」已存在。"
+      },
+      "type_not_found": {
+        "message": "找不到紀錄類型「{type_id}」。"
+      },
+      "invalid_member_id": {
+        "message": "清理後的成員 ID 為空。"
+      },
+      "member_exists": {
+        "message": "成員「{member_id}」已存在。"
+      }
     },
-    "transaction_failed": {
-      "message": "建立交易失敗。"
-    },
-    "invalid_name": {
-      "message": "帳戶名稱不可為空。"
-    },
-    "duplicate_name": {
-      "message": "名稱為「{name}」的帳戶已存在。"
-    },
-    "create_failed": {
-      "message": "建立筆記失敗。"
-    },
-    "delete_failed": {
-      "message": "刪除筆記失敗。"
-    },
-    "member_not_found": {
-      "message": "找不到成員「{member_id}」。"
-    },
-    "record_type_not_found": {
-      "message": "在成員「{member_id}」中找不到紀錄類型「{record_type}」。"
-    },
-    "record_not_found": {
-      "message": "在成員「{member_id}」中找不到紀錄類型「{type_id}」於 {timestamp} 的紀錄。"
-    },
-    "invalid_datetime": {
-      "message": "欄位「{field}」的日期時間格式無效：{value}"
-    },
-    "log_failed": {
-      "message": "紀錄寫入失敗。"
-    },
-    "invalid_type_id": {
-      "message": "名稱必須包含至少一個英數字元。"
-    },
-    "type_exists": {
-      "message": "紀錄類型「{type_id}」已存在。"
-    },
-    "type_not_found": {
-      "message": "找不到紀錄類型「{type_id}」。"
-    },
-    "invalid_member_id": {
-      "message": "清理後的成員 ID 為空。"
-    },
-    "member_exists": {
-      "message": "成員「{member_id}」已存在。"
-    },
-    "invalid_amount": {
-      "message": "交易金額必須是有效且有限的數字。"
-    },
-    "asset_not_found": {
-      "message": "找不到資產「{asset_id}」。"
-    },
-    "name_required": {
-      "message": "資產名稱不可為空。"
-    },
-    "category_error": {
-      "message": "無法儲存分類。名稱可能為空、過長，或已被其他分類使用。"
-    },
-    "category_name_required": {
-      "message": "分類名稱不可為空。"
-    },
-    "category_not_found": {
-      "message": "找不到分類「{category_id}」。"
-    },
-    "note_not_found": {
-      "message": "找不到筆記「{note_id}」。"
-    },
-    "title_required": {
-      "message": "筆記標題不可為空。"
-    },
-    "title_too_long": {
-      "message": "筆記標題超過 {max_length} 個字元的長度上限。"
-    },
-    "title_duplicate": {
-      "message": "此分類中已存在相同標題的筆記。"
-    },
-    "content_too_long": {
-      "message": "筆記內容超過 {max_length} 個字元的長度上限。"
-    },
-    "category_name_too_long": {
-      "message": "分類名稱超過 {max_length} 個字元的長度上限。"
-    },
-    "category_duplicate": {
-      "message": "已存在相同名稱的分類。"
-    },
-    "delete_category_failed": {
-      "message": "刪除分類失敗。"
-    },
-    "update_failed": {
-      "message": "更新筆記失敗。"
+    "note": {
+      "create_failed": {
+        "message": "建立筆記失敗。"
+      },
+      "delete_failed": {
+        "message": "刪除筆記失敗。"
+      },
+      "category_name_required": {
+        "message": "分類名稱不可為空。"
+      },
+      "category_not_found": {
+        "message": "找不到分類「{category_id}」。"
+      },
+      "note_not_found": {
+        "message": "找不到筆記「{note_id}」。"
+      },
+      "title_required": {
+        "message": "筆記標題不可為空。"
+      },
+      "title_too_long": {
+        "message": "筆記標題超過 {max_length} 個字元的長度上限。"
+      },
+      "title_duplicate": {
+        "message": "此分類中已存在相同標題的筆記。"
+      },
+      "content_too_long": {
+        "message": "筆記內容超過 {max_length} 個字元的長度上限。"
+      },
+      "category_name_too_long": {
+        "message": "分類名稱超過 {max_length} 個字元的長度上限。"
+      },
+      "category_duplicate": {
+        "message": "已存在相同名稱的分類。"
+      },
+      "delete_category_failed": {
+        "message": "刪除分類失敗。"
+      },
+      "update_failed": {
+        "message": "更新筆記失敗。"
+      }
     }
   },
   "services": {

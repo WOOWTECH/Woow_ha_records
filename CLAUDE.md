@@ -9,6 +9,13 @@ Services are named `woow_ha_records.<area>_<verb>`, WebSocket commands
 `custom_components/woow_ha_records/areas/<area>/`; the top-level platform
 modules only fan out to the Areas that implement them.
 
+Exception translation keys follow the same boundary: `strings.json`'s
+`exceptions` is nested one level per Area, and a raise site names its own —
+`translation_key="asset.category_not_found"`. Two Areas that need the same
+wording each keep their own copy. Never borrow another Area's key: it was one
+flat namespace until #30, and #27 is the defect that produced. Home Assistant
+flattens the whole subtree before the lookup, so the nesting costs nothing.
+
 Read [CONTEXT.md](CONTEXT.md) for the vocabulary and
 [ADR-0001](docs/adr/0001-merge-four-integrations-into-one-domain.md) for why
 this is one integration rather than four.
