@@ -2,10 +2,9 @@
 from __future__ import annotations
 
 from types import MappingProxyType
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock
 
 import pytest
-
 from homeassistant.core import HomeAssistant
 
 from custom_components.woow_ha_records.areas.finance.const import DOMAIN
@@ -34,6 +33,7 @@ def mock_config_entry(hass: HomeAssistant):
         },
         unique_id="test_account",
         discovery_keys=MappingProxyType({}),
+        subentries_data=(),
     )
     entry.hass = hass
     return entry

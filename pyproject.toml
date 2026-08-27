@@ -2,7 +2,7 @@
 name = "ha-record-suite"
 version = "1.1.0"
 description = "Home Assistant custom components: health, asset, note, and finance records"
-requires-python = ">=3.12"
+requires-python = ">=3.14"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -11,7 +11,7 @@ pythonpath = ["."]
 
 [tool.ruff]
 line-length = 88
-target-version = "py312"
+target-version = "py314"
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I"]
