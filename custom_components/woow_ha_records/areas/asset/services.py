@@ -72,7 +72,7 @@ def _parse_datetime(value: str | None, field: str) -> datetime | None:
         raise ServiceValidationError(
             f"Invalid datetime for '{field}': {value!r}",
             translation_domain=DOMAIN,
-            translation_key="invalid_datetime",
+            translation_key="asset.invalid_datetime",
             translation_placeholders={"field": field, "value": str(value)},
         )
     if parsed.tzinfo is None:
@@ -102,7 +102,7 @@ async def handle_get_asset(call: ServiceCall) -> ServiceResponse:
         raise ServiceValidationError(
             f"Asset '{asset_id}' not found",
             translation_domain=DOMAIN,
-            translation_key="asset_not_found",
+            translation_key="asset.asset_not_found",
             translation_placeholders={"asset_id": asset_id},
         )
     return {"asset": asset.to_dict()}
@@ -165,7 +165,7 @@ async def handle_create_asset(call: ServiceCall) -> ServiceResponse:
         raise ServiceValidationError(
             "Asset name is required",
             translation_domain=DOMAIN,
-            translation_key="name_required",
+            translation_key="asset.name_required",
         )
 
     purchase_at = _parse_datetime(call.data.get("purchase_at"), "purchase_at")
@@ -195,7 +195,7 @@ async def handle_update_asset(call: ServiceCall) -> ServiceResponse:
         raise ServiceValidationError(
             f"Asset '{asset_id}' not found",
             translation_domain=DOMAIN,
-            translation_key="asset_not_found",
+            translation_key="asset.asset_not_found",
             translation_placeholders={"asset_id": asset_id},
         )
 
@@ -206,7 +206,7 @@ async def handle_update_asset(call: ServiceCall) -> ServiceResponse:
             raise ServiceValidationError(
                 "Asset name cannot be empty",
                 translation_domain=DOMAIN,
-                translation_key="name_required",
+                translation_key="asset.name_required",
             )
         await coordinator.async_update_asset(asset_id, FIELD_NAME, name)
 
@@ -253,7 +253,7 @@ async def handle_delete_asset(call: ServiceCall) -> ServiceResponse:
         raise ServiceValidationError(
             f"Asset '{asset_id}' not found",
             translation_domain=DOMAIN,
-            translation_key="asset_not_found",
+            translation_key="asset.asset_not_found",
             translation_placeholders={"asset_id": asset_id},
         )
     return {"success": True}
@@ -272,7 +272,7 @@ async def handle_create_category(call: ServiceCall) -> ServiceResponse:
         raise ServiceValidationError(
             "Category name is required",
             translation_domain=DOMAIN,
-            translation_key="category_name_required",
+            translation_key="asset.category_name_required",
         )
     try:
         category = await coordinator.async_create_category(name)
@@ -280,7 +280,7 @@ async def handle_create_category(call: ServiceCall) -> ServiceResponse:
         raise ServiceValidationError(
             str(exc),
             translation_domain=DOMAIN,
-            translation_key="category_error",
+            translation_key="asset.category_error",
         ) from exc
     return {"success": True, "category": category.to_dict()}
 
@@ -294,7 +294,7 @@ async def handle_update_category(call: ServiceCall) -> ServiceResponse:
         raise ServiceValidationError(
             "Category name is required",
             translation_domain=DOMAIN,
-            translation_key="category_name_required",
+            translation_key="asset.category_name_required",
         )
     try:
         category = await coordinator.async_update_category(category_id, name)
@@ -302,7 +302,7 @@ async def handle_update_category(call: ServiceCall) -> ServiceResponse:
         raise ServiceValidationError(
             str(exc),
             translation_domain=DOMAIN,
-            translation_key="category_error",
+            translation_key="asset.category_error",
         ) from exc
     return {"success": True, "category": category.to_dict()}
 
@@ -316,7 +316,7 @@ async def handle_delete_category(call: ServiceCall) -> ServiceResponse:
         raise ServiceValidationError(
             f"Category '{category_id}' not found",
             translation_domain=DOMAIN,
-            translation_key="category_not_found",
+            translation_key="asset.category_not_found",
             translation_placeholders={"category_id": category_id},
         )
     return {"success": True}

@@ -72,7 +72,7 @@ async def handle_get_note(call: ServiceCall) -> ServiceResponse:
         raise ServiceValidationError(
             f"Note '{note_id}' not found",
             translation_domain=DOMAIN,
-            translation_key="note_not_found",
+            translation_key="note.note_not_found",
             translation_placeholders={"note_id": note_id},
         )
     return {"note": note.to_dict()}
@@ -130,14 +130,14 @@ async def handle_create_category(call: ServiceCall) -> ServiceResponse:
         raise ServiceValidationError(
             "Category name is required",
             translation_domain=DOMAIN,
-            translation_key="category_name_required",
+            translation_key="note.category_name_required",
         )
 
     if len(name) > MAX_CATEGORY_NAME_LENGTH:
         raise ServiceValidationError(
             f"Category name exceeds maximum length of {MAX_CATEGORY_NAME_LENGTH} characters",
             translation_domain=DOMAIN,
-            translation_key="category_name_too_long",
+            translation_key="note.category_name_too_long",
             translation_placeholders={"max_length": str(MAX_CATEGORY_NAME_LENGTH)},
         )
 
@@ -147,7 +147,7 @@ async def handle_create_category(call: ServiceCall) -> ServiceResponse:
             raise ServiceValidationError(
                 "Category already exists",
                 translation_domain=DOMAIN,
-                translation_key="category_duplicate",
+                translation_key="note.category_duplicate",
             )
 
     category = await store.async_create_category(name)
@@ -166,14 +166,14 @@ async def handle_create_note(call: ServiceCall) -> ServiceResponse:
         raise ServiceValidationError(
             "Note title is required",
             translation_domain=DOMAIN,
-            translation_key="title_required",
+            translation_key="note.title_required",
         )
 
     if len(title) > MAX_NOTE_TITLE_LENGTH:
         raise ServiceValidationError(
             f"Note title exceeds maximum length of {MAX_NOTE_TITLE_LENGTH} characters",
             translation_domain=DOMAIN,
-            translation_key="title_too_long",
+            translation_key="note.title_too_long",
             translation_placeholders={"max_length": str(MAX_NOTE_TITLE_LENGTH)},
         )
 
@@ -181,7 +181,7 @@ async def handle_create_note(call: ServiceCall) -> ServiceResponse:
         raise ServiceValidationError(
             f"Note content exceeds maximum length of {MAX_NOTE_CONTENT_LENGTH} characters",
             translation_domain=DOMAIN,
-            translation_key="content_too_long",
+            translation_key="note.content_too_long",
             translation_placeholders={"max_length": str(MAX_NOTE_CONTENT_LENGTH)},
         )
 
@@ -189,7 +189,7 @@ async def handle_create_note(call: ServiceCall) -> ServiceResponse:
         raise ServiceValidationError(
             f"Category '{category_id}' not found",
             translation_domain=DOMAIN,
-            translation_key="category_not_found",
+            translation_key="note.category_not_found",
             translation_placeholders={"category_id": category_id},
         )
 
@@ -199,7 +199,7 @@ async def handle_create_note(call: ServiceCall) -> ServiceResponse:
             raise ServiceValidationError(
                 "Note title already exists in this category",
                 translation_domain=DOMAIN,
-                translation_key="title_duplicate",
+                translation_key="note.title_duplicate",
             )
 
     note = await store.async_create_note(
@@ -213,7 +213,7 @@ async def handle_create_note(call: ServiceCall) -> ServiceResponse:
         raise ServiceValidationError(
             "Failed to create note",
             translation_domain=DOMAIN,
-            translation_key="create_failed",
+            translation_key="note.create_failed",
         )
 
     return {"success": True, "note": note.to_dict()}
@@ -229,7 +229,7 @@ async def handle_update_note(call: ServiceCall) -> ServiceResponse:
         raise ServiceValidationError(
             f"Note '{note_id}' not found",
             translation_domain=DOMAIN,
-            translation_key="note_not_found",
+            translation_key="note.note_not_found",
             translation_placeholders={"note_id": note_id},
         )
 
@@ -241,14 +241,14 @@ async def handle_update_note(call: ServiceCall) -> ServiceResponse:
             raise ServiceValidationError(
                 "Note title is required",
                 translation_domain=DOMAIN,
-                translation_key="title_required",
+                translation_key="note.title_required",
             )
 
         if len(title) > MAX_NOTE_TITLE_LENGTH:
             raise ServiceValidationError(
                 f"Note title exceeds maximum length of {MAX_NOTE_TITLE_LENGTH} characters",
                 translation_domain=DOMAIN,
-                translation_key="title_too_long",
+                translation_key="note.title_too_long",
                 translation_placeholders={"max_length": str(MAX_NOTE_TITLE_LENGTH)},
             )
 
@@ -258,7 +258,7 @@ async def handle_update_note(call: ServiceCall) -> ServiceResponse:
                 raise ServiceValidationError(
                     "Note title already exists in this category",
                     translation_domain=DOMAIN,
-                    translation_key="title_duplicate",
+                    translation_key="note.title_duplicate",
                 )
 
     # Validate content if provided
@@ -269,7 +269,7 @@ async def handle_update_note(call: ServiceCall) -> ServiceResponse:
             raise ServiceValidationError(
                 f"Note content exceeds maximum length of {MAX_NOTE_CONTENT_LENGTH} characters",
                 translation_domain=DOMAIN,
-                translation_key="content_too_long",
+                translation_key="note.content_too_long",
                 translation_placeholders={"max_length": str(MAX_NOTE_CONTENT_LENGTH)},
             )
 
@@ -286,7 +286,7 @@ async def handle_update_note(call: ServiceCall) -> ServiceResponse:
         raise ServiceValidationError(
             "Failed to update note",
             translation_domain=DOMAIN,
-            translation_key="update_failed",
+            translation_key="note.update_failed",
         )
 
     return {"success": True, "note": updated_note.to_dict()}
@@ -302,7 +302,7 @@ async def handle_delete_note(call: ServiceCall) -> ServiceResponse:
         raise ServiceValidationError(
             f"Note '{note_id}' not found",
             translation_domain=DOMAIN,
-            translation_key="note_not_found",
+            translation_key="note.note_not_found",
             translation_placeholders={"note_id": note_id},
         )
 
@@ -313,7 +313,7 @@ async def handle_delete_note(call: ServiceCall) -> ServiceResponse:
         raise ServiceValidationError(
             f"Failed to delete note '{note_id}'",
             translation_domain=DOMAIN,
-            translation_key="delete_failed",
+            translation_key="note.delete_failed",
         )
 
     # Clean up entity registry entries
@@ -336,7 +336,7 @@ async def handle_delete_category(call: ServiceCall) -> ServiceResponse:
         raise ServiceValidationError(
             f"Category '{category_id}' not found",
             translation_domain=DOMAIN,
-            translation_key="category_not_found",
+            translation_key="note.category_not_found",
             translation_placeholders={"category_id": category_id},
         )
 
@@ -357,7 +357,7 @@ async def handle_delete_category(call: ServiceCall) -> ServiceResponse:
         raise ServiceValidationError(
             f"Failed to delete category '{category_id}'",
             translation_domain=DOMAIN,
-            translation_key="delete_category_failed",
+            translation_key="note.delete_category_failed",
         )
 
     # Clean up device registry entry

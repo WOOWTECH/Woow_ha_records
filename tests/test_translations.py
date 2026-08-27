@@ -90,6 +90,24 @@ def _raise_sites() -> tuple[_RaiseSite, ...]:
     return tuple(sites)
 
 
+@cache
+def _exception_messages() -> dict[str, str]:
+    """Every exception message in strings.json, by the key a raise site uses.
+
+    ``exceptions`` is nested one level per Area, so that key is
+    ``<area>.<name>``. The dot is not special to Home Assistant: it flattens
+    the whole ``exceptions`` subtree with ``recursive_flatten`` before
+    ``async_get_exception_message`` looks the message up, so any depth
+    resolves. The dot is only special to us, as the Area boundary.
+    """
+    exceptions = _load_json(STRINGS).get("exceptions", {})
+    return {
+        f"{area}.{name}": entry.get("message", "")
+        for area, keys in exceptions.items()
+        for name, entry in keys.items()
+    }
+
+
 def _placeholders_in(message: str) -> set[str]:
     """Return the placeholder names a strings.json message interpolates.
 
@@ -177,11 +195,11 @@ class TestTranslations:
 
         Exceptions have no fallback: ``async_get_exception_message`` returns
         the translation key itself when the lookup misses, so a missing entry
-        shows the user the literal string ``asset_not_found``. This is the
+        shows the user the literal string ``asset.asset_not_found``. This is the
         regression guard for issue #13, where 15 such keys had accumulated
         across three Areas with nothing watching them.
         """
-        declared = set(_load_json(STRINGS).get("exceptions", {}))
+        declared = set(_exception_messages())
         raised = {site.key for site in _raise_sites()}
 
         undescribed = sorted(raised - declared)
@@ -205,7 +223,7 @@ class TestTranslations:
         exists, this proves it can be filled in. Extra placeholders are legal
         and deliberately not flagged — ``str.format`` ignores them.
         """
-        messages = _load_json(STRINGS).get("exceptions", {})
+        messages = _exception_messages()
 
         opaque = [
             f"{site.path.relative_to(COMPONENT)}:{site.lineno} ({site.key})"
@@ -224,9 +242,7 @@ class TestTranslations:
             for site in _raise_sites()
             if site.supplied is not None
             and (
-                missing := _placeholders_in(
-                    messages.get(site.key, {}).get("message", "")
-                )
+                missing := _placeholders_in(messages.get(site.key, ""))
                 - site.supplied
             )
         )
@@ -234,4 +250,39 @@ class TestTranslations:
             f"{len(underfilled)} raise site(s) under areas/ do not supply "
             f"every placeholder their strings.json message names, so the "
             f"whole message renders raw: {underfilled}"
+        )
+
+    def test_every_exception_key_names_its_own_area(self) -> None:
+        """An Area raises only exception keys from its own namespace.
+
+        ``exceptions`` used to be one flat namespace that all four Areas
+        raised into, which is how issue #27 happened: ``invalid_datetime``
+        was authored for the health Area, whose parser takes the field name
+        as a parameter, and then reused by the asset Area's parser, which had
+        no such parameter. The message lost a placeholder it needed and
+        rendered raw. Nothing stopped it.
+
+        The namespace is now nested one level per Area, so the accident is
+        no longer something an author can reach for by habit — reusing
+        another Area's wording means typing that Area's name. This test is
+        what turns that from a convention into a rule. It is the same
+        boundary CLAUDE.md draws everywhere else: the Areas share a runtime
+        and nothing else.
+
+        This is deliberately stricter than #27's placeholder guard. That one
+        catches a *symptom* of cross-Area reuse — a key whose placeholders do
+        not match the site. It says nothing about a key whose placeholders
+        happen to line up but whose wording belongs to another Area.
+        """
+        misplaced = sorted(
+            f"{site.path.relative_to(COMPONENT)}:{site.lineno} raises "
+            f"{site.key!r} from the {site.path.parent.name} Area"
+            for site in _raise_sites()
+            if site.key.split(".")[0] != site.path.parent.name
+        )
+        assert not misplaced, (
+            f"{len(misplaced)} raise site(s) name an exception key outside "
+            f"their own Area. Every key is <area>.<name>, and an Area raises "
+            f"only its own — copy the message into this Area's namespace "
+            f"rather than borrowing another's: {misplaced}"
         )

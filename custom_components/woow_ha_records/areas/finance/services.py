@@ -68,13 +68,13 @@ def _valid_amount(value: Any) -> float:
         raise ServiceValidationError(
             f"Invalid amount: {value!r}",
             translation_domain=DOMAIN,
-            translation_key="invalid_amount",
+            translation_key="finance.invalid_amount",
         ) from exc
     if not math.isfinite(fval):
         raise ServiceValidationError(
             f"Amount must be a finite number, got {value!r}",
             translation_domain=DOMAIN,
-            translation_key="invalid_amount",
+            translation_key="finance.invalid_amount",
         )
     return fval
 
@@ -89,7 +89,7 @@ def _get_coordinator(
     raise ServiceValidationError(
         f"Account '{account_id}' not found or not loaded",
         translation_domain=DOMAIN,
-        translation_key="account_not_found",
+        translation_key="finance.account_not_found",
         translation_placeholders={"account_id": account_id},
     )
 
@@ -102,7 +102,7 @@ def _get_account_from_store(hass: HomeAssistant, account_id: str):
         raise ServiceValidationError(
             f"Account '{account_id}' not found",
             translation_domain=DOMAIN,
-            translation_key="account_not_found",
+            translation_key="finance.account_not_found",
             translation_placeholders={"account_id": account_id},
         )
     return store, account
@@ -145,7 +145,7 @@ async def handle_get_account(call: ServiceCall) -> ServiceResponse:
         raise ServiceValidationError(
             f"Account '{account_id}' not found",
             translation_domain=DOMAIN,
-            translation_key="account_not_found",
+            translation_key="finance.account_not_found",
             translation_placeholders={"account_id": account_id},
         )
 
@@ -178,7 +178,7 @@ async def handle_get_chart_data(call: ServiceCall) -> ServiceResponse:
         raise ServiceValidationError(
             f"Account '{account_id}' not found",
             translation_domain=DOMAIN,
-            translation_key="account_not_found",
+            translation_key="finance.account_not_found",
             translation_placeholders={"account_id": account_id},
         )
 
@@ -228,7 +228,7 @@ async def handle_export_csv(call: ServiceCall) -> ServiceResponse:
         raise ServiceValidationError(
             f"Account '{account_id}' not found",
             translation_domain=DOMAIN,
-            translation_key="account_not_found",
+            translation_key="finance.account_not_found",
             translation_placeholders={"account_id": account_id},
         )
 
@@ -277,7 +277,7 @@ async def handle_add_transaction(call: ServiceCall) -> ServiceResponse:
             raise ServiceValidationError(
                 f"Account '{account_id}' not found",
                 translation_domain=DOMAIN,
-                translation_key="account_not_found",
+                translation_key="finance.account_not_found",
                 translation_placeholders={"account_id": account_id},
             )
         transaction = Transaction.create(
@@ -294,7 +294,7 @@ async def handle_add_transaction(call: ServiceCall) -> ServiceResponse:
         raise ServiceValidationError(
             "Failed to create transaction",
             translation_domain=DOMAIN,
-            translation_key="transaction_failed",
+            translation_key="finance.transaction_failed",
         )
 
     return {"success": True, "transaction": transaction.to_dict()}
@@ -314,7 +314,7 @@ async def handle_update_transaction(call: ServiceCall) -> ServiceResponse:
         raise ServiceValidationError(
             f"Account '{account_id}' not found",
             translation_domain=DOMAIN,
-            translation_key="account_not_found",
+            translation_key="finance.account_not_found",
             translation_placeholders={"account_id": account_id},
         )
 
@@ -329,7 +329,7 @@ async def handle_update_transaction(call: ServiceCall) -> ServiceResponse:
         raise ServiceValidationError(
             f"Transaction '{transaction_id}' not found",
             translation_domain=DOMAIN,
-            translation_key="transaction_not_found",
+            translation_key="finance.transaction_not_found",
             translation_placeholders={"transaction_id": transaction_id},
         )
 
@@ -367,7 +367,7 @@ async def handle_delete_transaction(call: ServiceCall) -> ServiceResponse:
         raise ServiceValidationError(
             f"Account '{account_id}' not found",
             translation_domain=DOMAIN,
-            translation_key="account_not_found",
+            translation_key="finance.account_not_found",
             translation_placeholders={"account_id": account_id},
         )
 
@@ -383,7 +383,7 @@ async def handle_delete_transaction(call: ServiceCall) -> ServiceResponse:
         raise ServiceValidationError(
             f"Transaction '{transaction_id}' not found",
             translation_domain=DOMAIN,
-            translation_key="transaction_not_found",
+            translation_key="finance.transaction_not_found",
             translation_placeholders={"transaction_id": transaction_id},
         )
 
@@ -427,7 +427,7 @@ async def handle_add_plan(call: ServiceCall) -> ServiceResponse:
             raise ServiceValidationError(
                 f"Account '{account_id}' not found",
                 translation_domain=DOMAIN,
-                translation_key="account_not_found",
+                translation_key="finance.account_not_found",
                 translation_placeholders={"account_id": account_id},
             )
         plan = RecurringPlan(
@@ -480,7 +480,7 @@ async def handle_update_plan(call: ServiceCall) -> ServiceResponse:
             raise ServiceValidationError(
                 f"Account '{account_id}' not found",
                 translation_domain=DOMAIN,
-                translation_key="account_not_found",
+                translation_key="finance.account_not_found",
                 translation_placeholders={"account_id": account_id},
             )
         plan = account.recurring_plans.get(plan_id)
@@ -488,7 +488,7 @@ async def handle_update_plan(call: ServiceCall) -> ServiceResponse:
             raise ServiceValidationError(
                 f"Plan '{plan_id}' not found",
                 translation_domain=DOMAIN,
-                translation_key="plan_not_found",
+                translation_key="finance.plan_not_found",
                 translation_placeholders={"plan_id": plan_id},
             )
         for key, value in update_fields.items():
@@ -502,7 +502,7 @@ async def handle_update_plan(call: ServiceCall) -> ServiceResponse:
             raise ServiceValidationError(
                 f"Plan '{plan_id}' not found",
                 translation_domain=DOMAIN,
-                translation_key="plan_not_found",
+                translation_key="finance.plan_not_found",
                 translation_placeholders={"plan_id": plan_id},
             )
 
@@ -526,14 +526,14 @@ async def handle_delete_plan(call: ServiceCall) -> ServiceResponse:
             raise ServiceValidationError(
                 f"Account '{account_id}' not found",
                 translation_domain=DOMAIN,
-                translation_key="account_not_found",
+                translation_key="finance.account_not_found",
                 translation_placeholders={"account_id": account_id},
             )
         if plan_id not in account.recurring_plans:
             raise ServiceValidationError(
                 f"Plan '{plan_id}' not found",
                 translation_domain=DOMAIN,
-                translation_key="plan_not_found",
+                translation_key="finance.plan_not_found",
                 translation_placeholders={"plan_id": plan_id},
             )
         account.remove_recurring_plan(plan_id)
@@ -544,7 +544,7 @@ async def handle_delete_plan(call: ServiceCall) -> ServiceResponse:
             raise ServiceValidationError(
                 f"Plan '{plan_id}' not found",
                 translation_domain=DOMAIN,
-                translation_key="plan_not_found",
+                translation_key="finance.plan_not_found",
                 translation_placeholders={"plan_id": plan_id},
             )
         await coordinator.async_remove_recurring_plan(plan_id)
@@ -571,7 +571,7 @@ async def handle_add_account(call: ServiceCall) -> ServiceResponse:
         raise ServiceValidationError(
             "Account name cannot be empty",
             translation_domain=DOMAIN,
-            translation_key="invalid_name",
+            translation_key="finance.invalid_name",
         )
 
     area = _area(hass)
@@ -580,7 +580,7 @@ async def handle_add_account(call: ServiceCall) -> ServiceResponse:
             raise ServiceValidationError(
                 f"Account with name '{name}' already exists",
                 translation_domain=DOMAIN,
-                translation_key="duplicate_name",
+                translation_key="finance.duplicate_name",
                 translation_placeholders={"name": name},
             )
 
@@ -589,7 +589,7 @@ async def handle_add_account(call: ServiceCall) -> ServiceResponse:
         raise ServiceValidationError(
             f"Account id '{account_id}' already exists",
             translation_domain=DOMAIN,
-            translation_key="duplicate_name",
+            translation_key="finance.duplicate_name",
             translation_placeholders={"name": name},
         )
 
@@ -608,7 +608,7 @@ async def handle_update_account(call: ServiceCall) -> ServiceResponse:
         raise ServiceValidationError(
             f"Account '{account_id}' not found",
             translation_domain=DOMAIN,
-            translation_key="account_not_found",
+            translation_key="finance.account_not_found",
             translation_placeholders={"account_id": account_id},
         )
 
@@ -618,14 +618,14 @@ async def handle_update_account(call: ServiceCall) -> ServiceResponse:
             raise ServiceValidationError(
                 "Account name cannot be empty",
                 translation_domain=DOMAIN,
-                translation_key="invalid_name",
+                translation_key="finance.invalid_name",
             )
         for existing in area.store.data.accounts.values():
             if existing.id != account_id and existing.name.lower() == name.lower():
                 raise ServiceValidationError(
                     f"Account with name '{name}' already exists",
                     translation_domain=DOMAIN,
-                    translation_key="duplicate_name",
+                    translation_key="finance.duplicate_name",
                     translation_placeholders={"name": name},
                 )
         account.name = name
@@ -658,7 +658,7 @@ async def handle_delete_account(call: ServiceCall) -> ServiceResponse:
         raise ServiceValidationError(
             f"Account '{account_id}' not found",
             translation_domain=DOMAIN,
-            translation_key="account_not_found",
+            translation_key="finance.account_not_found",
             translation_placeholders={"account_id": account_id},
         )
 
@@ -676,7 +676,7 @@ async def handle_adjust_balance(call: ServiceCall) -> ServiceResponse:
         raise ServiceValidationError(
             f"Account '{account_id}' not found or not loaded",
             translation_domain=DOMAIN,
-            translation_key="account_not_found",
+            translation_key="finance.account_not_found",
             translation_placeholders={"account_id": account_id},
         )
 

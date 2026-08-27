@@ -57,7 +57,7 @@ def _get_coordinator(hass: HomeAssistant, member_id: str) -> HealthRecordCoordin
         raise ServiceValidationError(
             f"Member '{member_id}' not found",
             translation_domain=DOMAIN,
-            translation_key="member_not_found",
+            translation_key="health.member_not_found",
             translation_placeholders={"member_id": member_id},
         )
     return coordinator
@@ -83,7 +83,7 @@ def _parse_iso(value: str, field: str = "timestamp") -> datetime:
         raise ServiceValidationError(
             f"Invalid datetime for '{field}': {value!r}",
             translation_domain=DOMAIN,
-            translation_key="invalid_datetime",
+            translation_key="health.invalid_datetime",
             translation_placeholders={"field": field, "value": str(value)},
         ) from exc
 
@@ -200,7 +200,7 @@ async def handle_log_record(call: ServiceCall) -> ServiceResponse:
         raise ServiceValidationError(
             f"Record type '{record_type}' not found for member '{member_id}'",
             translation_domain=DOMAIN,
-            translation_key="record_type_not_found",
+            translation_key="health.record_type_not_found",
             translation_placeholders={
                 "record_type": record_type,
                 "member_id": member_id,
@@ -222,7 +222,7 @@ async def handle_log_record(call: ServiceCall) -> ServiceResponse:
         raise ServiceValidationError(
             "Failed to log record",
             translation_domain=DOMAIN,
-            translation_key="log_failed",
+            translation_key="health.log_failed",
         )
 
     # Fire event (same as WS handler)
@@ -274,7 +274,7 @@ async def handle_update_record(call: ServiceCall) -> ServiceResponse:
         f"Record not found for member '{member_id}', type '{type_id}', "
         f"timestamp '{timestamp}'" + (f", record_id '{record_id}'" if record_id else ""),
         translation_domain=DOMAIN,
-        translation_key="record_not_found",
+        translation_key="health.record_not_found",
         translation_placeholders={
             "member_id": member_id,
             "type_id": type_id,
@@ -300,7 +300,7 @@ async def handle_delete_record(call: ServiceCall) -> ServiceResponse:
         f"Record not found for member '{member_id}', type '{type_id}', "
         f"timestamp '{timestamp}'" + (f", record_id '{record_id}'" if record_id else ""),
         translation_domain=DOMAIN,
-        translation_key="record_not_found",
+        translation_key="health.record_not_found",
         translation_placeholders={
             "member_id": member_id,
             "type_id": type_id,
@@ -332,14 +332,14 @@ async def handle_add_record_type(call: ServiceCall) -> ServiceResponse:
         raise ServiceValidationError(
             "Name must contain at least one alphanumeric character",
             translation_domain=DOMAIN,
-            translation_key="invalid_type_id",
+            translation_key="health.invalid_type_id",
         )
 
     if type_id in coordinator.record_sets:
         raise ServiceValidationError(
             f"Record type '{type_id}' already exists",
             translation_domain=DOMAIN,
-            translation_key="type_exists",
+            translation_key="health.type_exists",
             translation_placeholders={"type_id": type_id},
         )
 
@@ -365,7 +365,7 @@ async def handle_update_record_type(call: ServiceCall) -> ServiceResponse:
         raise ServiceValidationError(
             f"Record type '{type_id}' not found",
             translation_domain=DOMAIN,
-            translation_key="type_not_found",
+            translation_key="health.type_not_found",
             translation_placeholders={"type_id": type_id},
         )
 
@@ -384,7 +384,7 @@ async def handle_delete_record_type(call: ServiceCall) -> ServiceResponse:
         raise ServiceValidationError(
             f"Record type '{type_id}' not found",
             translation_domain=DOMAIN,
-            translation_key="type_not_found",
+            translation_key="health.type_not_found",
             translation_placeholders={"type_id": type_id},
         )
 
@@ -411,7 +411,7 @@ async def handle_add_member(call: ServiceCall) -> ServiceResponse:
         raise ServiceValidationError(
             "Member ID is empty after sanitization",
             translation_domain=DOMAIN,
-            translation_key="invalid_member_id",
+            translation_key="health.invalid_member_id",
         )
 
     area = _area(hass)
@@ -419,7 +419,7 @@ async def handle_add_member(call: ServiceCall) -> ServiceResponse:
         raise ServiceValidationError(
             f"Member '{member_id}' already exists",
             translation_domain=DOMAIN,
-            translation_key="member_exists",
+            translation_key="health.member_exists",
             translation_placeholders={"member_id": member_id},
         )
 
