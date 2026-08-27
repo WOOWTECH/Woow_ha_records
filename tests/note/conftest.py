@@ -4,7 +4,6 @@ from __future__ import annotations
 from unittest.mock import AsyncMock
 
 import pytest
-
 from homeassistant.core import HomeAssistant
 
 from custom_components.woow_ha_records.areas.note.store import HaNoteRecordStore
@@ -13,8 +12,9 @@ from custom_components.woow_ha_records.areas.note.store import HaNoteRecordStore
 @pytest.fixture
 def mock_config_entry(hass: HomeAssistant):
     """The integration's single config entry."""
-    from homeassistant.config_entries import ConfigEntry
     from types import MappingProxyType
+
+    from homeassistant.config_entries import ConfigEntry
 
     from custom_components.woow_ha_records.const import DOMAIN
 
@@ -28,6 +28,7 @@ def mock_config_entry(hass: HomeAssistant):
         options={},
         unique_id=DOMAIN,
         discovery_keys=MappingProxyType({}),
+        subentries_data=(),
     )
     entry.hass = hass
     return entry

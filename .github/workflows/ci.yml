@@ -1,0 +1,113 @@
+# The only place this repo's tests actually run.
+#
+# `pytest` cannot run on the maintainer's machine at all: pytest-homeassistant-
+# custom-component imports `homeassistant.runner`, which imports `fcntl`, which
+# is POSIX-only. On Windows collection dies before the first test. So this file
+# is not a safety net over a suite someone runs locally — it is the suite.
+#
+# One Home Assistant version, pinned, everywhere: requirements_test.txt says
+# 2026.7.2 and hacs.json declares the same minimum. The version this CI proves
+# is the version the integration declares it needs, and nothing declares
+# support for a version nothing tests.
+#
+# There is no `validate` job yet. hassfest and the HACS action were tried here
+# first, and hassfest surfaced four pre-existing problems, none of them caused
+# by this workflow: three manifest keys Home Assistant's schema does not
+# define, a `panel` translations section that three panels genuinely use via
+# hass.localize() but the schema does not allow, 14 exception messages that
+# quote their placeholders, and the HACS check itself, which never ran because
+# hassfest failed before it. The first is fixed here because this workflow
+# caused half of it. The rest are a translations-architecture decision and a
+# collision with an open PR, and each deserves its own change rather than
+# being rushed through this one. Adding the job before they are settled would
+# mean shipping a red light on day one, which is a light everyone learns to
+# ignore.
+name: CI
+
+on:
+  # Deliberately not filtered by base branch. PRs in this repo are sometimes
+  # stacked on another PR's branch rather than on main, and a `branches: [main]`
+  # filter would silently skip exactly those.
+  pull_request:
+  push:
+    branches: [main]
+
+# Superseded runs are wasted minutes; the newest push is the only one anyone
+# is waiting on.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Home Assistant 2026.7.2 requires >=3.14.2.
+  PYTHON_VERSION: "3.14"
+
+jobs:
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: requirements_test.txt
+
+      - name: Install test dependencies
+        run: pip install -r requirements_test.txt
+
+      - name: pytest
+        run: python -m pytest -q --junitxml=pytest-results.xml
+
+      - name: Upload results
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-results
+          path: pytest-results.xml
+          retention-days: 14
+
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # ruff runs against the diff, so the base commit has to be present.
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install ruff
+        run: pip install ruff
+
+      - name: Collect the Python files this change touches
+        id: files
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            base="${{ github.event.pull_request.base.sha }}"
+          else
+            base="${{ github.event.before }}"
+          fi
+          if [ -z "$base" ] || [ "$base" = "0000000000000000000000000000000000000000" ] \
+             || ! git cat-file -e "$base^{commit}" 2>/dev/null; then
+            echo "No usable base commit to diff against; nothing to lint."
+            echo "files=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          files=$(git diff --name-only --diff-filter=ACMR "$base" HEAD -- '*.py' | tr '\n' ' ')
+          echo "files=$files" >> "$GITHUB_OUTPUT"
+          echo "Changed Python files: ${files:-<none>}"
+
+      # Only the files this change touches, and it fails hard. The repo carries
+      # 115 pre-existing ruff errors; making them all blocking would mean paying
+      # that debt down before any CI could land, and reporting them without
+      # blocking would produce a permanently red advisory nobody reads. New code
+      # is held to the standard; the backlog is a separate piece of work.
+      - name: ruff
+        if: steps.files.outputs.files != ''
+        run: ruff check ${{ steps.files.outputs.files }}
