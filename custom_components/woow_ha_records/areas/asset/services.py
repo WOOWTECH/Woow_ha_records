@@ -54,21 +54,26 @@ def _get_coordinator(hass: HomeAssistant) -> AssetCoordinator:
     return get_data(hass).asset
 
 
-def _parse_datetime(value: str | None) -> datetime | None:
-    """Parse an ISO 8601 datetime string.
+def _parse_datetime(value: str | None, field: str) -> datetime | None:
+    """Parse an ISO 8601 datetime string from the service field ``field``.
 
     Returns None if value is empty/None.
     Raises ServiceValidationError if the string is non-empty but unparseable.
+
+    ``field`` names the service field the value came from. It is required
+    because the ``invalid_datetime`` message interpolates it, and Home
+    Assistant discards the whole formatted message — not just the one word —
+    when a placeholder is missing.
     """
     if not value:
         return None
     parsed = dt_util.parse_datetime(value)
     if parsed is None:
         raise ServiceValidationError(
-            f"Invalid datetime format: {value!r}",
+            f"Invalid datetime for '{field}': {value!r}",
             translation_domain=DOMAIN,
             translation_key="invalid_datetime",
-            translation_placeholders={"value": str(value)},
+            translation_placeholders={"field": field, "value": str(value)},
         )
     if parsed.tzinfo is None:
         return parsed.replace(tzinfo=dt_util.UTC)
@@ -163,8 +168,10 @@ async def handle_create_asset(call: ServiceCall) -> ServiceResponse:
             translation_key="name_required",
         )
 
-    purchase_at = _parse_datetime(call.data.get("purchase_at"))
-    warranty_until = _parse_datetime(call.data.get("warranty_until"))
+    purchase_at = _parse_datetime(call.data.get("purchase_at"), "purchase_at")
+    warranty_until = _parse_datetime(
+        call.data.get("warranty_until"), "warranty_until"
+    )
 
     asset = await coordinator.async_create_asset_full(
         name,
@@ -227,7 +234,7 @@ async def handle_update_asset(call: ServiceCall) -> ServiceResponse:
         ("warranty_until", FIELD_WARRANTY_UNTIL),
     ]:
         if field_key in call.data:
-            dt_val = _parse_datetime(call.data[field_key])
+            dt_val = _parse_datetime(call.data[field_key], field_key)
             await coordinator.async_update_asset(asset_id, const, dt_val)
 
     updated = coordinator.get_asset(asset_id)

@@ -102,7 +102,7 @@
       "message": "Record type '{record_type}' not found for member '{member_id}'."
     },
     "record_not_found": {
-      "message": "Record not found."
+      "message": "Record not found for member '{member_id}', record type '{type_id}' at {timestamp}."
     },
     "invalid_datetime": {
       "message": "Invalid datetime for '{field}': {value}"
