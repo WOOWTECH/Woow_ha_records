@@ -481,7 +481,15 @@ export class HAServicesClient {
     return this.call('create_category', { name });
   }
 
-  async noteDeleteCategory(categoryId: string): Promise<ServiceResult> {
-    return this.call('delete_category', { category_id: categoryId });
+  /**
+   * Delete a note category.
+   *
+   * The cascade is opt-in (#45): a category that still holds notes is
+   * refused unless `force` is set. Teardown wants the category gone
+   * whatever is in it, so this defaults to forcing; pass `false` to
+   * exercise the guard.
+   */
+  async noteDeleteCategory(categoryId: string, force = true): Promise<ServiceResult> {
+    return this.call('delete_category', { category_id: categoryId, force });
   }
 }

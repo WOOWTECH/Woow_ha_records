@@ -32,8 +32,8 @@ ha_note_record/delete_note
     Permission: admin required.
 
 ha_note_record/delete_category
-    Delete a category with cascade deletion of all its notes.
-    Parameters: category_id (str, required).
+    Delete a category, with cascade deletion of all its notes.
+    Parameters: category_id (str, required), force (bool, optional).
     Permission: admin required.
 
 Permission model
@@ -58,13 +58,16 @@ Cascade delete behavior
 Deleting a category triggers a cascade that removes all notes belonging
 to that category, cleans up their text and switch entities from the
 entity registry, and removes the category's device from the device
-registry.
+registry. Because a note cannot be moved to another category first, that
+cascade is the only way its notes end, so it is opt-in: a category that
+still holds notes is refused unless the caller passes ``force``.
 
 Error codes
 -----------
 - ``not_found``      -- Store not initialized, category not found, or note not found.
 - ``invalid_input``  -- Empty name/title after trimming, or value exceeds max length.
 - ``duplicate``      -- Case-insensitive duplicate category name or note title.
+- ``not_empty``      -- Category still holds notes and ``force`` was not set.
 - ``error``          -- Generic failure during create, update, or delete operations.
 """
 
@@ -216,7 +219,8 @@ async def websocket_create_category(
         connection.send_error(
             msg["id"],
             "invalid_input",
-            f"Category name exceeds maximum length of {MAX_CATEGORY_NAME_LENGTH} characters",
+            f"Category name exceeds maximum length of "
+            f"{MAX_CATEGORY_NAME_LENGTH} characters",
         )
         return
 
@@ -317,7 +321,8 @@ async def websocket_create_note(
         connection.send_error(
             msg["id"],
             "invalid_input",
-            f"Note content exceeds maximum length of {MAX_NOTE_CONTENT_LENGTH} characters",
+            f"Note content exceeds maximum length of "
+            f"{MAX_NOTE_CONTENT_LENGTH} characters",
         )
         return
 
@@ -328,7 +333,11 @@ async def websocket_create_note(
     # Check for duplicate title in category
     for note in store.get_notes_by_category(category_id):
         if note.title.lower() == title.lower():
-            connection.send_error(msg["id"], "duplicate", "Note title already exists in this category")
+            connection.send_error(
+                msg["id"],
+                "duplicate",
+                "Note title already exists in this category",
+            )
             return
 
     note = await store.async_create_note(
@@ -427,14 +436,19 @@ async def websocket_update_note(
             connection.send_error(
                 msg["id"],
                 "invalid_input",
-                f"Note title exceeds maximum length of {MAX_NOTE_TITLE_LENGTH} characters",
+                f"Note title exceeds maximum length of "
+                f"{MAX_NOTE_TITLE_LENGTH} characters",
             )
             return
 
         # Check for duplicate title in category (excluding current note)
         for other_note in store.get_notes_by_category(note.category_id):
             if other_note.id != note_id and other_note.title.lower() == title.lower():
-                connection.send_error(msg["id"], "duplicate", "Note title already exists in this category")
+                connection.send_error(
+                    msg["id"],
+                    "duplicate",
+                    "Note title already exists in this category",
+                )
                 return
 
     # Validate content if provided
@@ -445,7 +459,8 @@ async def websocket_update_note(
             connection.send_error(
                 msg["id"],
                 "invalid_input",
-                f"Note content exceeds maximum length of {MAX_NOTE_CONTENT_LENGTH} characters",
+                f"Note content exceeds maximum length of "
+                f"{MAX_NOTE_CONTENT_LENGTH} characters",
             )
             return
 
@@ -540,6 +555,7 @@ async def websocket_delete_note(
     {
         vol.Required("type"): "woow_ha_records/note/delete_category",
         vol.Required("category_id"): str,
+        vol.Optional("force"): bool,
     }
 )
 @websocket_api.require_admin
@@ -551,12 +567,16 @@ async def websocket_delete_category(
 ) -> None:
     """Handle ``ha_note_record/delete_category`` WebSocket command.
 
-    Delete a category and cascade-delete all notes it contains.
+    Delete a category, cascade-deleting its notes only if asked to.
 
     Parameters
     ----------
     category_id : str, required
         The ID of the category to delete.
+    force : bool, optional
+        Confirm that the notes in the category may be destroyed with it.
+        Defaults to ``False``, which refuses a category that still holds
+        notes and deletes nothing.
 
     Permission
     ----------
@@ -571,14 +591,17 @@ async def websocket_delete_category(
     ------
     not_found
         Store is not initialized, or the category does not exist.
+    not_empty
+        The category still holds notes and ``force`` was not set. Nothing
+        was deleted.
     error
         Category deletion failed in the store.
 
     Side effects
     ------------
-    CASCADE deletes all notes belonging to the category. For each
-    deleted note, removes its text entity (``_content`` suffix) and
-    switch entity (``_pinned`` suffix) from the entity registry.
+    With ``force``, CASCADE deletes all notes belonging to the category.
+    For each deleted note, removes its text entity (``_content`` suffix)
+    and switch entity (``_pinned`` suffix) from the entity registry.
     After all notes are removed, deletes the category's device from
     the device registry.
     """
@@ -589,12 +612,29 @@ async def websocket_delete_category(
 
     category_id = msg["category_id"]
 
-    if store.get_category(category_id) is None:
+    category = store.get_category(category_id)
+    if category is None:
         connection.send_error(msg["id"], "not_found", "Category not found")
         return
 
-    # Cascade-delete all notes in this category first
+    # The cascade destroys an arbitrary number of notes and a note cannot be
+    # moved out of a category first, so it is opt-in. The panel type-gates the
+    # deletion behind the category's name and passes ``force``. Issue #45.
+    #
+    # ``handle_delete_category`` in services.py guards identically and words it
+    # the same way; the two surfaces duplicate the cascade itself already, and
+    # the wording is the part that must not drift.
     notes = store.get_notes_by_category(category_id)
+    if notes and not msg.get("force", False):
+        connection.send_error(
+            msg["id"],
+            "not_empty",
+            f"Category '{category.name}' still holds {len(notes)} note(s), "
+            f"and deleting it deletes them too. Pass force: true to confirm.",
+        )
+        return
+
+    # Cascade-delete all notes in this category first
     ent_reg = er.async_get(hass)
     for note in notes:
         await store.async_delete_note(note.id)
@@ -609,7 +649,9 @@ async def websocket_delete_category(
     if success:
         # Clean up device registry entry
         dev_reg = dr.async_get(hass)
-        device = dev_reg.async_get_device(identifiers={(DOMAIN, device_id(AREA, category_id))})
+        device = dev_reg.async_get_device(
+            identifiers={(DOMAIN, device_id(AREA, category_id))}
+        )
         if device:
             dev_reg.async_remove_device(device.id)
         connection.send_result(msg["id"], {"deleted": True})

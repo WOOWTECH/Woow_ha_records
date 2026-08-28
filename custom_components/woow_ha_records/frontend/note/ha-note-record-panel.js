@@ -963,7 +963,11 @@ class HaNoteRecordPanel extends LitElement {
     try {
       await this.hass.callWS({
         type: "woow_ha_records/note/delete_category",
+        // The cascade is opt-in on the API. This dialog is that opt-in: it
+        // names the category, counts its notes, and the guard above requires
+        // the user to have typed the name back.
         category_id: target.id,
+        force: true,
       });
       this._notes = this._notes.filter((n) => n.category_id !== target.id);
       this._categories = this._categories.filter((c) => c.id !== target.id);

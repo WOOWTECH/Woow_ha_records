@@ -180,6 +180,9 @@
       "category_duplicate": {
         "message": "A category with this name already exists."
       },
+      "category_not_empty": {
+        "message": "Category {name} still holds {note_count} note(s), and deleting it deletes them too. Pass force: true to confirm."
+      },
       "delete_category_failed": {
         "message": "Failed to delete category."
       },
@@ -887,11 +890,15 @@
     },
     "note_delete_category": {
       "name": "Delete Category",
-      "description": "Delete a category and every note filed under it.",
+      "description": "Delete a category. A category that still holds notes is refused unless force is set, because deleting it deletes them too.",
       "fields": {
         "category_id": {
           "name": "Category ID",
           "description": "The category to delete."
+        },
+        "force": {
+          "name": "Force",
+          "description": "Delete the notes filed under the category along with it. Without this the call is refused and nothing is deleted."
         }
       }
     }

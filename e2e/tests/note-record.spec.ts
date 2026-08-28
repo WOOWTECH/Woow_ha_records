@@ -276,6 +276,12 @@ test.describe('note Area E2E Tests', () => {
       const notesBefore = data.notes.filter((n: any) => n.category_id === cat.id);
       expect(notesBefore.length).toBe(3);
 
+      // The cascade is opt-in: unforced, the command is refused and the
+      // notes survive. Issue #45.
+      await expect(ws.noteDeleteCategory(cat.id, false)).rejects.toThrow();
+      data = await ws.noteGetData();
+      expect(data.notes.filter((n: any) => n.category_id === cat.id).length).toBe(3);
+
       // Delete category (cascades to notes)
       const deleteResult = await ws.noteDeleteCategory(cat.id);
       expect(deleteResult.deleted).toBe(true);
