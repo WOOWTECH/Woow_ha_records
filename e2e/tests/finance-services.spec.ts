@@ -323,10 +323,10 @@ test.describe('finance Area Services E2E Tests', () => {
       expect(Object.keys(check.data.account.recurring_plans).length).toBe(1);
     });
 
-    test('1.19 update_account — rename and add notes', async () => {
+    test('1.19 update_account — rename and add a Remark', async () => {
       const r = await svc.financeUpdateAccount(ACCT_ID, {
         name: RENAMED_ACCT_NAME,
-        notes: 'Updated notes for testing',
+        note: 'Updated remark for testing',
       });
       expect(r.status).toBe(200);
       expect(r.data.success).toBe(true);
@@ -334,7 +334,7 @@ test.describe('finance Area Services E2E Tests', () => {
       const check = await svc.financeGetAccounts();
       const acct = check.data.accounts.find((a: any) => a.id === ACCT_ID);
       expect(acct.name).toBe(RENAMED_ACCT_NAME);
-      expect(acct.notes).toBe('Updated notes for testing');
+      expect(acct.note).toBe('Updated remark for testing');
     });
   });
 
@@ -529,17 +529,17 @@ test.describe('finance Area Services E2E Tests', () => {
       expect(r.status).toBe(200);
     });
 
-    test('2.26 update_account — XSS in notes (stored safely)', async () => {
+    test('2.26 update_account — XSS in the Remark (stored safely)', async () => {
       const r = await svc.financeUpdateAccount(ACCT_ID, {
-        notes: EDGE_CASES.IMG_XSS,
+        note: EDGE_CASES.IMG_XSS,
       });
       expect(r.status).toBe(200);
 
       const check = await svc.financeGetAccount(ACCT_ID);
-      expect(check.data.account.notes).toBe(EDGE_CASES.IMG_XSS);
+      expect(check.data.account.note).toBe(EDGE_CASES.IMG_XSS);
 
-      // Restore notes
-      await svc.financeUpdateAccount(ACCT_ID, { notes: 'Updated notes for testing' });
+      // Restore the Remark
+      await svc.financeUpdateAccount(ACCT_ID, { note: 'Updated remark for testing' });
     });
 
     // ─── 2.G Balance integrity under update/delete ────────

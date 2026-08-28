@@ -146,7 +146,7 @@ async def ws_get_accounts(
         None.
 
     Returns
-        dict: ``{accounts: [{id, name, balance, notes}, ...]}``
+        dict: ``{accounts: [{id, name, balance, note}, ...]}``
             A list of every registered account with its current balance.
     """
     store = _get_store(hass)
@@ -157,7 +157,7 @@ async def ws_get_accounts(
             "id": account.id,
             "name": account.name,
             "balance": account.balance,
-            "notes": account.notes,
+            "note": account.note,
         }
         for account in store.data.accounts.values()
     ]
@@ -186,7 +186,7 @@ async def ws_get_account(
         account_id (str): The unique identifier of the account.
 
     Returns
-        dict: ``{account: {id, name, balance, notes, transactions: [...],
+        dict: ``{account: {id, name, balance, note, transactions: [...],
         recurring_plans: [...]}}``
             The account object including its full transaction history and
             all associated recurring plans.
@@ -207,7 +207,7 @@ async def ws_get_account(
             "id": account.id,
             "name": account.name,
             "balance": account.balance,
-            "notes": account.notes,
+            "note": account.note,
             "transactions": [tx.to_dict() for tx in account.transactions],
             "recurring_plans": {
                 plan_id: plan.to_dict()
@@ -775,7 +775,7 @@ async def ws_add_account(
         vol.Required("type"): "woow_ha_records/finance/update_account",
         vol.Required("account_id"): str,
         vol.Optional("name"): str,
-        vol.Optional("notes"): str,
+        vol.Optional("note"): str,
     }
 )
 @websocket_api.async_response
@@ -784,7 +784,7 @@ async def ws_update_account(
     connection: websocket_api.ActiveConnection,
     msg: dict[str, Any],
 ) -> None:
-    """Rename an Account or change its notes."""
+    """Rename an Account or change its Remark."""
     area = _area(hass)
     account = area.store.data.get_account(msg["account_id"])
     if account is None:
@@ -807,8 +807,8 @@ async def ws_update_account(
         if device:
             device_reg.async_update_device(device.id, name=new_name)
 
-    if "notes" in msg:
-        account.notes = msg["notes"]
+    if "note" in msg:
+        account.note = msg["note"]
 
     await area.store.async_save()
 

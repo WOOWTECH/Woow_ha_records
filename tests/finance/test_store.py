@@ -27,7 +27,7 @@ class TestFinanceStore:
                 "acc1": {
                     "name": "Main",
                     "balance": 5000.0,
-                    "notes": "",
+                    "note": "",
                     "transactions": [],
                     "recurring_plans": {},
                 },

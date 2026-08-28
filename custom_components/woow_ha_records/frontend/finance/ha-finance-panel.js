@@ -240,8 +240,8 @@ class HaFinancePanel extends LitElement {
       _allRecordsFilterDateStart: { type: String },
       _allRecordsFilterDateEnd: { type: String },
       _showBalanceAdjustForm: { type: Boolean },
-      _showNotesForm: { type: Boolean },
-      _editingAccountNotes: { type: String },
+      _showNoteForm: { type: Boolean },
+      _editingAccountNote: { type: String },
       _planFormFrequency: { type: String },
       _calendarViewMonth: { type: Number },
       _calendarSelectedDay: { type: Number },
@@ -1007,7 +1007,7 @@ class HaFinancePanel extends LitElement {
         border-color: rgba(244, 67, 54, 0.3);
       }
 
-      .account-notes-input {
+      .account-note-input {
         width: 100%;
         min-height: 100px;
         padding: 12px;
@@ -1022,7 +1022,7 @@ class HaFinancePanel extends LitElement {
         font-family: inherit;
       }
 
-      .account-notes-input:focus {
+      .account-note-input:focus {
         outline: none;
         border-color: var(--primary-color);
       }
@@ -1374,7 +1374,7 @@ class HaFinancePanel extends LitElement {
           font-size: 16px;
           min-height: 44px;
         }
-        .account-notes-input {
+        .account-note-input {
           font-size: 16px;
           min-height: 44px;
         }
@@ -1416,8 +1416,8 @@ class HaFinancePanel extends LitElement {
     this._allRecordsFilterDateStart = "";
     this._allRecordsFilterDateEnd = "";
     this._showBalanceAdjustForm = false;
-    this._showNotesForm = false;
-    this._editingAccountNotes = "";
+    this._showNoteForm = false;
+    this._editingAccountNote = "";
     this._planFormFrequency = "monthly";
     this._calendarViewMonth = 1;
     this._calendarSelectedDay = 1;
@@ -1650,7 +1650,7 @@ class HaFinancePanel extends LitElement {
         type_to_confirm: "Type the account name to confirm:",
         no_accounts: "No accounts yet. Add your first account!",
         account_management: "Account Management",
-        account_notes: "Account Notes",
+        account_note: "Account Remark",
         adjust_balance: "Adjust Balance",
         adjustment_amount: "Adjustment Amount",
         adjustment_reason: "Adjustment Reason",
@@ -1740,7 +1740,7 @@ class HaFinancePanel extends LitElement {
         type_to_confirm: "輸入帳戶名稱以確認：",
         no_accounts: "尚無帳戶。新增您的第一個帳戶！",
         account_management: "帳戶管理",
-        account_notes: "帳戶備註",
+        account_note: "帳戶備註",
         adjust_balance: "調整餘額",
         adjustment_amount: "調整金額",
         adjustment_reason: "調整原因",
@@ -2623,16 +2623,16 @@ class HaFinancePanel extends LitElement {
           </div>
         </div>
 
-        <!-- Account Notes Section -->
+        <!-- Account Remark Section -->
         <div class="account-section">
-          <h4 class="section-title">${this._getTranslation("account_notes")}</h4>
+          <h4 class="section-title">${this._getTranslation("account_note")}</h4>
           <p class="section-description" style="word-break: break-word;">
-            ${account.notes
-              ? (account.notes.length > 100 ? account.notes.substring(0, 100) + "..." : account.notes)
-              : html`<span style="color: var(--secondary-text-color, #999);">No notes yet</span>`}
+            ${account.note
+              ? (account.note.length > 100 ? account.note.substring(0, 100) + "..." : account.note)
+              : html`<span style="color: var(--secondary-text-color, #999);">No remark yet</span>`}
           </p>
-          <button class="btn btn-secondary" @click=${() => { this._editingAccountNotes = account.notes || ""; this._showNotesForm = true; }}>
-            ${this._getTranslation("account_notes")}
+          <button class="btn btn-secondary" @click=${() => { this._editingAccountNote = account.note || ""; this._showNoteForm = true; }}>
+            ${this._getTranslation("account_note")}
           </button>
         </div>
 
@@ -2671,7 +2671,7 @@ class HaFinancePanel extends LitElement {
       </div>
 
       ${this._showBalanceAdjustForm ? this._renderBalanceAdjustForm() : ""}
-      ${this._showNotesForm ? this._renderNotesForm() : ""}
+      ${this._showNoteForm ? this._renderNoteForm() : ""}
     `;
   }
 
@@ -2722,24 +2722,24 @@ class HaFinancePanel extends LitElement {
     `;
   }
 
-  _renderNotesForm() {
+  _renderNoteForm() {
     return html`
-      <div class="modal-overlay" @click=${() => this._showNotesForm = false}>
+      <div class="modal-overlay" @click=${() => this._showNoteForm = false}>
         <div class="modal" @click=${(e) => e.stopPropagation()}>
-          <h2>${this._getTranslation("account_notes")}</h2>
+          <h2>${this._getTranslation("account_note")}</h2>
           <div class="form-group">
             <textarea
-              class="account-notes-input"
-              placeholder="${this._getTranslation("account_notes")}..."
-              .value=${this._editingAccountNotes}
-              @input=${(e) => this._editingAccountNotes = e.target.value}
+              class="account-note-input"
+              placeholder="${this._getTranslation("account_note")}..."
+              .value=${this._editingAccountNote}
+              @input=${(e) => this._editingAccountNote = e.target.value}
             ></textarea>
           </div>
           <div class="form-actions">
-            <button type="button" class="btn btn-secondary" @click=${() => this._showNotesForm = false}>
+            <button type="button" class="btn btn-secondary" @click=${() => this._showNoteForm = false}>
               ${this._getTranslation("cancel")}
             </button>
-            <button type="button" class="btn btn-primary" @click=${this._saveAccountNotes}>
+            <button type="button" class="btn btn-primary" @click=${this._saveAccountNote}>
               ${this._getTranslation("save")}
             </button>
           </div>
@@ -2775,19 +2775,19 @@ class HaFinancePanel extends LitElement {
     }
   }
 
-  async _saveAccountNotes() {
+  async _saveAccountNote() {
     try {
       await this.hass.callWS({
         type: "woow_ha_records/finance/update_account",
         account_id: this._selectedAccountId,
-        notes: this._editingAccountNotes,
+        note: this._editingAccountNote,
       });
-      this._showNotesForm = false;
+      this._showNoteForm = false;
       await this._loadAccountDetails();
       // Reset editing state
-      this._editingAccountNotes = "";
+      this._editingAccountNote = "";
     } catch (err) {
-      this._error = err.message || "Failed to save notes";
+      this._error = err.message || "Failed to save the remark";
     }
   }
 

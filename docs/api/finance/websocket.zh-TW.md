@@ -70,7 +70,7 @@
         "id": "finance_abc123",
         "name": "Main Account",
         "balance": 50000.0,
-        "notes": "Family expenses"
+        "note": "Family expenses"
       }
     ]
   }
@@ -113,7 +113,7 @@
       "id": "finance_abc123",
       "name": "Main Account",
       "balance": 50000.0,
-      "notes": "Family expenses",
+      "note": "Family expenses",
       "transactions": [
         {
           "id": "tx_a1b2c3d4",
@@ -584,7 +584,7 @@
 |------|------|------|------|
 | `account_id` | string | 是 | 帳戶 ID |
 | `name` | string | 否 | 新名稱（非空，不分大小寫唯一） |
-| `notes` | string | 否 | 新備註 |
+| `note` | string | 否 | 新備註 |
 
 **請求：**
 
@@ -594,7 +594,7 @@
   "type": "woow_ha_records/finance/update_account",
   "account_id": "finance_abc123",
   "name": "Family Savings",
-  "notes": "Emergency fund"
+  "note": "Emergency fund"
 }
 ```
 

@@ -32,6 +32,7 @@ _zh-Hant_: 分類 (_避免_: 類別、群組、資料夾)
 **Remark**:
 Free-form text a user attaches to a Transaction, Account, Record, or Member.
 Never a Note — a Remark has no Category and cannot stand on its own.
+Remark is the concept; `note` is its spelling in every API (ADR-0002).
 _Avoid_: Note, Comment, Annotation, Memo
 _zh-Hant_: 備註 (_避免_: 筆記)
 

@@ -15,7 +15,7 @@
 | `woow_ha_records.finance_update_plan` | Write | `account_id`, `plan_id` | Modify plan settings |
 | `woow_ha_records.finance_delete_plan` | Write | `account_id`, `plan_id` | Delete recurring plan |
 | `woow_ha_records.finance_add_account` | Write | `name` | Create new account |
-| `woow_ha_records.finance_update_account` | Write | `account_id` | Rename / update notes |
+| `woow_ha_records.finance_update_account` | Write | `account_id` | Rename / update Remark |
 | `woow_ha_records.finance_delete_account` | Write | `account_id` | Delete account + all data |
 | `woow_ha_records.finance_adjust_balance` | Write | `account_id`, `new_balance` | Set absolute balance |
 
@@ -71,13 +71,13 @@ curl -s -X POST \
         "id": "my_wallet",
         "name": "My Wallet",
         "balance": 15000.50,
-        "notes": "Daily expenses"
+        "note": "Daily expenses"
       },
       {
         "id": "savings",
         "name": "Savings Account",
         "balance": 100000.00,
-        "notes": ""
+        "note": ""
       }
     ]
   }
@@ -105,7 +105,7 @@ curl -s -X POST \
       "id": "my_wallet",
       "name": "My Wallet",
       "balance": 15000.50,
-      "notes": "Daily expenses",
+      "note": "Daily expenses",
       "transactions": [
         {
           "id": "tx_a1b2c3d4",
@@ -362,7 +362,7 @@ The account_id is auto-generated from the name (lowercase, spaces→underscores)
 curl -s -X POST \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"account_id": "my_wallet", "name": "Primary Wallet", "notes": "For daily spending only"}' \
+  -d '{"account_id": "my_wallet", "name": "Primary Wallet", "note": "For daily spending only"}' \
   "http://localhost:8123/api/services/woow_ha_records/finance/update_account?return_response"
 ```
 

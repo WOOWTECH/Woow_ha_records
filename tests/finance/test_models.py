@@ -164,7 +164,7 @@ class TestAccount:
     def test_to_dict_and_from_dict_round_trip(self):
         """Test Account serialization round-trip."""
         account = Account(
-            id="acc1", name="Main", balance=1000.0, notes="Test notes"
+            id="acc1", name="Main", balance=1000.0, note="Test remark"
         )
         tx = Transaction.create(amount=500.0, note="Deposit")
         account.add_transaction(tx)
@@ -180,9 +180,31 @@ class TestAccount:
 
         assert restored.name == "Main"
         assert restored.balance == 1500.0  # 1000 + 500 from add_transaction
-        assert restored.notes == "Test notes"
+        assert restored.note == "Test remark"
         assert len(restored.transactions) == 1
         assert "plan_1" in restored.recurring_plans
+
+    def test_from_dict_reads_the_old_notes_spelling(self):
+        """A store written before ADR-0002 still loads its Remark."""
+        restored = Account.from_dict("acc1", {
+            "name": "Main",
+            "balance": 0.0,
+            "notes": "Written before the rename",
+        })
+
+        assert restored.note == "Written before the rename"
+        assert "notes" not in restored.to_dict()
+        assert restored.to_dict()["note"] == "Written before the rename"
+
+    def test_from_dict_prefers_note_over_notes(self):
+        """A half-migrated store takes the new spelling."""
+        restored = Account.from_dict("acc1", {
+            "name": "Main",
+            "note": "new",
+            "notes": "old",
+        })
+
+        assert restored.note == "new"
 
 
 class TestFinanceData:
