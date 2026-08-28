@@ -131,7 +131,7 @@
 | 22 | `woow_ha_records/note/create_note` | Admin | 在分類中建立新筆記 |
 | 23 | `woow_ha_records/note/update_note` | Admin | 更新筆記標題、內容或置頂狀態 |
 | 24 | `woow_ha_records/note/delete_note` | Admin | 刪除筆記並清理實體 |
-| 25 | `woow_ha_records/note/delete_category` | Admin | 刪除分類（連鎖刪除所有筆記） |
+| 25 | `woow_ha_records/note/delete_category` | Admin | 刪除分類（連鎖刪除所有筆記，需 `force`） |
 | 26 | `woow_ha_records/finance/accounts` | Public | 列出所有財務帳戶 |
 | 27 | `woow_ha_records/finance/account` | Public | 取得帳戶詳情（含交易與週期計畫） |
 | 28 | `woow_ha_records/finance/add_transaction` | Public | 新增交易 |

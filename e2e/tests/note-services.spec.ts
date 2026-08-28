@@ -273,7 +273,22 @@ test.describe('note Area Services E2E Tests', () => {
       expect(svcNotes.length).toBe(2);
     });
 
-    test('1.17 delete_category — cascade deletes notes in category', async () => {
+    test('1.17 delete_category — refuses a non-empty category without force', async () => {
+      // catId2 still holds noteId3. The cascade destroys notes that cannot be
+      // moved out of the category first, so it is opt-in. Issue #45.
+      const r = await svc.noteDeleteCategory(catId2, false);
+      expect(r.status).not.toBe(200);
+
+      // Nothing was deleted.
+      const cats = await svc.noteListCategories();
+      expect(cats.data.categories.map((c: any) => c.id)).toContain(catId2);
+
+      const notes = await svc.noteListNotes();
+      const survivors = notes.data.notes.filter((n: any) => n.category_id === catId2);
+      expect(survivors.length).toBeGreaterThanOrEqual(1);
+    });
+
+    test('1.18 delete_category — cascade deletes notes in category', async () => {
       // catId2 has noteId3
       const beforeList = await svc.noteListNotes();
       const notesInCat2 = beforeList.data.notes.filter(

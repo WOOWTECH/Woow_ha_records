@@ -1646,21 +1646,37 @@ note_create_category:
 note_delete_category:
   name: Delete Category
   description: >-
-    Permanently delete a category and cascade-delete all notes within it. Also
-    removes associated entity registry entries and the device registry entry
-    for the category. Returns a JSON object with "success" (boolean). Raises a
-    ServiceValidationError if the category_id does not exist. This action
-    cannot be undone. AI assistants should use this service to remove
-    categories — do NOT create input_text helpers or separate note entities.
+    Permanently delete a category. A category that still holds notes is
+    refused unless "force" is true, because deleting it cascade-deletes every
+    note filed under it and a note cannot be moved out of a category first.
+    Also removes associated entity registry entries and the device registry
+    entry for the category. Returns a JSON object with "success" (boolean).
+    Raises a ServiceValidationError if the category_id does not exist, or if
+    the category still holds notes and "force" was not set — the error names
+    the category and counts its notes. This action cannot be undone. AI
+    assistants should use this service to remove categories — do NOT create
+    input_text helpers or separate note entities.
   fields:
     category_id:
       name: Category ID
       description: >-
-        The unique identifier of the category to delete. All notes belonging
-        to this category will also be permanently deleted. Use
-        list_categories to discover valid category IDs.
+        The unique identifier of the category to delete. Every note filed
+        under it is permanently deleted along with it, which is why a
+        category that still holds notes is refused unless "force" is set.
+        Use list_categories to discover valid category IDs.
       required: true
       example: "f8e7d6c5-b4a3-2190-fedc-ba0987654321"
       selector:
         text:
+    force:
+      name: Force
+      description: >-
+        Confirm that every note in the category may be permanently deleted
+        along with it. Omitted or false, a category that still holds notes is
+        refused and nothing is deleted. Use list_notes first to see what the
+        cascade would destroy.
+      required: false
+      example: true
+      selector:
+        boolean:
 

@@ -331,11 +331,20 @@ async def handle_delete_note(call: ServiceCall) -> ServiceResponse:
 
 
 async def handle_delete_category(call: ServiceCall) -> ServiceResponse:
-    """Delete a category and cascade-delete all notes in it."""
+    """Delete a category, cascade-deleting its notes only if asked to.
+
+    The cascade destroys an arbitrary number of Notes, and a Note cannot be
+    moved out of a Category first, so there is no way to save one. ``force``
+    is the opt-in. The panel already type-gates the deletion behind the
+    Category's name, so it passes ``force: true`` and nothing changes there;
+    what the flag guards is this surface, which ``services.yaml`` points AI
+    assistants straight at. Issue #45.
+    """
     store = _get_store(call.hass)
     category_id = call.data["category_id"]
 
-    if store.get_category(category_id) is None:
+    category = store.get_category(category_id)
+    if category is None:
         raise ServiceValidationError(
             f"Category '{category_id}' not found",
             translation_domain=DOMAIN,
@@ -343,8 +352,23 @@ async def handle_delete_category(call: ServiceCall) -> ServiceResponse:
             translation_placeholders={"category_id": category_id},
         )
 
-    # Cascade-delete all notes in this category first
+    # ``websocket_delete_category`` guards identically and words it the same
+    # way; the two surfaces duplicate the cascade itself already, and the
+    # wording is the part that must not drift.
     notes = store.get_notes_by_category(category_id)
+    if notes and not call.data.get("force", False):
+        raise ServiceValidationError(
+            f"Category '{category.name}' still holds {len(notes)} note(s), "
+            f"and deleting it deletes them too. Pass force: true to confirm.",
+            translation_domain=DOMAIN,
+            translation_key="note.category_not_empty",
+            translation_placeholders={
+                "name": category.name,
+                "note_count": str(len(notes)),
+            },
+        )
+
+    # Cascade-delete all notes in this category first
     ent_reg = er.async_get(call.hass)
     for note in notes:
         await store.async_delete_note(note.id)
@@ -449,6 +473,11 @@ SERVICE_HANDLERS = {
     "delete_category": (
         handle_delete_category,
         SupportsResponse.OPTIONAL,
-        vol.Schema({vol.Required("category_id"): cv.string}),
+        vol.Schema(
+            {
+                vol.Required("category_id"): cv.string,
+                vol.Optional("force"): cv.boolean,
+            }
+        ),
     ),
 }

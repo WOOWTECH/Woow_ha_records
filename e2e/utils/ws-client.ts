@@ -277,8 +277,20 @@ export class HAWebSocketClient {
     return this.sendCommand({ type: 'woow_ha_records/note/delete_note', note_id: noteId });
   }
 
-  async noteDeleteCategory(categoryId: string) {
-    return this.sendCommand({ type: 'woow_ha_records/note/delete_category', category_id: categoryId });
+  /**
+   * Delete a note category.
+   *
+   * The cascade is opt-in (#45): a category that still holds notes is
+   * refused with `not_empty` unless `force` is set. Teardown wants the
+   * category gone whatever is in it, so this defaults to forcing; pass
+   * `false` to exercise the guard.
+   */
+  async noteDeleteCategory(categoryId: string, force = true) {
+    return this.sendCommand({
+      type: 'woow_ha_records/note/delete_category',
+      category_id: categoryId,
+      force,
+    });
   }
 
   // ─── Finance Helpers ──────────────────────────────────────

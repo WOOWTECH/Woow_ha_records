@@ -292,6 +292,8 @@ Delete a note and clean up its entity registry entries.
 
 Delete a category and **cascade-delete all notes** within it. Also removes all entity registry and device registry entries.
 
+The cascade is opt-in. A note cannot be moved to another category, so the cascade is the only thing that ends it and there is no undo — a category that still holds notes is refused unless `force` is `true`. The note panel type-gates the deletion behind the category's name and passes `force`.
+
 **Auth:** Admin
 
 **Parameters:**
@@ -299,6 +301,7 @@ Delete a category and **cascade-delete all notes** within it. Also removes all e
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `category_id` | string | Yes | Category ID |
+| `force` | boolean | No | Confirm that the notes in the category may be deleted with it. Defaults to `false`, which refuses a non-empty category and deletes nothing. |
 
 **Request:**
 
@@ -306,9 +309,14 @@ Delete a category and **cascade-delete all notes** within it. Also removes all e
 {
   "id": 22,
   "type": "woow_ha_records/note/delete_category",
-  "category_id": "cat_abc123"
+  "category_id": "cat_abc123",
+  "force": true
 }
 ```
+
+`force` is shown here because the example category holds notes. Omit it for a
+category you expect to be empty, and let the `not_empty` refusal tell you when
+it is not — that refusal is the guard, not an obstacle to route around.
 
 **Response:**
 
@@ -327,8 +335,9 @@ Delete a category and **cascade-delete all notes** within it. Also removes all e
 |------|---------|-------|
 | `not_found` | Store not initialized | Integration not set up |
 | `not_found` | Category not found | Invalid `category_id` |
+| `not_empty` | Category '...' still holds N note(s)... | Category holds notes and `force` was not set; nothing was deleted |
 
-**Side Effects:**
+**Side Effects:** (only once the call is accepted — a refusal changes nothing)
 - Cascade-deletes all notes in the category
 - Removes all associated entity registry entries (2 per note)
 - Removes the device from device registry

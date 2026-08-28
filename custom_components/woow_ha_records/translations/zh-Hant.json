@@ -180,6 +180,9 @@
       "category_duplicate": {
         "message": "已存在相同名稱的分類。"
       },
+      "category_not_empty": {
+        "message": "分類 {name} 下仍有 {note_count} 則筆記，刪除分類會一併刪除。請傳入 force: true 確認。"
+      },
       "delete_category_failed": {
         "message": "刪除分類失敗。"
       },
@@ -887,11 +890,15 @@
     },
     "note_delete_category": {
       "name": "刪除分類",
-      "description": "刪除分類及其下的所有筆記。",
+      "description": "刪除分類。若分類下仍有筆記，除非設定 force，否則會拒絕該呼叫，因為刪除分類會一併刪除筆記。",
       "fields": {
         "category_id": {
           "name": "分類 ID",
           "description": "要刪除的分類。"
+        },
+        "force": {
+          "name": "強制刪除",
+          "description": "連同分類下的筆記一併刪除。未設定時會拒絕該呼叫，且不會刪除任何資料。"
         }
       }
     }

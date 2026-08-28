@@ -129,7 +129,7 @@ Full request/response specifications live in [`docs/api/`](docs/api/README.md), 
 | 22 | `woow_ha_records/note/create_note` | Admin | Create a new note in a category |
 | 23 | `woow_ha_records/note/update_note` | Admin | Update note title, content, or pinned state |
 | 24 | `woow_ha_records/note/delete_note` | Admin | Delete a note and clean up entities |
-| 25 | `woow_ha_records/note/delete_category` | Admin | Delete a category (cascade-deletes all notes) |
+| 25 | `woow_ha_records/note/delete_category` | Admin | Delete a category (cascade-deletes all notes; needs `force`) |
 | 26 | `woow_ha_records/finance/accounts` | Public | List all financial accounts |
 | 27 | `woow_ha_records/finance/account` | Public | Get account details with transactions and plans |
 | 28 | `woow_ha_records/finance/add_transaction` | Public | Add a transaction to an account |
