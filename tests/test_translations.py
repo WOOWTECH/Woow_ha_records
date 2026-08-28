@@ -112,7 +112,10 @@ def _exception_messages(path: Path = STRINGS) -> dict[str, str]:
 
 
 def _placeholders_in(message: str) -> set[str]:
-    """Return the placeholder names a strings.json message interpolates.
+    """Return the placeholder names an exception message interpolates.
+
+    Any message, in ``strings.json`` or in a language file — comparing the
+    two is the whole point of the parity guards below.
 
     Deliberately matches any identifier, not just lowercase words: a guard
     that silently skipped ``{value2}`` would report parity it never checked.
