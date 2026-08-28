@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import logging
 
+import voluptuous as vol
 from homeassistant.core import (
     HomeAssistant,
     ServiceCall,
@@ -22,6 +23,7 @@ from homeassistant.core import (
     SupportsResponse,
 )
 from homeassistant.exceptions import ServiceValidationError
+from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 
@@ -376,17 +378,77 @@ async def handle_delete_category(call: ServiceCall) -> ServiceResponse:
 # Registration
 # ---------------------------------------------------------------------------
 
+# Field names, requiredness and types mirror this Area's WebSocket commands;
+# ``services.yaml`` is the reference where no command covers the operation.
+# This Area's commands add no value-domain checks beyond that, so the two
+# surfaces now agree field for field. The length limits stay where they were,
+# in the handlers, which report them in the caller's language.
+#
+# No optional field carries a ``default=`` either. Handlers read absence with
+# ``"field" in call.data`` and treat it as "leave unchanged", so a default
+# would turn every omitted field into an explicit overwrite — on the update
+# verbs that silently rewrites data the caller never mentioned.
 SERVICE_HANDLERS = {
     # Query — ONLY
-    "list_notes": (handle_list_notes, SupportsResponse.ONLY),
-    "get_note": (handle_get_note, SupportsResponse.ONLY),
-    "list_categories": (handle_list_categories, SupportsResponse.ONLY),
-    "export_markdown": (handle_export_markdown, SupportsResponse.ONLY),
+    "list_notes": (
+        handle_list_notes,
+        SupportsResponse.ONLY,
+        vol.Schema({}),
+    ),
+    "get_note": (
+        handle_get_note,
+        SupportsResponse.ONLY,
+        vol.Schema({vol.Required("note_id"): cv.string}),
+    ),
+    "list_categories": (
+        handle_list_categories,
+        SupportsResponse.ONLY,
+        vol.Schema({}),
+    ),
+    "export_markdown": (
+        handle_export_markdown,
+        SupportsResponse.ONLY,
+        vol.Schema({}),
+    ),
     # Note CRUD — OPTIONAL
-    "create_note": (handle_create_note, SupportsResponse.OPTIONAL),
-    "update_note": (handle_update_note, SupportsResponse.OPTIONAL),
-    "delete_note": (handle_delete_note, SupportsResponse.OPTIONAL),
+    "create_note": (
+        handle_create_note,
+        SupportsResponse.OPTIONAL,
+        vol.Schema(
+            {
+                vol.Required("category_id"): cv.string,
+                vol.Required("title"): cv.string,
+                vol.Optional("content"): cv.string,
+                vol.Optional("pinned"): cv.boolean,
+            }
+        ),
+    ),
+    "update_note": (
+        handle_update_note,
+        SupportsResponse.OPTIONAL,
+        vol.Schema(
+            {
+                vol.Required("note_id"): cv.string,
+                vol.Optional("title"): cv.string,
+                vol.Optional("content"): cv.string,
+                vol.Optional("pinned"): cv.boolean,
+            }
+        ),
+    ),
+    "delete_note": (
+        handle_delete_note,
+        SupportsResponse.OPTIONAL,
+        vol.Schema({vol.Required("note_id"): cv.string}),
+    ),
     # Category CRUD — OPTIONAL
-    "create_category": (handle_create_category, SupportsResponse.OPTIONAL),
-    "delete_category": (handle_delete_category, SupportsResponse.OPTIONAL),
+    "create_category": (
+        handle_create_category,
+        SupportsResponse.OPTIONAL,
+        vol.Schema({vol.Required("name"): cv.string}),
+    ),
+    "delete_category": (
+        handle_delete_category,
+        SupportsResponse.OPTIONAL,
+        vol.Schema({vol.Required("category_id"): cv.string}),
+    ),
 }

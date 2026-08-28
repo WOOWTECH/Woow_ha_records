@@ -21,6 +21,7 @@ from collections import defaultdict
 from datetime import datetime
 from typing import Any
 
+import voluptuous as vol
 from homeassistant.core import (
     HomeAssistant,
     ServiceCall,
@@ -28,6 +29,7 @@ from homeassistant.core import (
     SupportsResponse,
 )
 from homeassistant.exceptions import ServiceValidationError
+from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import device_registry as dr
 
 from ...const import device_id
@@ -689,23 +691,158 @@ async def handle_adjust_balance(call: ServiceCall) -> ServiceResponse:
 # Registration
 # ---------------------------------------------------------------------------
 
+# Field names, requiredness and types mirror this Area's WebSocket commands;
+# ``services.yaml`` is the reference where no command covers the operation.
+# What those commands also check and this deliberately does not is the value
+# domain — ``vol.In`` on ``frequency``, ``vol.Range`` on ``day`` and
+# ``month``. Rejecting a *value* the service accepts today is a different
+# change from rejecting a *field* it should never have accepted, which is all
+# issue #44 asked for; the amount fields still reach ``_valid_amount``, which
+# reports NaN and Infinity in the caller's language.
+#
+# No optional field carries a ``default=`` either. Handlers read absence with
+# ``"field" in call.data`` and treat it as "leave unchanged", so a
+# default would turn every omitted field into an explicit overwrite — on the
+# update verbs that silently rewrites data the caller never mentioned.
 SERVICE_HANDLERS = {
     # Query — ONLY
-    "get_accounts": (handle_get_accounts, SupportsResponse.ONLY),
-    "get_account": (handle_get_account, SupportsResponse.ONLY),
-    "get_chart_data": (handle_get_chart_data, SupportsResponse.ONLY),
-    "export_csv": (handle_export_csv, SupportsResponse.ONLY),
+    "get_accounts": (
+        handle_get_accounts,
+        SupportsResponse.ONLY,
+        vol.Schema({}),
+    ),
+    "get_account": (
+        handle_get_account,
+        SupportsResponse.ONLY,
+        vol.Schema({vol.Required("account_id"): cv.string}),
+    ),
+    "get_chart_data": (
+        handle_get_chart_data,
+        SupportsResponse.ONLY,
+        vol.Schema(
+            {
+                vol.Required("account_id"): cv.string,
+                vol.Optional("months"): vol.Coerce(int),
+            }
+        ),
+    ),
+    "export_csv": (
+        handle_export_csv,
+        SupportsResponse.ONLY,
+        vol.Schema({vol.Required("account_id"): cv.string}),
+    ),
     # Transaction CRUD — OPTIONAL
-    "add_transaction": (handle_add_transaction, SupportsResponse.OPTIONAL),
-    "update_transaction": (handle_update_transaction, SupportsResponse.OPTIONAL),
-    "delete_transaction": (handle_delete_transaction, SupportsResponse.OPTIONAL),
+    "add_transaction": (
+        handle_add_transaction,
+        SupportsResponse.OPTIONAL,
+        vol.Schema(
+            {
+                vol.Required("account_id"): cv.string,
+                vol.Required("amount"): vol.Coerce(float),
+                vol.Optional("note"): cv.string,
+                vol.Optional("transaction_type"): cv.string,
+            }
+        ),
+    ),
+    "update_transaction": (
+        handle_update_transaction,
+        SupportsResponse.OPTIONAL,
+        vol.Schema(
+            {
+                vol.Required("account_id"): cv.string,
+                vol.Required("transaction_id"): cv.string,
+                vol.Optional("amount"): vol.Coerce(float),
+                vol.Optional("note"): cv.string,
+            }
+        ),
+    ),
+    "delete_transaction": (
+        handle_delete_transaction,
+        SupportsResponse.OPTIONAL,
+        vol.Schema(
+            {
+                vol.Required("account_id"): cv.string,
+                vol.Required("transaction_id"): cv.string,
+            }
+        ),
+    ),
     # Recurring Plans — OPTIONAL
-    "add_plan": (handle_add_plan, SupportsResponse.OPTIONAL),
-    "update_plan": (handle_update_plan, SupportsResponse.OPTIONAL),
-    "delete_plan": (handle_delete_plan, SupportsResponse.OPTIONAL),
+    "add_plan": (
+        handle_add_plan,
+        SupportsResponse.OPTIONAL,
+        vol.Schema(
+            {
+                vol.Required("account_id"): cv.string,
+                vol.Required("title"): cv.string,
+                vol.Required("amount"): vol.Coerce(float),
+                vol.Required("frequency"): cv.string,
+                vol.Required("day"): vol.Coerce(int),
+                vol.Optional("month"): vol.Coerce(int),
+                vol.Optional("active"): cv.boolean,
+            }
+        ),
+    ),
+    "update_plan": (
+        handle_update_plan,
+        SupportsResponse.OPTIONAL,
+        vol.Schema(
+            {
+                vol.Required("account_id"): cv.string,
+                vol.Required("plan_id"): cv.string,
+                vol.Optional("title"): cv.string,
+                vol.Optional("amount"): vol.Coerce(float),
+                vol.Optional("frequency"): cv.string,
+                vol.Optional("day"): vol.Coerce(int),
+                vol.Optional("month"): vol.Coerce(int),
+                vol.Optional("active"): cv.boolean,
+            }
+        ),
+    ),
+    "delete_plan": (
+        handle_delete_plan,
+        SupportsResponse.OPTIONAL,
+        vol.Schema(
+            {
+                vol.Required("account_id"): cv.string,
+                vol.Required("plan_id"): cv.string,
+            }
+        ),
+    ),
     # Account Management — OPTIONAL
-    "add_account": (handle_add_account, SupportsResponse.OPTIONAL),
-    "update_account": (handle_update_account, SupportsResponse.OPTIONAL),
-    "delete_account": (handle_delete_account, SupportsResponse.OPTIONAL),
-    "adjust_balance": (handle_adjust_balance, SupportsResponse.OPTIONAL),
+    "add_account": (
+        handle_add_account,
+        SupportsResponse.OPTIONAL,
+        vol.Schema(
+            {
+                vol.Required("name"): cv.string,
+                vol.Optional("initial_balance"): vol.Coerce(float),
+            }
+        ),
+    ),
+    "update_account": (
+        handle_update_account,
+        SupportsResponse.OPTIONAL,
+        vol.Schema(
+            {
+                vol.Required("account_id"): cv.string,
+                vol.Optional("name"): cv.string,
+                vol.Optional("note"): cv.string,
+            }
+        ),
+    ),
+    "delete_account": (
+        handle_delete_account,
+        SupportsResponse.OPTIONAL,
+        vol.Schema({vol.Required("account_id"): cv.string}),
+    ),
+    "adjust_balance": (
+        handle_adjust_balance,
+        SupportsResponse.OPTIONAL,
+        vol.Schema(
+            {
+                vol.Required("account_id"): cv.string,
+                vol.Required("new_balance"): vol.Coerce(float),
+            }
+        ),
+    ),
 }

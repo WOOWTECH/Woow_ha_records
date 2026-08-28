@@ -1263,7 +1263,7 @@ health_update_record_type:
       name: New Display Name
       description: >-
         The updated human-readable display name for the record type.
-      required: true
+        If omitted the existing name is kept unchanged.
       example: "Body Weight"
       selector:
         text:
@@ -1271,7 +1271,7 @@ health_update_record_type:
       name: New Unit
       description: >-
         The updated unit of measurement (e.g. "kg", "lbs").
-      required: true
+        If omitted the existing unit is kept unchanged.
       example: "kg"
       selector:
         text:
