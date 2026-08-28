@@ -28,6 +28,7 @@ from homeassistant.core import (
     SupportsResponse,
 )
 from homeassistant.exceptions import ServiceValidationError
+from homeassistant.helpers import config_validation as cv
 from homeassistant.util import dt as dt_util
 
 from ...runtime import get_data
@@ -457,21 +458,145 @@ async def handle_delete_member(call: ServiceCall) -> ServiceResponse:
 # Registration
 # ---------------------------------------------------------------------------
 
+# Field names, requiredness and types mirror this Area's WebSocket commands;
+# ``services.yaml`` is the reference where no command covers the operation.
+# ``_valid_float`` is the same NaN/Infinity rejection ``valid_float`` makes
+# over WebSocket. Not mirrored is ``vol.In`` on ``default_value_mode``:
+# rejecting a *value* the service accepts today is a different change from
+# rejecting a *field* it should never have accepted, which is all issue #44
+# asked for.
+#
+# No optional field carries a ``default=`` either. Handlers read absence with
+# ``call.data.get(...) is None`` and treat it as "leave unchanged", so a
+# default would turn every omitted field into an explicit overwrite — on the
+# update verbs that silently rewrites data the caller never mentioned.
 SERVICE_HANDLERS = {
     # Query — ONLY
-    "get_members": (handle_get_members, SupportsResponse.ONLY),
-    "get_records": (handle_get_records, SupportsResponse.ONLY),
-    "export_csv": (handle_export_csv, SupportsResponse.ONLY),
+    "get_members": (
+        handle_get_members,
+        SupportsResponse.ONLY,
+        vol.Schema({}),
+    ),
+    "get_records": (
+        handle_get_records,
+        SupportsResponse.ONLY,
+        vol.Schema(
+            {
+                vol.Required("start_time"): cv.string,
+                vol.Required("end_time"): cv.string,
+            }
+        ),
+    ),
+    "export_csv": (
+        handle_export_csv,
+        SupportsResponse.ONLY,
+        vol.Schema({vol.Required("member_id"): cv.string}),
+    ),
     # Record CRUD — OPTIONAL
-    "log_record": (handle_log_record, SupportsResponse.OPTIONAL),
-    "update_record": (handle_update_record, SupportsResponse.OPTIONAL),
-    "delete_record": (handle_delete_record, SupportsResponse.OPTIONAL),
+    "log_record": (
+        handle_log_record,
+        SupportsResponse.OPTIONAL,
+        vol.Schema(
+            {
+                vol.Required("member_id"): cv.string,
+                vol.Required("record_type"): cv.string,
+                vol.Required("value"): _valid_float,
+                vol.Optional("note"): cv.string,
+                vol.Optional("timestamp"): cv.string,
+            }
+        ),
+    ),
+    "update_record": (
+        handle_update_record,
+        SupportsResponse.OPTIONAL,
+        vol.Schema(
+            {
+                vol.Required("member_id"): cv.string,
+                vol.Required("type_id"): cv.string,
+                vol.Required("timestamp"): cv.string,
+                vol.Optional("record_id"): cv.string,
+                vol.Optional("value"): _valid_float,
+                vol.Optional("note"): cv.string,
+                vol.Optional("new_timestamp"): cv.string,
+            }
+        ),
+    ),
+    "delete_record": (
+        handle_delete_record,
+        SupportsResponse.OPTIONAL,
+        vol.Schema(
+            {
+                vol.Required("member_id"): cv.string,
+                vol.Required("type_id"): cv.string,
+                vol.Required("timestamp"): cv.string,
+                vol.Optional("record_id"): cv.string,
+            }
+        ),
+    ),
     # Record type — OPTIONAL
-    "add_record_type": (handle_add_record_type, SupportsResponse.OPTIONAL),
-    "update_record_type": (handle_update_record_type, SupportsResponse.OPTIONAL),
-    "delete_record_type": (handle_delete_record_type, SupportsResponse.OPTIONAL),
+    "add_record_type": (
+        handle_add_record_type,
+        SupportsResponse.OPTIONAL,
+        vol.Schema(
+            {
+                vol.Required("member_id"): cv.string,
+                vol.Required("name"): cv.string,
+                vol.Required("unit"): cv.string,
+                vol.Optional("default_value"): _valid_float,
+                vol.Optional("default_value_mode"): cv.string,
+            }
+        ),
+    ),
+    "update_record_type": (
+        handle_update_record_type,
+        SupportsResponse.OPTIONAL,
+        vol.Schema(
+            {
+                vol.Required("member_id"): cv.string,
+                vol.Required("type_id"): cv.string,
+                vol.Optional("name"): cv.string,
+                vol.Optional("unit"): cv.string,
+                vol.Optional("default_value"): _valid_float,
+                vol.Optional("default_value_mode"): cv.string,
+            }
+        ),
+    ),
+    "delete_record_type": (
+        handle_delete_record_type,
+        SupportsResponse.OPTIONAL,
+        vol.Schema(
+            {
+                vol.Required("member_id"): cv.string,
+                vol.Required("type_id"): cv.string,
+            }
+        ),
+    ),
     # Member — OPTIONAL
-    "add_member": (handle_add_member, SupportsResponse.OPTIONAL),
-    "update_member": (handle_update_member, SupportsResponse.OPTIONAL),
-    "delete_member": (handle_delete_member, SupportsResponse.OPTIONAL),
+    "add_member": (
+        handle_add_member,
+        SupportsResponse.OPTIONAL,
+        vol.Schema(
+            {
+                vol.Required("name"): cv.string,
+                vol.Optional("member_id"): cv.string,
+                vol.Optional("note"): cv.string,
+            }
+        ),
+    ),
+    "update_member": (
+        handle_update_member,
+        SupportsResponse.OPTIONAL,
+        vol.Schema(
+            {
+                vol.Required("member_id"): cv.string,
+                vol.Required("name"): cv.string,
+                vol.Optional("note"): cv.string,
+            }
+        ),
+    ),
+    "delete_member": (
+        handle_delete_member,
+        SupportsResponse.OPTIONAL,
+        vol.Schema({vol.Required("member_id"): cv.string}),
+    ),
 }

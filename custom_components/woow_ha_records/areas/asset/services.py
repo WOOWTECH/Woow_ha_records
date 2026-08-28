@@ -18,6 +18,7 @@ import io
 import logging
 from datetime import datetime
 
+import voluptuous as vol
 from homeassistant.core import (
     HomeAssistant,
     ServiceCall,
@@ -25,6 +26,7 @@ from homeassistant.core import (
     SupportsResponse,
 )
 from homeassistant.exceptions import ServiceValidationError
+from homeassistant.helpers import config_validation as cv
 from homeassistant.util import dt as dt_util
 
 from ...runtime import get_data
@@ -326,18 +328,102 @@ async def handle_delete_category(call: ServiceCall) -> ServiceResponse:
 # Registration
 # ---------------------------------------------------------------------------
 
+# Field names, requiredness and types mirror this Area's WebSocket commands;
+# ``services.yaml`` is the reference where no command covers the operation.
+# What those commands also check and this deliberately does not is the value
+# domain — ``vol.Length`` on the text fields, ``vol.Match`` on the ids.
+# Rejecting a *value* the service accepts today is a different change from
+# rejecting a *field* it should never have accepted, which is all issue #44
+# asked for.
+#
+# No optional field carries a ``default=`` either. Handlers read absence with
+# ``"field" in call.data`` and treat it as "leave unchanged", so a
+# default would turn every omitted field into an explicit overwrite — on the
+# update verbs that silently rewrites data the caller never mentioned.
+#
+# ``purchase_at`` and ``warranty_until`` accept None as well as a string:
+# ``_parse_datetime`` reads either as "no date", and the WebSocket command
+# allows the same.
 SERVICE_HANDLERS = {
     # Query — ONLY
-    "list_assets": (handle_list_assets, SupportsResponse.ONLY),
-    "get_asset": (handle_get_asset, SupportsResponse.ONLY),
-    "list_categories": (handle_list_categories, SupportsResponse.ONLY),
-    "export_csv": (handle_export_csv, SupportsResponse.ONLY),
+    "list_assets": (
+        handle_list_assets,
+        SupportsResponse.ONLY,
+        vol.Schema({}),
+    ),
+    "get_asset": (
+        handle_get_asset,
+        SupportsResponse.ONLY,
+        vol.Schema({vol.Required("asset_id"): cv.string}),
+    ),
+    "list_categories": (
+        handle_list_categories,
+        SupportsResponse.ONLY,
+        vol.Schema({}),
+    ),
+    "export_csv": (
+        handle_export_csv,
+        SupportsResponse.ONLY,
+        vol.Schema({}),
+    ),
     # Asset CRUD — OPTIONAL
-    "create_asset": (handle_create_asset, SupportsResponse.OPTIONAL),
-    "update_asset": (handle_update_asset, SupportsResponse.OPTIONAL),
-    "delete_asset": (handle_delete_asset, SupportsResponse.OPTIONAL),
+    "create_asset": (
+        handle_create_asset,
+        SupportsResponse.OPTIONAL,
+        vol.Schema(
+            {
+                vol.Required("name"): cv.string,
+                vol.Optional("brand"): cv.string,
+                vol.Optional("category_id"): cv.string,
+                vol.Optional("value"): vol.Coerce(float),
+                vol.Optional("purchase_at"): vol.Any(cv.string, None),
+                vol.Optional("warranty_until"): vol.Any(cv.string, None),
+                vol.Optional("manual_md"): cv.string,
+                vol.Optional("maintenance_md"): cv.string,
+            }
+        ),
+    ),
+    "update_asset": (
+        handle_update_asset,
+        SupportsResponse.OPTIONAL,
+        vol.Schema(
+            {
+                vol.Required("asset_id"): cv.string,
+                vol.Optional("name"): cv.string,
+                vol.Optional("brand"): cv.string,
+                vol.Optional("category_id"): cv.string,
+                vol.Optional("value"): vol.Coerce(float),
+                vol.Optional("purchase_at"): vol.Any(cv.string, None),
+                vol.Optional("warranty_until"): vol.Any(cv.string, None),
+                vol.Optional("manual_md"): cv.string,
+                vol.Optional("maintenance_md"): cv.string,
+            }
+        ),
+    ),
+    "delete_asset": (
+        handle_delete_asset,
+        SupportsResponse.OPTIONAL,
+        vol.Schema({vol.Required("asset_id"): cv.string}),
+    ),
     # Category CRUD — OPTIONAL
-    "create_category": (handle_create_category, SupportsResponse.OPTIONAL),
-    "update_category": (handle_update_category, SupportsResponse.OPTIONAL),
-    "delete_category": (handle_delete_category, SupportsResponse.OPTIONAL),
+    "create_category": (
+        handle_create_category,
+        SupportsResponse.OPTIONAL,
+        vol.Schema({vol.Required("name"): cv.string}),
+    ),
+    "update_category": (
+        handle_update_category,
+        SupportsResponse.OPTIONAL,
+        vol.Schema(
+            {
+                vol.Required("category_id"): cv.string,
+                vol.Required("name"): cv.string,
+            }
+        ),
+    ),
+    "delete_category": (
+        handle_delete_category,
+        SupportsResponse.OPTIONAL,
+        vol.Schema({vol.Required("category_id"): cv.string}),
+    ),
 }
