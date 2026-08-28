@@ -447,7 +447,9 @@ async def ws_delete_transaction(
         vol.Required("amount"): vol.Coerce(float),
         vol.Required("frequency"): vol.In(FREQUENCY_OPTIONS),
         vol.Required("day"): vol.All(vol.Coerce(int), vol.Range(min=1, max=28)),
-        vol.Optional("month", default=1): vol.All(vol.Coerce(int), vol.Range(min=1, max=12)),
+        vol.Optional("month", default=1): vol.All(
+            vol.Coerce(int), vol.Range(min=1, max=12)
+        ),
         vol.Optional("active", default=True): bool,
     }
 )
