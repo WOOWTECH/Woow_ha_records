@@ -480,9 +480,9 @@ const list = users.filter(u => u.flag);
 // ─── Finance Test Data ──────────────────────────────────────
 
 export const FINANCE_ACCOUNTS = [
-  { name: '家庭日常開銷', initial_balance: 50000, notes: '每月家庭生活支出帳戶' },
-  { name: '投資帳戶', initial_balance: 100000, notes: '長期投資與理財' },
-  { name: '緊急備用金', initial_balance: 200000, notes: '至少維持 6 個月生活費' },
+  { name: '家庭日常開銷', initial_balance: 50000, note: '每月家庭生活支出帳戶' },
+  { name: '投資帳戶', initial_balance: 100000, note: '長期投資與理財' },
+  { name: '緊急備用金', initial_balance: 200000, note: '至少維持 6 個月生活費' },
 ];
 
 export const FINANCE_MONTHLY_TRANSACTIONS = [

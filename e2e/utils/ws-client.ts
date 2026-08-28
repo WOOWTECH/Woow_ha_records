@@ -299,7 +299,7 @@ export class HAWebSocketClient {
     });
   }
 
-  async financeUpdateAccount(accountId: string, updates: { name?: string; notes?: string }) {
+  async financeUpdateAccount(accountId: string, updates: { name?: string; note?: string }) {
     return this.sendCommand({
       type: 'woow_ha_records/finance/update_account',
       account_id: accountId,

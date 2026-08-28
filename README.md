@@ -140,8 +140,14 @@ Full request/response specifications live in [`docs/api/`](docs/api/README.md), 
 | 33 | `woow_ha_records/finance/delete_plan` | Public | Delete a recurring plan |
 | 34 | `woow_ha_records/finance/chart_data` | Public | Get monthly income vs. expense aggregation |
 | 35 | `woow_ha_records/finance/add_account` | Public | Create a new account (via ConfigEntry) |
-| 36 | `woow_ha_records/finance/update_account` | Public | Update account name or notes |
+| 36 | `woow_ha_records/finance/update_account` | Public | Update account name or Remark |
 | 37 | `woow_ha_records/finance/delete_account` | Public | Delete an account (via ConfigEntry removal) |
+
+> **Breaking change:** the Account's Remark is now spelled `note`, not `notes` —
+> in `finance_update_account`, in `woow_ha_records/finance/update_account`, and in
+> every account payload the read services and WebSocket commands return. No alias
+> is accepted. See
+> [ADR-0002](docs/adr/0002-spell-the-remark-field-note-at-every-boundary.md).
 
 ---
 

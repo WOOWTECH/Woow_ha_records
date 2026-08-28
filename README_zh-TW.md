@@ -145,6 +145,11 @@
 | 36 | `woow_ha_records/finance/update_account` | Public | 更新帳戶名稱或備註 |
 | 37 | `woow_ha_records/finance/delete_account` | Public | 刪除帳戶 |
 
+> **破壞性變更：** 帳戶的備註欄位現在拼作 `note`，不再是 `notes` —— 包含
+> `finance_update_account`、`woow_ha_records/finance/update_account`，以及讀取服務
+> 與 WebSocket 指令回傳的每一份帳戶 payload。不接受舊名稱。詳見
+> [ADR-0002](docs/adr/0002-spell-the-remark-field-note-at-every-boundary.md)。
+
 ---
 
 ## AI 代理工作流程範例

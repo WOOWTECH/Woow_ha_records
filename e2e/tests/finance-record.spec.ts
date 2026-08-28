@@ -59,21 +59,21 @@ test.describe('finance Area E2E Tests', () => {
   });
 
   test.describe('Round 1: Update Account', () => {
-    test('2.1 Update account notes', async () => {
+    test('2.1 Update the account Remark', async () => {
       const accountId = accountIds['家庭日常開銷'];
       if (accountId) {
         const result = await ws.financeUpdateAccount(accountId, {
-          notes: '每月家庭生活支出帳戶，含房租、水電、伙食等固定支出',
+          note: '每月家庭生活支出帳戶，含房租、水電、伙食等固定支出',
         });
         expect(result.success).toBe(true);
       }
     });
 
-    test('2.2 Update investment account notes', async () => {
+    test('2.2 Update the investment account Remark', async () => {
       const accountId = accountIds['投資帳戶'];
       if (accountId) {
         const result = await ws.financeUpdateAccount(accountId, {
-          notes: '長期投資與理財，主要持有台積電、ETF、債券基金',
+          note: '長期投資與理財，主要持有台積電、ETF、債券基金',
         });
         expect(result.success).toBe(true);
       }

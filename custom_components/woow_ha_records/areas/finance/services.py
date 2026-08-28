@@ -114,7 +114,7 @@ def _get_account_from_store(hass: HomeAssistant, account_id: str):
 
 
 async def handle_get_accounts(call: ServiceCall) -> ServiceResponse:
-    """Return every registered account (id, name, balance, notes)."""
+    """Return every registered account (id, name, balance, note)."""
     hass = call.hass
     store = _get_store(hass)
     await store.async_load()
@@ -124,7 +124,7 @@ async def handle_get_accounts(call: ServiceCall) -> ServiceResponse:
             "id": account.id,
             "name": account.name,
             "balance": account.balance,
-            "notes": account.notes,
+            "note": account.note,
         }
         for account in store.data.accounts.values()
     ]
@@ -154,7 +154,7 @@ async def handle_get_account(call: ServiceCall) -> ServiceResponse:
             "id": account.id,
             "name": account.name,
             "balance": account.balance,
-            "notes": account.notes,
+            "note": account.note,
             "transactions": [tx.to_dict() for tx in account.transactions],
             "recurring_plans": {
                 plan_id: plan.to_dict()
@@ -637,8 +637,8 @@ async def handle_update_account(call: ServiceCall) -> ServiceResponse:
         if device:
             device_reg.async_update_device(device.id, name=name)
 
-    if "notes" in call.data:
-        account.notes = call.data["notes"]
+    if "note" in call.data:
+        account.note = call.data["note"]
 
     await area.store.async_save()
 

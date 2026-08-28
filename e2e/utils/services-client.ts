@@ -338,7 +338,7 @@ export class HAServicesClient {
 
   async financeUpdateAccount(
     accountId: string,
-    updates: { name?: string; notes?: string } = {},
+    updates: { name?: string; note?: string } = {},
   ): Promise<ServiceResult> {
     return this.call('update_account', {
       account_id: accountId,

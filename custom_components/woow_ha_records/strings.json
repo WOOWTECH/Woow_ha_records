@@ -387,7 +387,7 @@
     },
     "finance_update_account": {
       "name": "Update Account",
-      "description": "Rename or update notes for an account.",
+      "description": "Rename an account or update its remark.",
       "fields": {
         "account_id": {
           "name": "Account ID",
@@ -397,9 +397,9 @@
           "name": "Name",
           "description": "New account name. Cannot be empty or duplicate."
         },
-        "notes": {
-          "name": "Notes",
-          "description": "Free-form notes for the account."
+        "note": {
+          "name": "Remark",
+          "description": "Free-form remark for the account."
         }
       }
     },

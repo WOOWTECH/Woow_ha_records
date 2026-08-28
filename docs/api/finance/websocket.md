@@ -70,7 +70,7 @@ List all financial accounts with basic info.
         "id": "finance_abc123",
         "name": "Main Account",
         "balance": 50000.0,
-        "notes": "Family expenses"
+        "note": "Family expenses"
       }
     ]
   }
@@ -113,7 +113,7 @@ Get full account details including all transactions and recurring plans.
       "id": "finance_abc123",
       "name": "Main Account",
       "balance": 50000.0,
-      "notes": "Family expenses",
+      "note": "Family expenses",
       "transactions": [
         {
           "id": "tx_a1b2c3d4",
@@ -574,7 +574,7 @@ Create a new financial account. This creates a new ConfigEntry via the config fl
 
 ### woow_ha_records/finance/update_account
 
-Update an account's name or notes. If the name changes, the ConfigEntry title and device registry are also updated.
+Update an account's name or Remark. If the name changes, the ConfigEntry title and device registry are also updated.
 
 **Auth:** Public
 
@@ -584,7 +584,7 @@ Update an account's name or notes. If the name changes, the ConfigEntry title an
 |-----------|------|----------|-------------|
 | `account_id` | string | Yes | Account ID |
 | `name` | string | No | New name (non-empty, case-insensitive unique) |
-| `notes` | string | No | New notes |
+| `note` | string | No | New Remark |
 
 **Request:**
 
@@ -594,7 +594,7 @@ Update an account's name or notes. If the name changes, the ConfigEntry title an
   "type": "woow_ha_records/finance/update_account",
   "account_id": "finance_abc123",
   "name": "Family Savings",
-  "notes": "Emergency fund"
+  "note": "Emergency fund"
 }
 ```
 

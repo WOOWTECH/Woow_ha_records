@@ -3,12 +3,7 @@ from __future__ import annotations
 
 from unittest.mock import AsyncMock
 
-import pytest
-
-from homeassistant.core import HomeAssistant
-
 from custom_components.woow_ha_records.areas.finance.models import Account, FinanceData
-from custom_components.woow_ha_records.areas.finance.store import FinanceStore
 
 
 class TestFinanceStore:
@@ -27,7 +22,7 @@ class TestFinanceStore:
                 "acc1": {
                     "name": "Main",
                     "balance": 5000.0,
-                    "notes": "",
+                    "note": "",
                     "transactions": [],
                     "recurring_plans": {},
                 },
