@@ -91,8 +91,11 @@ def _raise_sites() -> tuple[_RaiseSite, ...]:
 
 
 @cache
-def _exception_messages() -> dict[str, str]:
-    """Every exception message in strings.json, by the key a raise site uses.
+def _exception_messages(path: Path = STRINGS) -> dict[str, str]:
+    """Every exception message in a strings file, by the key a raise site uses.
+
+    Defaults to ``strings.json``, which is what raise sites are written
+    against; a language file is passed explicitly, and has the same shape.
 
     ``exceptions`` is nested one level per Area, so that key is
     ``<area>.<name>``. The dot is not special to Home Assistant: it flattens
@@ -100,7 +103,7 @@ def _exception_messages() -> dict[str, str]:
     ``async_get_exception_message`` looks the message up, so any depth
     resolves. The dot is only special to us, as the Area boundary.
     """
-    exceptions = _load_json(STRINGS).get("exceptions", {})
+    exceptions = _load_json(path).get("exceptions", {})
     return {
         f"{area}.{name}": entry.get("message", "")
         for area, keys in exceptions.items()
@@ -109,7 +112,10 @@ def _exception_messages() -> dict[str, str]:
 
 
 def _placeholders_in(message: str) -> set[str]:
-    """Return the placeholder names a strings.json message interpolates.
+    """Return the placeholder names an exception message interpolates.
+
+    Any message, in ``strings.json`` or in a language file — comparing the
+    two is the whole point of the parity guards below.
 
     Deliberately matches any identifier, not just lowercase words: a guard
     that silently skipped ``{value2}`` would report parity it never checked.
@@ -250,6 +256,54 @@ class TestTranslations:
             f"{len(underfilled)} raise site(s) under areas/ do not supply "
             f"every placeholder their strings.json message names, so the "
             f"whole message renders raw: {underfilled}"
+        )
+
+    @pytest.mark.parametrize("language", ["en", "zh-Hant"])
+    def test_translated_exceptions_name_no_extra_placeholder(
+        self, language: str
+    ) -> None:
+        """A translated message names no placeholder its English one omits.
+
+        #27's guard reads ``strings.json`` and nothing else, so it checks the
+        message the author wrote and not the one the user is shown. A
+        translator who adds ``{value}`` to a sentence whose English original
+        never named it writes a placeholder no raise site supplies, and the
+        message renders raw by exactly #27's mechanism: Home Assistant formats
+        inside ``suppress(KeyError)``, so one missing name discards the whole
+        ``.format()`` call, braces and all.
+
+        Only the one direction is a defect. A translation naming *fewer* is
+        legal — a translator may reasonably drop a value from a sentence, and
+        ``str.format`` ignores what the template does not use.
+
+        ``translations/en.json`` is a verbatim copy of ``strings.json``, so it
+        passes trivially. It stays in the parametrisation anyway: the
+        verbatim-copy guard proves the two files are identical, this proves
+        the placeholders are fillable, and neither implies the other if the
+        copy rule is ever relaxed.
+
+        Latent today — ``async_get_exception_message`` hardcodes
+        ``language = "en"``, so no zh-Hant exception message reaches a user
+        at all. That is the argument for the guard rather than against it:
+        a mismatch is invisible until Home Assistant honours the user's
+        language, and then visible everywhere at once.
+        """
+        source = _exception_messages()
+        translated = _exception_messages(TRANSLATIONS / f"{language}.json")
+
+        unfillable = sorted(
+            f"{key} names {sorted(extra)}"
+            for key, message in translated.items()
+            if (
+                extra := _placeholders_in(message)
+                - _placeholders_in(source.get(key, ""))
+            )
+        )
+        assert not unfillable, (
+            f"{len(unfillable)} exception message(s) in "
+            f"translations/{language}.json name a placeholder their "
+            f"strings.json counterpart does not, so no raise site supplies "
+            f"it and the whole message renders raw: {unfillable}"
         )
 
     def test_every_exception_key_names_its_own_area(self) -> None:
