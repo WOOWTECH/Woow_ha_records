@@ -123,7 +123,7 @@ Full request/response specifications live in [`docs/api/`](docs/api/README.md), 
 | 16 | `woow_ha_records/asset/delete` | Admin | Delete an asset |
 | 17 | `woow_ha_records/asset/create_category` | Admin | Create an asset category |
 | 18 | `woow_ha_records/asset/update_category` | Admin | Rename an asset category |
-| 19 | `woow_ha_records/asset/delete_category` | Admin | Delete an asset category |
+| 19 | `woow_ha_records/asset/delete_category` | Admin | Delete a category (cascade-deletes all assets; needs `force`) |
 | 20 | `woow_ha_records/note/get_data` | Public | List all categories and notes |
 | 21 | `woow_ha_records/note/create_category` | Admin | Create a new note category |
 | 22 | `woow_ha_records/note/create_note` | Admin | Create a new note in a category |

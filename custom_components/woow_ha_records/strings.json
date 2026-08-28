@@ -110,6 +110,9 @@
       "category_name_required": {
         "message": "Category name cannot be empty."
       },
+      "category_not_empty": {
+        "message": "Category {name} still holds {asset_count} asset(s), and deleting it deletes them too. Pass force: true to confirm."
+      },
       "category_not_found": {
         "message": "Category {category_id} not found."
       }
@@ -568,11 +571,15 @@
     },
     "asset_delete_category": {
       "name": "Delete Category",
-      "description": "Delete a category and every asset filed under it.",
+      "description": "Delete a category. A category that still holds assets is refused unless force is set, because deleting it deletes them too.",
       "fields": {
         "category_id": {
           "name": "Category ID",
           "description": "The category to delete."
+        },
+        "force": {
+          "name": "Force",
+          "description": "Delete the assets filed under the category along with it. Without this the call is refused and nothing is deleted."
         }
       }
     },

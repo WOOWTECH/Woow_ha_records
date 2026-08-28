@@ -250,3 +250,60 @@ Delete an asset and all associated entities.
 
 ---
 
+### woow_ha_records/asset/delete_category
+
+Delete a category and **cascade-delete all assets** filed under it. Also removes each deleted asset's entities and its device from the device registry.
+
+The cascade is opt-in. A category that still holds assets is refused unless `force` is `true`, and nothing is deleted. Unlike a note, an asset has an escape route — `woow_ha_records/asset/update` moves it to another `category_id` — so reassigning what is worth keeping and then deleting the emptied category needs no `force` at all. The asset panel names the category and counts its assets before asking, so it passes `force`.
+
+The other two category commands, `create_category` and `update_category`, are not yet documented here.
+
+**Auth:** Admin
+
+**Parameters:**
+
+| Parameter | Type | Required | Validation | Description |
+|-----------|------|----------|------------|-------------|
+| `category_id` | string | Yes | Regex `^cat_[a-f0-9]+$` | Category ID |
+| `force` | boolean | No | — | Confirm that the assets in the category may be deleted with it. Defaults to `false`, which refuses a non-empty category and deletes nothing. |
+
+**Request:**
+
+```json
+{
+  "id": 17,
+  "type": "woow_ha_records/asset/delete_category",
+  "category_id": "cat_a1b2c3d4e5f6...",
+  "force": true
+}
+```
+
+`force` is shown here because the example category holds assets. Omit it for a
+category you expect to be empty, and let the `not_empty` refusal tell you when
+it is not — that refusal is the guard, not an obstacle to route around.
+
+**Response:**
+
+```json
+{
+  "id": 17,
+  "type": "result",
+  "success": true,
+  "result": { "success": true }
+}
+```
+
+**Errors:**
+
+| Code | Message | Cause |
+|------|---------|-------|
+| `not_found` | Integration not configured | Integration not set up |
+| `not_found` | Category {id} not found | Invalid `category_id` |
+| `not_empty` | Category '...' still holds N asset(s)... | Category holds assets and `force` was not set; nothing was deleted |
+
+**Side Effects:** (only once the call is accepted — a refusal changes nothing)
+- Cascade-deletes every asset filed under the category
+- Removes each deleted asset's entities and its device from the device registry
+
+---
+

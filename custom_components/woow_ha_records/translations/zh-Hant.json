@@ -110,6 +110,9 @@
       "category_name_required": {
         "message": "分類名稱不可為空。"
       },
+      "category_not_empty": {
+        "message": "分類 {name} 下仍有 {asset_count} 項資產，刪除分類會一併刪除。請傳入 force: true 確認。"
+      },
       "category_not_found": {
         "message": "找不到分類「{category_id}」。"
       }
@@ -568,11 +571,15 @@
     },
     "asset_delete_category": {
       "name": "刪除分類",
-      "description": "刪除分類及其下的所有資產。",
+      "description": "刪除分類。若分類下仍有資產，除非設定 force，否則會拒絕該呼叫，因為刪除分類會一併刪除資產。",
       "fields": {
         "category_id": {
           "name": "分類 ID",
           "description": "要刪除的分類。"
+        },
+        "force": {
+          "name": "強制刪除",
+          "description": "連同分類下的資產一併刪除。未設定時會拒絕該呼叫，且不會刪除任何資料。"
         }
       }
     },

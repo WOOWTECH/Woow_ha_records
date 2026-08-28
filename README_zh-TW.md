@@ -125,7 +125,7 @@
 | 16 | `woow_ha_records/asset/delete` | Admin | 刪除資產 |
 | 17 | `woow_ha_records/asset/create_category` | Admin | 建立資產分類 |
 | 18 | `woow_ha_records/asset/update_category` | Admin | 重新命名資產分類 |
-| 19 | `woow_ha_records/asset/delete_category` | Admin | 刪除資產分類 |
+| 19 | `woow_ha_records/asset/delete_category` | Admin | 刪除分類（連鎖刪除所有資產，需 `force`） |
 | 20 | `woow_ha_records/note/get_data` | Public | 列出所有分類與筆記 |
 | 21 | `woow_ha_records/note/create_category` | Admin | 建立新筆記分類 |
 | 22 | `woow_ha_records/note/create_note` | Admin | 在分類中建立新筆記 |
