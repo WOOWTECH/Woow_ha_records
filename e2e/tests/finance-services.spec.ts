@@ -12,7 +12,8 @@
  *   Round 4 — Registration: services on the registry, and the panel loads
  *   Round 5 — Cleanup: delete test account, verify services persist
  *
- * Note: HA returns HTTP 500 for ServiceValidationError (not 400).
+ * Note: error paths call the service over WebSocket and assert the specific
+ *   refusal reason (#51); over REST a ServiceValidationError is a bare 500.
  * Note: Retries are disabled because tests are sequential and stateful.
  * Note: no hook here may touch the suite's own data. Playwright discards the
  *   worker process after a failed test and starts a fresh one for the rest of
@@ -77,6 +78,26 @@ async function deleteAccountOk(accountId: string): Promise<void> {
   const r = await svc.financeDeleteAccount(accountId);
   expect(r.status, `deleting Account ${accountId}`).toBe(200);
   expect(r.data.success).toBe(true);
+}
+
+/**
+ * Call one of this Area's services over the WebSocket `call_service` command
+ * and assert HA refused it for the given reason.
+ *
+ * Error paths go over WebSocket on purpose (#51): HA core's REST handler
+ * collapses every ServiceValidationError into a bare HTTP 500 with the reason
+ * only in the log (home-assistant/core#121219), so only the WS error frame
+ * lets a test tell a wrong-reason refusal from a right one. Happy paths stay
+ * on REST, which is still a supported surface for calls that succeed.
+ */
+async function expectRefused(
+  verb: string,
+  data: Record<string, any>,
+  translationKey: string,
+): Promise<void> {
+  const r = await ws.callService(`finance_${verb}`, data);
+  expect(r.success, `expected ${verb} to be refused`).toBe(false);
+  expect(r.error?.translation_key).toBe(translationKey);
 }
 
 test.describe('finance Area Services E2E Tests', () => {
@@ -341,8 +362,9 @@ test.describe('finance Area Services E2E Tests', () => {
   // ═══════════════════════════════════════════════════════════
   // Round 2: Edge Cases & Error Handling
   //
-  // Note: HA REST API returns HTTP 500 for ServiceValidationError.
-  // We check for non-200 status rather than a specific error code.
+  // Error paths call the service over WebSocket via expectRefused and assert
+  // the specific refusal reason (#51). Over REST, a ServiceValidationError is
+  // a bare HTTP 500 with the reason only in the HA log.
   //
   // IMPORTANT: Tests that create/delete temporary accounts (2.20, 2.21)
   // are placed at the END of Round 2 to avoid disrupting the coordinator
@@ -351,82 +373,112 @@ test.describe('finance Area Services E2E Tests', () => {
   test.describe('Round 2: Edge Cases & Error Handling', () => {
 
     // ─── 2.A Nonexistent resources ────────────────────────
-    test('2.1 get_account — nonexistent account returns error', async () => {
-      const r = await svc.financeGetAccount('nonexistent_xyz_999');
-      expect(r.status).not.toBe(200);
+    test('2.1 get_account — nonexistent account refused with account_not_found', async () => {
+      await expectRefused(
+        'get_account',
+        { account_id: 'nonexistent_xyz_999' },
+        'finance.account_not_found',
+      );
     });
 
-    test('2.2 add_transaction — nonexistent account returns error', async () => {
-      const r = await svc.financeAddTransaction('nonexistent_xyz_999', 100);
-      expect(r.status).not.toBe(200);
+    test('2.2 add_transaction — nonexistent account refused with account_not_found', async () => {
+      await expectRefused(
+        'add_transaction',
+        { account_id: 'nonexistent_xyz_999', amount: 100 },
+        'finance.account_not_found',
+      );
     });
 
-    test('2.3 update_transaction — nonexistent transaction returns error', async () => {
-      const r = await svc.financeUpdateTransaction(ACCT_ID, 'tx_nonexistent', {
-        amount: 999,
-      });
-      expect(r.status).not.toBe(200);
+    test('2.3 update_transaction — nonexistent transaction refused with transaction_not_found', async () => {
+      await expectRefused(
+        'update_transaction',
+        { account_id: ACCT_ID, transaction_id: 'tx_nonexistent', amount: 999 },
+        'finance.transaction_not_found',
+      );
     });
 
-    test('2.4 delete_transaction — nonexistent transaction returns error', async () => {
-      const r = await svc.financeDeleteTransaction(ACCT_ID, 'tx_nonexistent');
-      expect(r.status).not.toBe(200);
+    test('2.4 delete_transaction — nonexistent transaction refused with transaction_not_found', async () => {
+      await expectRefused(
+        'delete_transaction',
+        { account_id: ACCT_ID, transaction_id: 'tx_nonexistent' },
+        'finance.transaction_not_found',
+      );
     });
 
-    test('2.5 update_plan — nonexistent plan returns error', async () => {
-      const r = await svc.financeUpdatePlan(ACCT_ID, 'plan_nonexistent', {
-        title: 'Nope',
-      });
-      expect(r.status).not.toBe(200);
+    test('2.5 update_plan — nonexistent plan refused with plan_not_found', async () => {
+      await expectRefused(
+        'update_plan',
+        { account_id: ACCT_ID, plan_id: 'plan_nonexistent', title: 'Nope' },
+        'finance.plan_not_found',
+      );
     });
 
-    test('2.6 delete_plan — nonexistent plan returns error', async () => {
-      const r = await svc.financeDeletePlan(ACCT_ID, 'plan_nonexistent');
-      expect(r.status).not.toBe(200);
+    test('2.6 delete_plan — nonexistent plan refused with plan_not_found', async () => {
+      await expectRefused(
+        'delete_plan',
+        { account_id: ACCT_ID, plan_id: 'plan_nonexistent' },
+        'finance.plan_not_found',
+      );
     });
 
-    test('2.7 delete_account — nonexistent account returns error', async () => {
-      const r = await svc.financeDeleteAccount('nonexistent_xyz_999');
-      expect(r.status).not.toBe(200);
+    test('2.7 delete_account — nonexistent account refused with account_not_found', async () => {
+      await expectRefused(
+        'delete_account',
+        { account_id: 'nonexistent_xyz_999' },
+        'finance.account_not_found',
+      );
     });
 
-    test('2.8 export_csv — nonexistent account returns error', async () => {
-      const r = await svc.financeExportCsv('nonexistent_xyz_999');
-      expect(r.status).not.toBe(200);
+    test('2.8 export_csv — nonexistent account refused with account_not_found', async () => {
+      await expectRefused(
+        'export_csv',
+        { account_id: 'nonexistent_xyz_999' },
+        'finance.account_not_found',
+      );
     });
 
-    test('2.9 get_chart_data — nonexistent account returns error', async () => {
-      const r = await svc.financeGetChartData('nonexistent_xyz_999');
-      expect(r.status).not.toBe(200);
+    test('2.9 get_chart_data — nonexistent account refused with account_not_found', async () => {
+      await expectRefused(
+        'get_chart_data',
+        { account_id: 'nonexistent_xyz_999' },
+        'finance.account_not_found',
+      );
     });
 
-    test('2.10 adjust_balance — nonexistent account returns error', async () => {
-      const r = await svc.financeAdjustBalance('nonexistent_xyz_999', 100);
-      expect(r.status).not.toBe(200);
+    test('2.10 adjust_balance — nonexistent account refused with account_not_found', async () => {
+      await expectRefused(
+        'adjust_balance',
+        { account_id: 'nonexistent_xyz_999', new_balance: 100 },
+        'finance.account_not_found',
+      );
     });
 
     // ─── 2.B Duplicate prevention ─────────────────────────
-    test('2.11 add_account — duplicate name returns error', async () => {
+    test('2.11 add_account — duplicate name refused with duplicate_name', async () => {
       // Account was renamed to RENAMED_ACCT_NAME in test 1.19.
       // The duplicate name check in services.py should reject this.
-      const r = await svc.financeAddAccount(RENAMED_ACCT_NAME);
-      expect(r.status).not.toBe(200);
+      await expectRefused(
+        'add_account',
+        { name: RENAMED_ACCT_NAME },
+        'finance.duplicate_name',
+      );
     });
 
     // ─── 2.C Empty/whitespace names ───────────────────────
-    test('2.12 add_account — empty name returns error', async () => {
-      const r = await svc.financeAddAccount('');
-      expect(r.status).not.toBe(200);
+    test('2.12 add_account — empty name refused with invalid_name', async () => {
+      await expectRefused('add_account', { name: '' }, 'finance.invalid_name');
     });
 
-    test('2.13 add_account — whitespace-only name returns error', async () => {
-      const r = await svc.financeAddAccount('   ');
-      expect(r.status).not.toBe(200);
+    test('2.13 add_account — whitespace-only name refused with invalid_name', async () => {
+      await expectRefused('add_account', { name: '   ' }, 'finance.invalid_name');
     });
 
-    test('2.14 update_account — empty name returns error', async () => {
-      const r = await svc.financeUpdateAccount(ACCT_ID, { name: '  ' });
-      expect(r.status).not.toBe(200);
+    test('2.14 update_account — empty name refused with invalid_name', async () => {
+      await expectRefused(
+        'update_account',
+        { account_id: ACCT_ID, name: '  ' },
+        'finance.invalid_name',
+      );
     });
 
     // ─── 2.D Boundary values ──────────────────────────────

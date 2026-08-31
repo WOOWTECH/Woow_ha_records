@@ -12,7 +12,8 @@
  *   Round 4 — Registration: services on the registry, and the panel loads
  *   Round 5 — Cleanup: delete the test Members, verify services persist
  *
- * Note: HA returns HTTP 500 for ServiceValidationError (not 400).
+ * Note: error paths call the service over WebSocket and assert the specific
+ *   refusal reason (#51); over REST a ServiceValidationError is a bare 500.
  * Note: Retries are disabled because tests are sequential and stateful.
  * Note: no hook here may touch the suite's own data. Playwright discards the
  *   worker process after a failed test and starts a fresh one for the rest of
@@ -110,6 +111,26 @@ async function deleteMemberOk(memberId: string): Promise<void> {
   const r = await svc.deleteMember(memberId);
   expect(r.status, `deleting Member ${memberId}`).toBe(200);
   expect(r.data.success).toBe(true);
+}
+
+/**
+ * Call one of this Area's services over the WebSocket `call_service` command
+ * and assert HA refused it for the given reason.
+ *
+ * Error paths go over WebSocket on purpose (#51): HA core's REST handler
+ * collapses every ServiceValidationError into a bare HTTP 500 with the reason
+ * only in the log (home-assistant/core#121219), so only the WS error frame
+ * lets a test tell a wrong-reason refusal from a right one. Happy paths stay
+ * on REST, which is still a supported surface for calls that succeed.
+ */
+async function expectRefused(
+  verb: string,
+  data: Record<string, any>,
+  translationKey: string,
+): Promise<void> {
+  const r = await ws.callService(`health_${verb}`, data);
+  expect(r.success, `expected ${verb} to be refused`).toBe(false);
+  expect(r.error?.translation_key).toBe(translationKey);
 }
 
 test.describe('health Area Services E2E Tests', () => {
@@ -359,8 +380,9 @@ test.describe('health Area Services E2E Tests', () => {
   // ═══════════════════════════════════════════════════════════
   // Round 2: Edge Cases & Error Handling
   //
-  // Note: HA REST API returns HTTP 500 for ServiceValidationError.
-  // We check for non-200 status rather than a specific error code.
+  // Error paths call the service over WebSocket via expectRefused and assert
+  // the specific refusal reason (#51). Over REST, a ServiceValidationError is
+  // a bare HTTP 500 with the reason only in the HA log.
   // ═══════════════════════════════════════════════════════════
   test.describe('Round 2: Edge Cases & Error Handling', () => {
 
@@ -371,63 +393,96 @@ test.describe('health Area Services E2E Tests', () => {
       expect(r.data.records).toEqual([]);
     });
 
-    test('2.2 log_record — nonexistent member returns error', async () => {
-      const r = await svc.logRecord('nonexistent_member_xyz', 'weight', 1.0);
-      expect(r.status).not.toBe(200);
+    test('2.2 log_record — nonexistent member refused with member_not_found', async () => {
+      await expectRefused(
+        'log_record',
+        { member_id: 'nonexistent_member_xyz', record_type: 'weight', value: 1.0 },
+        'health.member_not_found',
+      );
     });
 
-    test('2.3 export_csv — nonexistent member returns error', async () => {
-      const r = await svc.exportCsv('nonexistent_member_xyz');
-      expect(r.status).not.toBe(200);
+    test('2.3 export_csv — nonexistent member refused with member_not_found', async () => {
+      await expectRefused(
+        'export_csv',
+        { member_id: 'nonexistent_member_xyz' },
+        'health.member_not_found',
+      );
     });
 
-    test('2.4 update_member — nonexistent member returns error', async () => {
-      const r = await svc.updateMember('nonexistent_member_xyz', 'New Name');
-      expect(r.status).not.toBe(200);
+    test('2.4 update_member — nonexistent member refused with member_not_found', async () => {
+      await expectRefused(
+        'update_member',
+        { member_id: 'nonexistent_member_xyz', name: 'New Name' },
+        'health.member_not_found',
+      );
     });
 
-    test('2.5 delete_member — nonexistent member returns error', async () => {
-      const r = await svc.deleteMember('nonexistent_member_xyz');
-      expect(r.status).not.toBe(200);
+    test('2.5 delete_member — nonexistent member refused with member_not_found', async () => {
+      await expectRefused(
+        'delete_member',
+        { member_id: 'nonexistent_member_xyz' },
+        'health.member_not_found',
+      );
     });
 
     // ─── 2.2 Nonexistent record types ────────────────────
-    test('2.6 log_record — nonexistent record type returns error', async () => {
-      const r = await svc.logRecord(SVC_MEMBER, 'nonexistent_type_xyz', 1.0);
-      expect(r.status).not.toBe(200);
+    test('2.6 log_record — nonexistent record type refused with record_type_not_found', async () => {
+      await expectRefused(
+        'log_record',
+        { member_id: SVC_MEMBER, record_type: 'nonexistent_type_xyz', value: 1.0 },
+        'health.record_type_not_found',
+      );
     });
 
-    test('2.7 delete_record_type — nonexistent type returns error', async () => {
-      const r = await svc.deleteRecordType(SVC_MEMBER, 'nonexistent_type_xyz');
-      expect(r.status).not.toBe(200);
+    test('2.7 delete_record_type — nonexistent type refused with type_not_found', async () => {
+      await expectRefused(
+        'delete_record_type',
+        { member_id: SVC_MEMBER, type_id: 'nonexistent_type_xyz' },
+        'health.type_not_found',
+      );
     });
 
-    test('2.8 update_record_type — nonexistent type returns error', async () => {
-      const r = await svc.updateRecordType(SVC_MEMBER, 'nonexistent_type_xyz', 'Name', 'unit');
-      expect(r.status).not.toBe(200);
+    test('2.8 update_record_type — nonexistent type refused with type_not_found', async () => {
+      await expectRefused(
+        'update_record_type',
+        { member_id: SVC_MEMBER, type_id: 'nonexistent_type_xyz', name: 'Name', unit: 'unit' },
+        'health.type_not_found',
+      );
     });
 
     // ─── 2.3 Duplicate prevention ────────────────────────
-    test('2.9 add_member — duplicate member_id returns error', async () => {
-      const r = await svc.addMember('Duplicate Test', SVC_MEMBER);
-      expect(r.status).not.toBe(200);
+    test('2.9 add_member — duplicate member_id refused with member_exists', async () => {
+      await expectRefused(
+        'add_member',
+        { name: 'Duplicate Test', member_id: SVC_MEMBER },
+        'health.member_exists',
+      );
     });
 
-    test('2.10 add_record_type — duplicate type returns error', async () => {
+    test('2.10 add_record_type — duplicate type refused with type_exists', async () => {
       // "Weight" sanitizes to type_id "weight" which already exists
-      const r = await svc.addRecordType(SVC_MEMBER, 'Weight', 'kg');
-      expect(r.status).not.toBe(200);
+      await expectRefused(
+        'add_record_type',
+        { member_id: SVC_MEMBER, name: 'Weight', unit: 'kg' },
+        'health.type_exists',
+      );
     });
 
     // ─── 2.4 Invalid datetime ────────────────────────────
-    test('2.11 log_record — invalid timestamp format returns error', async () => {
-      const r = await svc.logRecord(SVC_MEMBER, 'weight', 4.0, '', 'not-a-date');
-      expect(r.status).not.toBe(200);
+    test('2.11 log_record — invalid timestamp format refused with invalid_datetime', async () => {
+      await expectRefused(
+        'log_record',
+        { member_id: SVC_MEMBER, record_type: 'weight', value: 4.0, timestamp: 'not-a-date' },
+        'health.invalid_datetime',
+      );
     });
 
-    test('2.12 get_records — invalid start_time returns error', async () => {
-      const r = await svc.getRecords('invalid-date', RANGE_END);
-      expect(r.status).not.toBe(200);
+    test('2.12 get_records — invalid start_time refused with invalid_datetime', async () => {
+      await expectRefused(
+        'get_records',
+        { start_time: 'invalid-date', end_time: RANGE_END },
+        'health.invalid_datetime',
+      );
     });
 
     // ─── 2.5 Boundary values ─────────────────────────────
@@ -500,16 +555,29 @@ test.describe('health Area Services E2E Tests', () => {
     });
 
     // ─── 2.8 Record not found ────────────────────────────
-    test('2.21 update_record — nonexistent record returns error', async () => {
-      const r = await svc.updateRecord(SVC_MEMBER, 'weight', '1970-01-01T00:00:00+00:00', {
-        value: 999,
-      });
-      expect(r.status).not.toBe(200);
+    test('2.21 update_record — nonexistent record refused with record_not_found', async () => {
+      await expectRefused(
+        'update_record',
+        {
+          member_id: SVC_MEMBER,
+          type_id: 'weight',
+          timestamp: '1970-01-01T00:00:00+00:00',
+          value: 999,
+        },
+        'health.record_not_found',
+      );
     });
 
-    test('2.22 delete_record — nonexistent record returns error', async () => {
-      const r = await svc.deleteRecord(SVC_MEMBER, 'weight', '1970-01-01T00:00:00+00:00');
-      expect(r.status).not.toBe(200);
+    test('2.22 delete_record — nonexistent record refused with record_not_found', async () => {
+      await expectRefused(
+        'delete_record',
+        {
+          member_id: SVC_MEMBER,
+          type_id: 'weight',
+          timestamp: '1970-01-01T00:00:00+00:00',
+        },
+        'health.record_not_found',
+      );
     });
 
     // ─── 2.9 Response mode behavior ─────────────────────

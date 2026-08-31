@@ -5,6 +5,28 @@
 
 const HA_BASE = process.env.HA_BASE_URL || 'http://localhost:18125';
 
+/** The integration domain `callService` calls into. */
+const INTEGRATION_DOMAIN = 'woow_ha_records';
+
+/** The `error` object HA puts on a failed WebSocket command frame. */
+export interface ServiceCallError {
+  code: string;
+  message: string;
+  translation_key?: string;
+  translation_domain?: string;
+  translation_placeholders?: Record<string, string>;
+}
+
+/** Outcome of a service call made over the WebSocket `call_service` command. */
+export interface ServiceCallOutcome {
+  /** True when HA accepted and ran the call. */
+  success: boolean;
+  /** The service's response payload, when the call succeeded with a response. */
+  response?: any;
+  /** The refusal, when the call failed. */
+  error?: ServiceCallError;
+}
+
 export class HAWebSocketClient {
   private ws: any = null;
   private msgId = 0;
@@ -49,15 +71,12 @@ export class HAWebSocketClient {
           return;
         }
 
-        // Handle response to a command
+        // Handle response to a command — resolve with the whole frame;
+        // sendCommand decides whether a failure frame is a thrown error.
         if (msg.id && this.pending.has(msg.id)) {
-          const { resolve: res, reject: rej } = this.pending.get(msg.id)!;
+          const { resolve: res } = this.pending.get(msg.id)!;
           this.pending.delete(msg.id);
-          if (msg.success === false) {
-            rej(new Error(`WS error: ${JSON.stringify(msg.error)}`));
-          } else {
-            res(msg.result);
-          }
+          res(msg);
         }
       });
 
@@ -72,8 +91,8 @@ export class HAWebSocketClient {
     });
   }
 
-  /** Send a WebSocket command and wait for response */
-  async sendCommand(command: Record<string, any>): Promise<any> {
+  /** Send a WebSocket command and wait for the full response frame. */
+  private async sendRaw(command: Record<string, any>): Promise<any> {
     if (!this.connected) await this.connect();
 
     return new Promise((resolve, reject) => {
@@ -84,9 +103,9 @@ export class HAWebSocketClient {
       }, 30_000);
 
       this.pending.set(id, {
-        resolve: (result: any) => {
+        resolve: (frame: any) => {
           clearTimeout(timeout);
-          resolve(result);
+          resolve(frame);
         },
         reject: (err: Error) => {
           clearTimeout(timeout);
@@ -96,6 +115,50 @@ export class HAWebSocketClient {
 
       this.ws.send(JSON.stringify({ id, ...command }));
     });
+  }
+
+  /** Send a WebSocket command and wait for its result; throw on failure. */
+  async sendCommand(command: Record<string, any>): Promise<any> {
+    const frame = await this.sendRaw(command);
+    if (frame.success === false) {
+      throw new Error(`WS error: ${JSON.stringify(frame.error)}`);
+    }
+    return frame.result;
+  }
+
+  /**
+   * Call one of the integration's services through Home Assistant's
+   * WebSocket `call_service` command.
+   *
+   * This is the path the error-path e2e tests use (#51): HA core's REST
+   * handler collapses every ServiceValidationError into a bare HTTP 500 with
+   * the reason only in the log (home-assistant/core#121219), while this error
+   * frame preserves the message and the raise site's translation key. A
+   * refusal resolves (with `success: false` and the `error`) rather than
+   * throwing, so tests can assert on the reason.
+   *
+   * @param service  Full service name, e.g. "note_delete_category"
+   * @param serviceData  Service call payload
+   * @param opts  returnResponse defaults to true; every service in this
+   *   integration is ONLY or OPTIONAL, so requesting a response is always valid
+   */
+  async callService(
+    service: string,
+    serviceData: Record<string, any> = {},
+    opts: { returnResponse?: boolean } = {},
+  ): Promise<ServiceCallOutcome> {
+    const frame = await this.sendRaw({
+      type: 'call_service',
+      domain: INTEGRATION_DOMAIN,
+      service,
+      service_data: serviceData,
+      ...(opts.returnResponse !== false ? { return_response: true } : {}),
+    });
+
+    if (frame.success === false) {
+      return { success: false, error: frame.error };
+    }
+    return { success: true, response: frame.result?.response };
   }
 
   /** Close connection */

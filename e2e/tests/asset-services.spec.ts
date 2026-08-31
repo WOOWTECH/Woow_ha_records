@@ -76,6 +76,26 @@ async function deleteCategoryOk(categoryId: string): Promise<void> {
   expect(r.data.success).toBe(true);
 }
 
+/**
+ * Call one of this Area's services over the WebSocket `call_service` command
+ * and assert HA refused it for the given reason.
+ *
+ * Error paths go over WebSocket on purpose (#51): HA core's REST handler
+ * collapses every ServiceValidationError into a bare HTTP 500 with the reason
+ * only in the log (home-assistant/core#121219), so only the WS error frame
+ * lets a test tell a wrong-reason refusal from a right one. Happy paths stay
+ * on REST, which is still a supported surface for calls that succeed.
+ */
+async function expectRefused(
+  verb: string,
+  data: Record<string, any>,
+  translationKey: string,
+): Promise<void> {
+  const r = await ws.callService(`${DOMAIN}_${verb}`, data);
+  expect(r.success, `expected ${verb} to be refused`).toBe(false);
+  expect(r.error?.translation_key).toBe(translationKey);
+}
+
 test.describe('asset Area Services E2E Tests', () => {
   test.beforeAll(async () => {
     const tokens = await getHAToken();
@@ -299,8 +319,11 @@ test.describe('asset Area Services E2E Tests', () => {
     test('1.18 delete_category — refuses a non-empty category without force', async () => {
       // catId2 still holds assets. The cascade destroys them, so it is
       // opt-in. Issue #49.
-      const r = await svc.assetDeleteCategory(catId2, false);
-      expect(r.status).not.toBe(200);
+      await expectRefused(
+        'delete_category',
+        { category_id: catId2, force: false },
+        'asset.category_not_empty',
+      );
 
       // Nothing was deleted.
       const cats = await svc.assetListCategories();
@@ -321,7 +344,10 @@ test.describe('asset Area Services E2E Tests', () => {
       );
       expect(assetsInCat2.length).toBeGreaterThanOrEqual(1);
 
-      const r = await svc.assetDeleteCategory(catId2);
+      // force: true is the client default, but this test is the acceptance
+      // check that the very call 1.18 saw refused succeeds once forced (#49,
+      // #51) — so say it explicitly rather than lean on a default.
+      const r = await svc.assetDeleteCategory(catId2, true);
       expect(r.status).toBe(200);
       expect(r.data.success).toBe(true);
 
@@ -346,99 +372,127 @@ test.describe('asset Area Services E2E Tests', () => {
   // ═══════════════════════════════════════════════════════════
   // Round 2: Edge Cases & Error Handling
   //
-  // Note: HA REST API returns HTTP 500 for ServiceValidationError.
-  // We check for non-200 status rather than a specific error code.
+  // Error paths call the service over WebSocket via expectRefused and assert
+  // the specific refusal reason (#51). Over REST, a ServiceValidationError is
+  // a bare HTTP 500 with the reason only in the HA log.
   // ═══════════════════════════════════════════════════════════
   test.describe('Round 2: Edge Cases & Error Handling', () => {
 
     // ─── 2.A Nonexistent resources ────────────────────────
-    test('2.1 get_asset — nonexistent ID returns error', async () => {
-      const r = await svc.assetGetAsset('asset_0000000000000000');
-      expect(r.status).not.toBe(200);
+    test('2.1 get_asset — nonexistent ID refused with asset_not_found', async () => {
+      await expectRefused(
+        'get_asset',
+        { asset_id: 'asset_0000000000000000' },
+        'asset.asset_not_found',
+      );
     });
 
-    test('2.2 update_asset — nonexistent ID returns error', async () => {
-      const r = await svc.assetUpdateAsset('asset_0000000000000000', { name: 'Nope' });
-      expect(r.status).not.toBe(200);
+    test('2.2 update_asset — nonexistent ID refused with asset_not_found', async () => {
+      await expectRefused(
+        'update_asset',
+        { asset_id: 'asset_0000000000000000', name: 'Nope' },
+        'asset.asset_not_found',
+      );
     });
 
-    test('2.3 delete_asset — nonexistent ID returns error', async () => {
-      const r = await svc.assetDeleteAsset('asset_0000000000000000');
-      expect(r.status).not.toBe(200);
+    test('2.3 delete_asset — nonexistent ID refused with asset_not_found', async () => {
+      await expectRefused(
+        'delete_asset',
+        { asset_id: 'asset_0000000000000000' },
+        'asset.asset_not_found',
+      );
     });
 
-    test('2.4 update_category — nonexistent ID returns error', async () => {
-      const r = await svc.assetUpdateCategory('cat_0000000000000000', 'Nope');
-      expect(r.status).not.toBe(200);
+    test('2.4 update_category — nonexistent ID refused with category_error', async () => {
+      // The coordinator reports every category save problem (not found,
+      // duplicate, too long) as one ValueError, so the service maps them all
+      // to the single category_error key.
+      await expectRefused(
+        'update_category',
+        { category_id: 'cat_0000000000000000', name: 'Nope' },
+        'asset.category_error',
+      );
     });
 
-    test('2.5 delete_category — nonexistent ID returns error', async () => {
-      const r = await svc.assetDeleteCategory('cat_0000000000000000');
-      expect(r.status).not.toBe(200);
+    test('2.5 delete_category — nonexistent ID refused with category_not_found', async () => {
+      await expectRefused(
+        'delete_category',
+        { category_id: 'cat_0000000000000000' },
+        'asset.category_not_found',
+      );
     });
 
     // ─── 2.B Empty/whitespace names ──────────────────────
-    test('2.6 create_asset — empty name returns error', async () => {
-      const r = await svc.assetCreateAsset('');
-      expect(r.status).not.toBe(200);
+    test('2.6 create_asset — empty name refused with name_required', async () => {
+      await expectRefused('create_asset', { name: '' }, 'asset.name_required');
     });
 
-    test('2.7 create_asset — whitespace-only name returns error', async () => {
-      const r = await svc.assetCreateAsset('   ');
-      expect(r.status).not.toBe(200);
+    test('2.7 create_asset — whitespace-only name refused with name_required', async () => {
+      await expectRefused('create_asset', { name: '   ' }, 'asset.name_required');
     });
 
-    test('2.8 update_asset — empty name returns error', async () => {
+    test('2.8 update_asset — empty name refused with name_required', async () => {
       // Create a temp asset to update
       const c = await svc.assetCreateAsset('SvcTest TempForUpdate');
       expect(c.status).toBe(200);
       const tempId = c.data.asset.id;
 
-      const r = await svc.assetUpdateAsset(tempId, { name: '  ' });
-      expect(r.status).not.toBe(200);
+      await expectRefused(
+        'update_asset',
+        { asset_id: tempId, name: '  ' },
+        'asset.name_required',
+      );
 
       // Clean up
       await deleteAssetOk(tempId);
     });
 
-    test('2.9 create_category — empty name returns error', async () => {
-      const r = await svc.assetCreateCategory('');
-      expect(r.status).not.toBe(200);
+    test('2.9 create_category — empty name refused with category_name_required', async () => {
+      await expectRefused('create_category', { name: '' }, 'asset.category_name_required');
     });
 
-    test('2.10 create_category — whitespace-only name returns error', async () => {
-      const r = await svc.assetCreateCategory('   ');
-      expect(r.status).not.toBe(200);
+    test('2.10 create_category — whitespace-only name refused with category_name_required', async () => {
+      await expectRefused('create_category', { name: '   ' }, 'asset.category_name_required');
     });
 
     // ─── 2.C Duplicate category name ─────────────────────
-    test('2.11 create_category — duplicate name returns error', async () => {
+    test('2.11 create_category — duplicate name refused with category_error', async () => {
       const c = await svc.assetCreateCategory('SvcTest DupCategory');
       expect(c.status).toBe(200);
 
-      const r = await svc.assetCreateCategory('SvcTest DupCategory');
-      expect(r.status).not.toBe(200);
+      await expectRefused(
+        'create_category',
+        { name: 'SvcTest DupCategory' },
+        'asset.category_error',
+      );
 
       // Case-insensitive
-      const r2 = await svc.assetCreateCategory('svctest dupcategory');
-      expect(r2.status).not.toBe(200);
+      await expectRefused(
+        'create_category',
+        { name: 'svctest dupcategory' },
+        'asset.category_error',
+      );
     });
 
     // ─── 2.D Invalid datetime ────────────────────────────
-    test('2.12 create_asset — invalid purchase_at returns error', async () => {
-      const r = await svc.assetCreateAsset('SvcTest BadDate', {
-        purchase_at: 'not-a-date',
-      });
-      expect(r.status).not.toBe(200);
+    test('2.12 create_asset — invalid purchase_at refused with invalid_datetime', async () => {
+      await expectRefused(
+        'create_asset',
+        { name: 'SvcTest BadDate', purchase_at: 'not-a-date' },
+        'asset.invalid_datetime',
+      );
     });
 
-    test('2.13 update_asset — invalid warranty_until returns error', async () => {
+    test('2.13 update_asset — invalid warranty_until refused with invalid_datetime', async () => {
       const c = await svc.assetCreateAsset('SvcTest DateUpdateTest');
       expect(c.status).toBe(200);
       const tempId = c.data.asset.id;
 
-      const r = await svc.assetUpdateAsset(tempId, { warranty_until: 'abc123' });
-      expect(r.status).not.toBe(200);
+      await expectRefused(
+        'update_asset',
+        { asset_id: tempId, warranty_until: 'abc123' },
+        'asset.invalid_datetime',
+      );
 
       await deleteAssetOk(tempId);
     });

@@ -400,10 +400,15 @@ Creates an adjustment transaction for the difference. If balance was 15000 and y
 
 ## Error Handling
 
-All errors are returned as HTTP 500 with a JSON body:
-```json
-{"message": "Account 'xyz' not found."}
-```
+All services raise `ServiceValidationError` with translation keys on failure.
+
+> **Over REST the reason is lost.** A refused call returns a bare `HTTP 500`
+> with the generic body `Server got itself in trouble`; the message below
+> reaches only the HA log. This is upstream Home Assistant behaviour
+> ([core#121219](https://github.com/home-assistant/core/issues/121219)) — see
+> [Refused calls over REST](../README.md#refused-calls-over-rest-the-reason-never-reaches-you).
+> Callers that need the reason must use the WebSocket `call_service` command,
+> whose error frame carries the message and translation key.
 
 | Error Key | Cause |
 |-----------|-------|
@@ -489,7 +494,7 @@ csv_data = await hass.services.async_call("woow_ha_records", "export_csv", {
 | Protocol | WS `woow_ha_records/finance/xxx` | POST `/api/services/woow_ha_records/finance/xxx` |
 | Auth | WS auth flow | Bearer token header |
 | Response | `connection.send_result()` | `return_response` query param |
-| Errors | `connection.send_error(code, msg)` | HTTP 500 + `ServiceValidationError` |
+| Errors | `connection.send_error(code, msg)` | Bare HTTP 500; reason only in the HA log |
 | Fire-and-forget | N/A | Omit `?return_response` for write services |
 
 Both APIs use the same underlying coordinators and store — data changes are immediately visible across both.

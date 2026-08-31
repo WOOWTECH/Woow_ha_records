@@ -43,12 +43,12 @@ needs branded Chrome.
 
 ## Harness 1 — Playwright, against an existing HA
 
-376 tests across 9 spec files:
+378 tests across 9 spec files:
 
 | Spec pattern | Tests | Surface exercised |
 |---|---|---|
 | `*-record.spec.ts` (4 files) | 132 | **WebSocket** — the commands the custom panels send |
-| `*-services.spec.ts` (4 files) | 233 | **REST services** — `POST /api/services/<domain>/<service>`, the surface documented for automations and AI agents |
+| `*-services.spec.ts` (4 files) | 235 | **HA services** — happy paths over REST (`POST /api/services/<domain>/<service>`, the surface documented for automations and AI agents); error paths over the WebSocket `call_service` command, whose error frame preserves the refusal reason REST discards (#51) |
 | `integration.spec.ts` | 11 | **Browser UI** — panel navigation, persistence across reload |
 
 ```bash

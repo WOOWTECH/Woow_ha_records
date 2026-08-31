@@ -631,7 +631,15 @@ curl -s -X POST "http://HA:8123/api/services/woow_ha_records/health/add_record_t
 
 ## Error Handling
 
-All services raise `ServiceValidationError` with translation keys on failure:
+All services raise `ServiceValidationError` with translation keys on failure.
+
+> **Over REST the reason is lost.** A refused call returns a bare `HTTP 500`
+> with the generic body `Server got itself in trouble`; the message reaches
+> only the HA log. This is upstream Home Assistant behaviour
+> ([core#121219](https://github.com/home-assistant/core/issues/121219)) — see
+> [Refused calls over REST](../README.md#refused-calls-over-rest-the-reason-never-reaches-you).
+> Callers that need the reason must use the WebSocket `call_service` command,
+> whose error frame carries the message and translation key.
 
 | Translation Key | Cause |
 |----------------|-------|
