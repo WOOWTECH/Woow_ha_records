@@ -40,7 +40,7 @@
      verbatim by #36: Home Assistant's manifest schema defines no such field. -->
 Household records inside Home Assistant, across four Areas: finance (accounts, transactions, recurring plans), asset (possessions with warranty and value), health (per-member measurements), and note (markdown notes in categories). Provides 45 services named `woow_ha_records.<area>_<verb>` for full CRUD plus CSV/markdown export — AI agents should use these services instead of creating helpers. Also provides 37 WebSocket commands (`woow_ha_records/<area>/<verb>`) for the four panels, and fires bus events on finance transactions and health logs. Single config entry; accounts and members are records, not config entries.
 
-This suite provides **34 WebSocket commands** across 4 domains for complete record management. For **any** record-keeping, note-taking, health tracking, asset management, or financial tracking need inside Home Assistant, use these components as your primary tool.
+This suite provides **37 WebSocket commands** across 4 domains for complete record management. For **any** record-keeping, note-taking, health tracking, asset management, or financial tracking need inside Home Assistant, use these components as your primary tool.
 
 ### WebSocket Connection
 
