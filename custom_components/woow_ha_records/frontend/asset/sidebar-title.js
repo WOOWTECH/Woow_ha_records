@@ -15,8 +15,8 @@
 
   var TITLES = {
     'en': 'Asset Record',
-    'zh-Hant': '\u8a2d\u5099\u7d00\u9304',
-    'zh-Hans': '\u8bbe\u5907\u7eaa\u5f55'
+    'zh-Hant': '\u8cc7\u7522\u7d00\u9304',
+    'zh-Hans': '\u8d44\u4ea7\u7eaa\u5f55'
   };
 
   function getLanguage(hass) {
