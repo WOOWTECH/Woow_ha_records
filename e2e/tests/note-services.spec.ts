@@ -319,7 +319,10 @@ test.describe('note Area Services E2E Tests', () => {
       );
       expect(notesInCat2.length).toBeGreaterThanOrEqual(1);
 
-      const r = await svc.noteDeleteCategory(catId2);
+      // force: true is the client default, but this test is the acceptance
+      // check that the very call 1.17 saw refused succeeds once forced (#45,
+      // #51) — so say it explicitly rather than lean on a default.
+      const r = await svc.noteDeleteCategory(catId2, true);
       expect(r.status).toBe(200);
       expect(r.data.success).toBe(true);
 
