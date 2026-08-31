@@ -911,7 +911,7 @@
     }
   },
   "panel": {
-    "title": "設備紀錄",
+    "title": "資產紀錄",
     "add_asset": "新增資產",
     "edit_asset": "編輯資產",
     "name": "名稱",
@@ -941,7 +941,7 @@
     "category_name_placeholder": "輸入分類名稱",
     "rename_category": "重新命名分類",
     "delete_category": "刪除分類",
-    "delete_category_confirm": "將同時刪除分類下 {count} 個設備，確定要刪除嗎？",
+    "delete_category_confirm": "將同時刪除分類下 {count} 項資產，確定要刪除嗎？",
     "category_empty_error": "分類名稱不能為空",
     "category_duplicate_error": "已存在相同名稱的分類",
     "sort_by": "排序",

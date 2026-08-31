@@ -1098,7 +1098,7 @@ class HaAssetPanel extends LitElement {
       this.hass?.language?.startsWith("zh-TW") ||
       this.hass?.language?.startsWith("zh-HK");
     const fallbacks = {
-      title: isZhHant ? "設備紀錄" : "Asset Record",
+      title: isZhHant ? "資產紀錄" : "Asset Record",
       add_asset: isZhHant ? "新增資產" : "Add Asset",
       edit_asset: isZhHant ? "編輯資產" : "Edit Asset",
       name: isZhHant ? "名稱" : "Name",
@@ -1133,7 +1133,7 @@ class HaAssetPanel extends LitElement {
       category_name_placeholder: isZhHant ? "輸入分類名稱" : "Enter category name",
       rename_category: isZhHant ? "重新命名分類" : "Rename Category",
       delete_category: isZhHant ? "刪除分類" : "Delete Category",
-      delete_category_confirm: isZhHant ? "將同時刪除分類下的設備，確定要刪除嗎？" : "This will also delete assets in this category. Are you sure?",
+      delete_category_confirm: isZhHant ? "將同時刪除分類下 {count} 項資產，確定要刪除嗎？" : "This will also delete {count} asset(s) in this category. Are you sure?",
       category_empty_error: isZhHant ? "分類名稱不能為空" : "Category name cannot be empty",
       category_duplicate_error: isZhHant ? "已存在相同名稱的分類" : "A category with this name already exists",
       sort_by: isZhHant ? "排序" : "Sort by",
@@ -1970,9 +1970,9 @@ class HaAssetPanel extends LitElement {
 
   static _patchSidebarTitle(lang) {
     const title = lang && (lang.startsWith("zh-TW") || lang.startsWith("zh-HK") || lang === "zh-Hant")
-      ? "\u8A2D\u5099\u7D00\u9304"
+      ? "\u8CC7\u7522\u7D00\u9304"
       : lang && lang.startsWith("zh")
-        ? "\u8BBE\u5907\u8BB0\u5F55"
+        ? "\u8D44\u4EA7\u7EAA\u5F55"
         : "Asset Record";
     window.__haAssetRecordLang = lang;
     try {
