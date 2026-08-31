@@ -241,8 +241,20 @@ export class HAWebSocketClient {
     return this.sendCommand({ type: 'woow_ha_records/asset/update_category', category_id: categoryId, name });
   }
 
-  async assetDeleteCategory(categoryId: string) {
-    return this.sendCommand({ type: 'woow_ha_records/asset/delete_category', category_id: categoryId });
+  /**
+   * Delete an asset category.
+   *
+   * The cascade is opt-in (#49): a category that still holds assets is
+   * refused with `not_empty` unless `force` is set. Teardown wants the
+   * category gone whatever is in it, so this defaults to forcing; pass
+   * `false` to exercise the guard.
+   */
+  async assetDeleteCategory(categoryId: string, force = true) {
+    return this.sendCommand({
+      type: 'woow_ha_records/asset/delete_category',
+      category_id: categoryId,
+      force,
+    });
   }
 
   // ─── Note Record Helpers ──────────────────────────────────

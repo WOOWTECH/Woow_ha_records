@@ -5,9 +5,15 @@ import json
 from pathlib import Path
 
 import pytest
+from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ServiceValidationError
 
+from custom_components.woow_ha_records.areas.asset.coordinator import AssetCoordinator
 from custom_components.woow_ha_records.areas.asset.services import _parse_datetime
+from custom_components.woow_ha_records.const import DOMAIN
+from custom_components.woow_ha_records.services import async_register_services
+
+DELETE_CATEGORY = "asset_delete_category"
 
 STRINGS = (
     Path(__file__).parent.parent.parent
@@ -62,3 +68,213 @@ class TestParseDatetime:
         rendered = message.format(**caught.value.translation_placeholders)
         assert "{" not in rendered
         assert "purchase_at" in rendered
+
+
+# ---------------------------------------------------------------------------
+# ``asset_delete_category`` will not cascade unless the caller says so
+# ---------------------------------------------------------------------------
+#
+# Deleting a Category destroys every Asset filed under it. The asset panel
+# guards that — it names the Category and counts its Assets before asking —
+# but the service and WebSocket surfaces guarded nothing, and
+# ``services.yaml`` points AI assistants straight at the service. Issue #49,
+# mirroring what #45 did for the note Area.
+#
+# Asset is the milder of the two: an Asset *can* be moved out of a Category
+# first, so a user has an escape route a Note never had. That ranks it below
+# note; it does not excuse an unguarded API.
+
+
+@pytest.fixture
+def asset_services(
+    hass: HomeAssistant, asset_runtime: AssetCoordinator
+) -> AssetCoordinator:
+    """Register the services against a coordinator the handlers can reach.
+
+    ``asset_runtime`` supplies the ``hass.data`` record the handlers read;
+    this adds the registration, which is the half the two surfaces do
+    differently.
+    """
+    async_register_services(hass)
+    return asset_runtime
+
+
+class TestDeleteCategoryGuard:
+    """A Category holding Assets is deleted only on an explicit opt-in."""
+
+    async def test_refuses_a_category_that_still_holds_assets(
+        self,
+        hass: HomeAssistant,
+        asset_services: AssetCoordinator,
+        category_holding_assets,
+    ) -> None:
+        """The default call is refused, and nothing is deleted."""
+        category_id = (await category_holding_assets(3)).id
+
+        with pytest.raises(ServiceValidationError) as caught:
+            await hass.services.async_call(
+                DOMAIN,
+                DELETE_CATEGORY,
+                {"category_id": category_id},
+                blocking=True,
+            )
+
+        assert caught.value.translation_key == "asset.category_not_empty"
+        assert asset_services.get_category(category_id) is not None
+        assert len(asset_services.get_assets_by_category(category_id)) == 3
+
+    async def test_refusal_names_the_category_and_counts_its_assets(
+        self,
+        hass: HomeAssistant,
+        asset_services: AssetCoordinator,
+        category_holding_assets,
+    ) -> None:
+        """The caller is told what they would have destroyed.
+
+        A bare "refused" leaves an assistant no way to judge whether the
+        opt-in is warranted. The count is the whole point of the guard.
+        """
+        category = await category_holding_assets(2)
+
+        with pytest.raises(ServiceValidationError) as caught:
+            await hass.services.async_call(
+                DOMAIN,
+                DELETE_CATEGORY,
+                {"category_id": category.id},
+                blocking=True,
+            )
+
+        assert caught.value.translation_placeholders == {
+            "name": category.name,
+            "asset_count": "2",
+        }
+
+    async def test_renders_a_message_with_nothing_left_unfilled(
+        self,
+        hass: HomeAssistant,
+        asset_services: AssetCoordinator,
+        category_holding_assets,
+    ) -> None:
+        """The placeholders raised actually fill the published message.
+
+        Home Assistant drops the whole ``.format()`` call when one
+        placeholder is missing, showing the raw template instead. Issue #27.
+        """
+        message = json.loads(STRINGS.read_text(encoding="utf-8"))["exceptions"][
+            "asset"
+        ]["category_not_empty"]["message"]
+        category = await category_holding_assets(1)
+
+        with pytest.raises(ServiceValidationError) as caught:
+            await hass.services.async_call(
+                DOMAIN,
+                DELETE_CATEGORY,
+                {"category_id": category.id},
+                blocking=True,
+            )
+
+        rendered = message.format(**caught.value.translation_placeholders)
+        assert "{" not in rendered
+        assert category.name in rendered
+
+    async def test_force_cascade_deletes_the_assets(
+        self,
+        hass: HomeAssistant,
+        asset_services: AssetCoordinator,
+        category_holding_assets,
+    ) -> None:
+        """``force: true`` is the behaviour the panel has always had."""
+        category_id = (await category_holding_assets(3)).id
+
+        result = await hass.services.async_call(
+            DOMAIN,
+            DELETE_CATEGORY,
+            {"category_id": category_id, "force": True},
+            blocking=True,
+            return_response=True,
+        )
+
+        assert result == {"success": True}
+        assert asset_services.get_category(category_id) is None
+        assert dict(asset_services.assets) == {}
+
+    async def test_an_empty_category_needs_no_force(
+        self, hass: HomeAssistant, asset_services: AssetCoordinator
+    ) -> None:
+        """The guard is about the cascade, not about deleting at all."""
+        category = await asset_services.async_create_category("Empty")
+
+        result = await hass.services.async_call(
+            DOMAIN,
+            DELETE_CATEGORY,
+            {"category_id": category.id},
+            blocking=True,
+            return_response=True,
+        )
+
+        assert result == {"success": True}
+        assert asset_services.get_category(category.id) is None
+
+    async def test_an_asset_in_another_category_does_not_hold_the_delete(
+        self, hass: HomeAssistant, asset_services: AssetCoordinator
+    ) -> None:
+        """The count is scoped to the Category being deleted.
+
+        The asset Area keeps one flat store of Assets rather than a list per
+        Category, so a guard that counted the store instead of the Category
+        would refuse every deletion once any Asset existed anywhere.
+        """
+        elsewhere = await asset_services.async_create_category("Elsewhere")
+        await asset_services.async_create_asset_full(
+            "Kettle", category_id=elsewhere.id
+        )
+        empty = await asset_services.async_create_category("Empty")
+
+        result = await hass.services.async_call(
+            DOMAIN,
+            DELETE_CATEGORY,
+            {"category_id": empty.id},
+            blocking=True,
+            return_response=True,
+        )
+
+        assert result == {"success": True}
+        assert len(asset_services.get_assets_by_category(elsewhere.id)) == 1
+
+    async def test_force_false_is_read_as_no_opt_in(
+        self,
+        hass: HomeAssistant,
+        asset_services: AssetCoordinator,
+        category_holding_assets,
+    ) -> None:
+        """Sending the flag off is the same as not sending it.
+
+        Worth pinning: the handler reads the flag with a ``False`` default,
+        so an explicit ``force: false`` must not fall through to the cascade.
+        """
+        category_id = (await category_holding_assets(1)).id
+
+        with pytest.raises(ServiceValidationError) as caught:
+            await hass.services.async_call(
+                DOMAIN,
+                DELETE_CATEGORY,
+                {"category_id": category_id, "force": False},
+                blocking=True,
+            )
+
+        assert caught.value.translation_key == "asset.category_not_empty"
+        assert len(asset_services.assets) == 1
+
+    async def test_a_missing_category_is_still_reported_as_missing(
+        self, hass: HomeAssistant, asset_services: AssetCoordinator
+    ) -> None:
+        """The guard runs after the existence check, not instead of it."""
+        with pytest.raises(ServiceValidationError) as caught:
+            await hass.services.async_call(
+                DOMAIN,
+                DELETE_CATEGORY,
+                {"category_id": "cat_deadbeef", "force": True},
+                blocking=True,
+            )
+
+        assert caught.value.translation_key == "asset.category_not_found"

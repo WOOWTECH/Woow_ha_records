@@ -428,8 +428,19 @@ export class HAServicesClient {
     return this.call('update_category', { category_id: categoryId, name });
   }
 
-  async assetDeleteCategory(categoryId: string): Promise<ServiceResult> {
-    return this.call('delete_category', { category_id: categoryId });
+  /**
+   * Delete an asset category.
+   *
+   * The cascade is opt-in (#49): a category that still holds assets is
+   * refused unless `force` is set. Teardown wants the category gone
+   * whatever is in it, so this defaults to forcing; pass `false` to
+   * exercise the guard.
+   */
+  async assetDeleteCategory(
+    categoryId: string,
+    force = true,
+  ): Promise<ServiceResult> {
+    return this.call('delete_category', { category_id: categoryId, force });
   }
 
   // ─── Note Record: Query services (SupportsResponse.ONLY) ──

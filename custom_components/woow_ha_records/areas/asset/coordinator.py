@@ -421,7 +421,9 @@ class AssetCoordinator:
         # Remove the device from the device registry so it no longer
         # appears in Device & Services after the asset is deleted.
         dev_reg = dr.async_get(self.hass)
-        device = dev_reg.async_get_device(identifiers={(DOMAIN, device_id(AREA, asset_id))})
+        device = dev_reg.async_get_device(
+            identifiers={(DOMAIN, device_id(AREA, asset_id))}
+        )
         if device is not None:
             dev_reg.async_remove_device(device.id)
 
@@ -499,6 +501,20 @@ class AssetCoordinator:
         """Get a category by ID."""
         return self._categories_by_id.get(category_id)
 
+    def get_assets_by_category(self, category_id: str) -> list[Asset]:
+        """Return the assets filed under *category_id*.
+
+        Assets are held in one flat dict rather than a list per category, so
+        every caller that wants "what is in this category" would otherwise
+        write the same filter. Both delete_category surfaces need it to say
+        what the cascade would destroy before refusing to run it (#49).
+        """
+        return [
+            asset
+            for asset in self._assets.values()
+            if asset.category_id == category_id
+        ]
+
     async def async_create_category(self, name: str) -> Category:
         """Create a new category.
 
@@ -562,15 +578,18 @@ class AssetCoordinator:
         if category is None:
             return False
 
-        # Cascade delete: remove all assets with this category_id
+        # Cascade delete: remove all assets with this category_id.
+        # Same reading of "in this category" the two surfaces guard on, so a
+        # refusal cannot count one set and the cascade destroy another.
         asset_ids_to_delete = [
-            aid for aid, a in self._assets.items()
-            if a.category_id == category_id
+            asset.id for asset in self.get_assets_by_category(category_id)
         ]
         dev_reg = dr.async_get(self.hass)
         for asset_id in asset_ids_to_delete:
             asset = self._assets.pop(asset_id)
-            device = dev_reg.async_get_device(identifiers={(DOMAIN, device_id(AREA, asset_id))})
+            device = dev_reg.async_get_device(
+                identifiers={(DOMAIN, device_id(AREA, asset_id))}
+            )
             if device is not None:
                 dev_reg.async_remove_device(device.id)
             _LOGGER.info(

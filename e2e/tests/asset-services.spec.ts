@@ -296,7 +296,24 @@ test.describe('asset Area Services E2E Tests', () => {
       expect(svcAssets.length).toBe(2);
     });
 
-    test('1.18 delete_category — cascade deletes assets in category', async () => {
+    test('1.18 delete_category — refuses a non-empty category without force', async () => {
+      // catId2 still holds assets. The cascade destroys them, so it is
+      // opt-in. Issue #49.
+      const r = await svc.assetDeleteCategory(catId2, false);
+      expect(r.status).not.toBe(200);
+
+      // Nothing was deleted.
+      const cats = await svc.assetListCategories();
+      expect(cats.data.categories.map((c: any) => c.id)).toContain(catId2);
+
+      const assets = await svc.assetListAssets();
+      const survivors = assets.data.assets.filter(
+        (a: any) => a.category_id === catId2,
+      );
+      expect(survivors.length).toBeGreaterThanOrEqual(1);
+    });
+
+    test('1.19 delete_category — cascade deletes assets in category', async () => {
       // catId2 has assetId1 (moved to catId2 in test 1.12) and assetId3
       const beforeList = await svc.assetListAssets();
       const assetsInCat2 = beforeList.data.assets.filter(

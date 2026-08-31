@@ -1419,7 +1419,17 @@ class HaAssetPanel extends LitElement {
     try {
       await this.hass.callWS({
         type: "woow_ha_records/asset/delete_category",
+        // The cascade is opt-in on the API (#49). This dialog is that opt-in:
+        // it names the category and counts the assets that go with it.
+        //
+        // It is a weaker gate than the note panel's, which makes the user type
+        // the category name back. Accepted here because an asset has an escape
+        // route a note does not — reassign it with update and it survives the
+        // cascade — and because #49 asked to guard the API, not to tighten a
+        // panel that already confirmed. Tighten this before assuming the two
+        // panels gate alike.
         category_id: this._categoryDeleteTarget.id,
+        force: true,
       });
       if (this._activeTab === this._categoryDeleteTarget.id) {
         this._activeTab = "all";

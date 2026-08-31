@@ -310,17 +310,54 @@ async def handle_update_category(call: ServiceCall) -> ServiceResponse:
 
 
 async def handle_delete_category(call: ServiceCall) -> ServiceResponse:
-    """Delete a category and cascade-delete all assets in it."""
+    """Delete a category, cascade-deleting its assets only if asked to.
+
+    The cascade destroys an arbitrary number of Assets and there is no undo,
+    so ``force`` is the opt-in. An Asset can be moved to another Category
+    first, which is the escape route a Note lacks and the reason this ranked
+    below #45 — but ``services.yaml`` points AI assistants straight at this
+    surface either way. Issue #49.
+
+    The panel already names the Category and counts its Assets before asking,
+    so it passes ``force: true`` and nothing changes there.
+    """
     coordinator = _get_coordinator(call.hass)
     category_id = call.data["category_id"]
-    success = await coordinator.async_delete_category(category_id)
-    if not success:
-        raise ServiceValidationError(
+
+    def _not_found() -> ServiceValidationError:
+        return ServiceValidationError(
             f"Category '{category_id}' not found",
             translation_domain=DOMAIN,
             translation_key="asset.category_not_found",
             translation_placeholders={"category_id": category_id},
         )
+
+    # Was one call to ``async_delete_category``, whose ``False`` meant "no
+    # such category". The guard has to run before the cascade, so the lookup
+    # moves up here — and the ``False`` below now says nothing the lookup has
+    # not already said. It stays because it is the coordinator's only failure
+    # signal, and a second reason to return it must not read as success.
+    category = coordinator.get_category(category_id)
+    if category is None:
+        raise _not_found()
+
+    # ``ws_delete_category`` guards identically and words it the same way;
+    # the wording is the part that must not drift between the two surfaces.
+    assets = coordinator.get_assets_by_category(category_id)
+    if assets and not call.data.get("force", False):
+        raise ServiceValidationError(
+            f"Category '{category.name}' still holds {len(assets)} asset(s), "
+            f"and deleting it deletes them too. Pass force: true to confirm.",
+            translation_domain=DOMAIN,
+            translation_key="asset.category_not_empty",
+            translation_placeholders={
+                "name": category.name,
+                "asset_count": str(len(assets)),
+            },
+        )
+
+    if not await coordinator.async_delete_category(category_id):
+        raise _not_found()
     return {"success": True}
 
 
@@ -424,6 +461,11 @@ SERVICE_HANDLERS = {
     "delete_category": (
         handle_delete_category,
         SupportsResponse.OPTIONAL,
-        vol.Schema({vol.Required("category_id"): cv.string}),
+        vol.Schema(
+            {
+                vol.Required("category_id"): cv.string,
+                vol.Optional("force"): cv.boolean,
+            }
+        ),
     ),
 }

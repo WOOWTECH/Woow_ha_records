@@ -66,9 +66,12 @@ ha_asset_record/update_category
     Returns: ``{category: {id, name, created_at}}``
 
 ha_asset_record/delete_category
-    Delete a category and cascade-delete all assets in it.
+    Delete a category, cascade-deleting all assets in it. The cascade is
+    opt-in: a category that still holds assets is refused unless ``force``
+    is set, and nothing is deleted.
     Parameters:
         category_id      (str, required)
+        force            (bool, optional, default false)
     Permission: admin only
     Returns: ``{success: true}``
 
@@ -86,6 +89,8 @@ Error codes
                          or a duplicate category name.
 * ``invalid_format``  -- a datetime string could not be parsed as
                          ISO 8601.
+* ``not_empty``       -- the category still holds assets and ``force``
+                         was not set; nothing was deleted.
 """
 
 from __future__ import annotations
@@ -344,7 +349,9 @@ async def ws_update_asset(
         )
 
     if "manual_md" in msg:
-        await coordinator.async_update_asset(asset_id, FIELD_MANUAL_MD, msg["manual_md"])
+        await coordinator.async_update_asset(
+            asset_id, FIELD_MANUAL_MD, msg["manual_md"]
+        )
     if "maintenance_md" in msg:
         await coordinator.async_update_asset(
             asset_id, FIELD_MAINTENANCE_MD, msg["maintenance_md"]
@@ -463,6 +470,7 @@ async def ws_update_category(
         vol.Required("category_id"): vol.All(
             str, vol.Match(CATEGORY_ID_PATTERN)
         ),
+        vol.Optional("force"): bool,
     }
 )
 @websocket_api.async_response
@@ -471,17 +479,50 @@ async def ws_delete_category(
     connection: websocket_api.ActiveConnection,
     msg: dict[str, Any],
 ) -> None:
-    """Delete a category and cascade-delete all assets in it."""
+    """Delete a category, cascade-deleting its assets only if asked to.
+
+    ``force`` confirms that the assets in the category may be destroyed with
+    it; without it a category that still holds assets is refused with
+    ``not_empty`` and nothing is deleted. The panel names the category and
+    counts its assets before asking, so it passes ``force``. Issue #49.
+
+    ``handle_delete_category`` in services.py guards identically and words it
+    the same way; the wording is the part that must not drift.
+    """
     coordinator = _get_coordinator_from_hass(hass)
     if coordinator is None:
         connection.send_error(msg["id"], "not_found", "Integration not configured")
         return
 
-    success = await coordinator.async_delete_category(msg["category_id"])
-    if not success:
+    category_id = msg["category_id"]
+
+    def _send_not_found() -> None:
         connection.send_error(
-            msg["id"], "not_found", f"Category {msg['category_id']} not found"
+            msg["id"], "not_found", f"Category {category_id} not found"
         )
+
+    # Was one call to ``async_delete_category``, whose ``False`` meant "no
+    # such category". The guard has to run before the cascade, so the lookup
+    # moves up here — and the ``False`` below now says nothing the lookup has
+    # not already said. It stays because it is the coordinator's only failure
+    # signal, and a second reason to return it must not read as success.
+    category = coordinator.get_category(category_id)
+    if category is None:
+        _send_not_found()
+        return
+
+    assets = coordinator.get_assets_by_category(category_id)
+    if assets and not msg.get("force", False):
+        connection.send_error(
+            msg["id"],
+            "not_empty",
+            f"Category '{category.name}' still holds {len(assets)} asset(s), "
+            f"and deleting it deletes them too. Pass force: true to confirm.",
+        )
+        return
+
+    if not await coordinator.async_delete_category(category_id):
+        _send_not_found()
         return
 
     connection.send_result(msg["id"], {"success": True})

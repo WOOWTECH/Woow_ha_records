@@ -881,23 +881,42 @@ asset_update_category:
 asset_delete_category:
   name: "Delete Category"
   description: >-
-    Permanently delete a category and CASCADE-DELETE all assets within it.
-    This action cannot be undone and will remove every asset assigned to this
-    category. Returns a JSON object with "success" (boolean). Use
-    list_categories and list_assets first to understand which assets will be
-    affected. AI assistants should use this service to remove categories —
-    do NOT create scripts or automations for category deletion.
+    Permanently delete a category. A category that still holds assets is
+    refused unless "force" is true, because deleting it CASCADE-DELETES every
+    asset assigned to it. This action cannot be undone. Returns a JSON object
+    with "success" (boolean). Raises a ServiceValidationError if the
+    category_id does not exist, or if the category still holds assets and
+    "force" was not set — the error names the category and counts its assets.
+    Use list_categories and list_assets first to understand which assets would
+    be affected, and note that an asset can be reassigned to another category
+    with update_asset instead of being destroyed with this one. AI assistants
+    should use this service to remove categories — do NOT create scripts or
+    automations for category deletion.
   fields:
     category_id:
       name: "Category ID"
       description: >-
         The unique identifier (UUID) of the category to permanently delete.
-        WARNING: All assets in this category will also be permanently deleted.
-        Obtain this value from the list_categories service response.
+        WARNING: All assets in this category will also be permanently deleted,
+        which is why a category that still holds assets is refused unless
+        "force" is set. Obtain this value from the list_categories service
+        response.
       example: "f8e7d6c5-b4a3-2190-fedc-ba0987654321"
       required: true
       selector:
         text:
+    force:
+      name: "Force"
+      description: >-
+        Confirm that every asset in the category may be permanently deleted
+        along with it. Omitted or false, a category that still holds assets is
+        refused and nothing is deleted. Use list_assets first to see what the
+        cascade would destroy, and update_asset to move out anything worth
+        keeping.
+      example: true
+      required: false
+      selector:
+        boolean:
 
 
 # ── health ──────────────────────────────────────────────────────
