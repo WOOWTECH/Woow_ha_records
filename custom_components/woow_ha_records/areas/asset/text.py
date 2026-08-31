@@ -31,7 +31,7 @@ _LOGGER = logging.getLogger(__name__)
 async def async_setup_area(
     hass: HomeAssistant,
     coordinator: AssetCoordinator,
-    async_add_entities: AddConfigEntryEntitiesCallback,  # [M-06]
+    async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up text entities."""
 

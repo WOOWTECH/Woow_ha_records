@@ -11,7 +11,7 @@ from typing import Any
 from homeassistant.components.sensor import SensorEntity
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from ...const import unique_id
 from .area import HealthArea
@@ -28,7 +28,7 @@ _LOGGER = logging.getLogger(__name__)
 async def async_setup_area(
     hass: HomeAssistant,
     area: HealthArea,
-    async_add_entities: AddEntitiesCallback,
+    async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up one RecordSensor per Record Type per Member."""
     await async_setup_record_entities(
