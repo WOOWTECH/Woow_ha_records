@@ -873,11 +873,6 @@ class HaNoteRecordPanel extends LitElement {
   }
 
   _localize(key) {
-    // Try to get translation from HA's built-in localization first
-    const translation = this.hass?.localize?.(`component.woow_ha_records.panel.${key}`);
-    if (translation) return translation;
-
-    // Fall back to locally loaded translations.json
     return _getTranslation(key, this.hass?.language);
   }
 
