@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import Entity
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from ...const import signal_entities_changed
 from .const import AREA
@@ -26,7 +26,7 @@ if TYPE_CHECKING:
 async def async_setup_record_entities(
     hass: HomeAssistant,
     area: HealthArea,
-    async_add_entities: AddEntitiesCallback,
+    async_add_entities: AddConfigEntryEntitiesCallback,
     factory: Callable[[HealthRecordCoordinator, str], Entity],
 ) -> None:
     """Add one entity per (Member, Record Type) and keep the set in step."""

@@ -11,7 +11,7 @@ import logging
 
 from homeassistant.components.text import ENTITY_ID_FORMAT, TextEntity, TextMode
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from ...const import unique_id
 from .const import (
@@ -37,7 +37,7 @@ MAX_STATE_LENGTH = 200
 async def async_setup_area(
     hass: HomeAssistant,
     store: HaNoteRecordStore,
-    async_add_entities: AddEntitiesCallback,
+    async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up text entities from a config entry."""
 

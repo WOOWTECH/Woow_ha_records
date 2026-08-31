@@ -11,7 +11,7 @@ import math
 from homeassistant.components.number import NumberEntity, NumberMode
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from ...const import unique_id
 from .area import HealthArea
@@ -25,7 +25,7 @@ _LOGGER = logging.getLogger(__name__)
 async def async_setup_area(
     hass: HomeAssistant,
     area: HealthArea,
-    async_add_entities: AddEntitiesCallback,
+    async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up one RecordValueNumber per Record Type per Member."""
     await async_setup_record_entities(

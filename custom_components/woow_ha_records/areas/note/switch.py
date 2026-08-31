@@ -11,7 +11,7 @@ from typing import Any
 
 from homeassistant.components.switch import ENTITY_ID_FORMAT, SwitchEntity
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from ...const import unique_id
 from .const import AREA, ATTR_NOTE_ID, ICON_PINNED, ICON_UNPINNED
@@ -24,7 +24,7 @@ _LOGGER = logging.getLogger(__name__)
 async def async_setup_area(
     hass: HomeAssistant,
     store: HaNoteRecordStore,
-    async_add_entities: AddEntitiesCallback,
+    async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up switch entities from a config entry."""
 
