@@ -11,10 +11,6 @@
 <p align="center">
   <a href="#ai-代理快速入門">AI 代理快速入門</a> •
   <a href="#指令索引">指令索引</a> •
-  <a href="#健康紀錄-api-參考">健康紀錄 API</a> •
-  <a href="#資產紀錄-api-參考">資產紀錄 API</a> •
-  <a href="#筆記紀錄-api-參考">筆記紀錄 API</a> •
-  <a href="#財務-api-參考">財務 API</a> •
   <a href="#畫面截圖">畫面截圖</a> •
   <a href="#安裝方式">安裝方式</a>
 </p>
