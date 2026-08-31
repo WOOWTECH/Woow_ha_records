@@ -26,6 +26,19 @@ HA_BASE_URL=http://localhost:8123 npm test
 
 No script hardcodes a port.
 
+## Browser
+
+The Playwright harness uses Playwright's own bundled chromium, so it runs on
+any OS with no configuration. Install it once after `npm install`:
+
+```bash
+npx playwright install chromium
+```
+
+`run-tests.sh` does this automatically. To use a specific browser binary
+instead, set `CHROME_PATH` to its full path — it is optional, and nothing here
+needs branded Chrome.
+
 ---
 
 ## Harness 1 — Playwright, against an existing HA

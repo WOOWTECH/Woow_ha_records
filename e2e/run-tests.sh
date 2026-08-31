@@ -24,6 +24,19 @@ fi
 # Create test-results directory
 mkdir -p test-results
 
+# Verify a browser is available before Playwright dies mid-suite
+echo "Checking browser..."
+if [ -n "${CHROME_PATH:-}" ]; then
+  if [ ! -x "$CHROME_PATH" ]; then
+    echo "ERROR: CHROME_PATH is set but no executable exists there: $CHROME_PATH"
+    exit 1
+  fi
+else
+  # Fast when the bundled chromium is already installed; downloads it otherwise
+  npx playwright install chromium
+fi
+echo "Browser OK."
+
 # Verify HA is reachable
 echo "Checking HA connectivity..."
 if ! curl -sf "$HA_BASE_URL/api/" > /dev/null 2>&1; then
@@ -55,8 +68,9 @@ echo ""
 echo "Running tests..."
 echo "========================================"
 
-# Run with xvfb if DISPLAY is not set
-if [ -z "${DISPLAY:-}" ]; then
+# Run with xvfb if DISPLAY is not set and xvfb exists (Linux CI); elsewhere
+# the headless run needs no display server
+if [ -z "${DISPLAY:-}" ] && command -v xvfb-run > /dev/null 2>&1; then
   echo "No DISPLAY set, using xvfb-run..."
   xvfb-run --auto-servernum --server-args="-screen 0 1280x900x24" \
     npx playwright test "$@" --reporter=list,html

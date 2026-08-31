@@ -25,9 +25,12 @@ export default defineConfig({
     {
       name: 'chromium',
       use: {
-        channel: 'chrome',
         launchOptions: {
-          executablePath: process.env.CHROME_PATH || '/usr/bin/google-chrome',
+          // Playwright's bundled chromium by default, so the suite runs on any
+          // OS with no env var. CHROME_PATH points it at a specific binary.
+          ...(process.env.CHROME_PATH
+            ? { executablePath: process.env.CHROME_PATH }
+            : {}),
           args: [
             '--no-sandbox',
             '--disable-setuid-sandbox',
