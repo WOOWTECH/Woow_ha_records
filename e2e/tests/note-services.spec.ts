@@ -80,6 +80,26 @@ async function deleteCategoryOk(categoryId: string): Promise<void> {
   expect(r.data.success).toBe(true);
 }
 
+/**
+ * Call one of this Area's services over the WebSocket `call_service` command
+ * and assert HA refused it for the given reason.
+ *
+ * Error paths go over WebSocket on purpose (#51): HA core's REST handler
+ * collapses every ServiceValidationError into a bare HTTP 500 with the reason
+ * only in the log (home-assistant/core#121219), so only the WS error frame
+ * lets a test tell a wrong-reason refusal from a right one. Happy paths stay
+ * on REST, which is still a supported surface for calls that succeed.
+ */
+async function expectRefused(
+  verb: string,
+  data: Record<string, any>,
+  translationKey: string,
+): Promise<void> {
+  const r = await ws.callService(`${DOMAIN}_${verb}`, data);
+  expect(r.success, `expected ${verb} to be refused`).toBe(false);
+  expect(r.error?.translation_key).toBe(translationKey);
+}
+
 test.describe('note Area Services E2E Tests', () => {
   test.beforeAll(async () => {
     const tokens = await getHAToken();
@@ -276,8 +296,11 @@ test.describe('note Area Services E2E Tests', () => {
     test('1.17 delete_category — refuses a non-empty category without force', async () => {
       // catId2 still holds noteId3. The cascade destroys notes that cannot be
       // moved out of the category first, so it is opt-in. Issue #45.
-      const r = await svc.noteDeleteCategory(catId2, false);
-      expect(r.status).not.toBe(200);
+      await expectRefused(
+        'delete_category',
+        { category_id: catId2, force: false },
+        'note.category_not_empty',
+      );
 
       // Nothing was deleted.
       const cats = await svc.noteListCategories();
@@ -319,94 +342,129 @@ test.describe('note Area Services E2E Tests', () => {
   // ═══════════════════════════════════════════════════════════
   // Round 2: Edge Cases & Error Handling
   //
-  // Note: HA REST API returns HTTP 500 for ServiceValidationError.
-  // We check for non-200 status rather than a specific error code.
+  // Error paths call the service over WebSocket via expectRefused and assert
+  // the specific refusal reason (#51). Over REST, a ServiceValidationError is
+  // a bare HTTP 500 with the reason only in the HA log.
   // ═══════════════════════════════════════════════════════════
   test.describe('Round 2: Edge Cases & Error Handling', () => {
 
     // ─── 2.A Nonexistent resources ────────────────────────
-    test('2.1 get_note — nonexistent ID returns error', async () => {
-      const r = await svc.noteGetNote('00000000-0000-0000-0000-000000000000');
-      expect(r.status).not.toBe(200);
+    test('2.1 get_note — nonexistent ID refused with note_not_found', async () => {
+      await expectRefused(
+        'get_note',
+        { note_id: '00000000-0000-0000-0000-000000000000' },
+        'note.note_not_found',
+      );
     });
 
-    test('2.2 update_note — nonexistent ID returns error', async () => {
-      const r = await svc.noteUpdateNote('00000000-0000-0000-0000-000000000000', { title: 'Nope' });
-      expect(r.status).not.toBe(200);
+    test('2.2 update_note — nonexistent ID refused with note_not_found', async () => {
+      await expectRefused(
+        'update_note',
+        { note_id: '00000000-0000-0000-0000-000000000000', title: 'Nope' },
+        'note.note_not_found',
+      );
     });
 
-    test('2.3 delete_note — nonexistent ID returns error', async () => {
-      const r = await svc.noteDeleteNote('00000000-0000-0000-0000-000000000000');
-      expect(r.status).not.toBe(200);
+    test('2.3 delete_note — nonexistent ID refused with note_not_found', async () => {
+      await expectRefused(
+        'delete_note',
+        { note_id: '00000000-0000-0000-0000-000000000000' },
+        'note.note_not_found',
+      );
     });
 
-    test('2.4 delete_category — nonexistent ID returns error', async () => {
-      const r = await svc.noteDeleteCategory('00000000-0000-0000-0000-000000000000');
-      expect(r.status).not.toBe(200);
+    test('2.4 delete_category — nonexistent ID refused with category_not_found', async () => {
+      await expectRefused(
+        'delete_category',
+        { category_id: '00000000-0000-0000-0000-000000000000' },
+        'note.category_not_found',
+      );
     });
 
-    test('2.5 create_note — nonexistent category returns error', async () => {
-      const r = await svc.noteCreateNote('00000000-0000-0000-0000-000000000000', 'SvcTest Orphan');
-      expect(r.status).not.toBe(200);
+    test('2.5 create_note — nonexistent category refused with category_not_found', async () => {
+      await expectRefused(
+        'create_note',
+        { category_id: '00000000-0000-0000-0000-000000000000', title: 'SvcTest Orphan' },
+        'note.category_not_found',
+      );
     });
 
     // ─── 2.B Empty/whitespace names ──────────────────────
-    test('2.6 create_category — empty name returns error', async () => {
-      const r = await svc.noteCreateCategory('');
-      expect(r.status).not.toBe(200);
+    test('2.6 create_category — empty name refused with category_name_required', async () => {
+      await expectRefused('create_category', { name: '' }, 'note.category_name_required');
     });
 
-    test('2.7 create_category — whitespace-only name returns error', async () => {
-      const r = await svc.noteCreateCategory('   ');
-      expect(r.status).not.toBe(200);
+    test('2.7 create_category — whitespace-only name refused with category_name_required', async () => {
+      await expectRefused('create_category', { name: '   ' }, 'note.category_name_required');
     });
 
-    test('2.8 create_note — empty title returns error', async () => {
+    test('2.8 create_note — empty title refused with title_required', async () => {
       // Use catId1 which still exists from Round 1
-      const r = await svc.noteCreateNote(catId1, '');
-      expect(r.status).not.toBe(200);
+      await expectRefused(
+        'create_note',
+        { category_id: catId1, title: '' },
+        'note.title_required',
+      );
     });
 
-    test('2.9 create_note — whitespace-only title returns error', async () => {
-      const r = await svc.noteCreateNote(catId1, '   ');
-      expect(r.status).not.toBe(200);
+    test('2.9 create_note — whitespace-only title refused with title_required', async () => {
+      await expectRefused(
+        'create_note',
+        { category_id: catId1, title: '   ' },
+        'note.title_required',
+      );
     });
 
-    test('2.10 update_note — empty title returns error', async () => {
-      const r = await svc.noteUpdateNote(noteId1, { title: '  ' });
-      expect(r.status).not.toBe(200);
+    test('2.10 update_note — empty title refused with title_required', async () => {
+      await expectRefused(
+        'update_note',
+        { note_id: noteId1, title: '  ' },
+        'note.title_required',
+      );
     });
 
     // ─── 2.C Duplicate names ─────────────────────────────
-    test('2.11 create_category — duplicate name returns error', async () => {
+    test('2.11 create_category — duplicate name refused with category_duplicate', async () => {
       const c = await svc.noteCreateCategory('SvcTest DupCategory');
       expect(c.status).toBe(200);
 
-      const r = await svc.noteCreateCategory('SvcTest DupCategory');
-      expect(r.status).not.toBe(200);
+      await expectRefused(
+        'create_category',
+        { name: 'SvcTest DupCategory' },
+        'note.category_duplicate',
+      );
 
       // Case-insensitive
-      const r2 = await svc.noteCreateCategory('svctest dupcategory');
-      expect(r2.status).not.toBe(200);
+      await expectRefused(
+        'create_category',
+        { name: 'svctest dupcategory' },
+        'note.category_duplicate',
+      );
 
       await deleteCategoryOk(c.data.category.id);
     });
 
-    test('2.12 create_note — duplicate title in same category returns error', async () => {
+    test('2.12 create_note — duplicate title in same category refused with title_duplicate', async () => {
       const c = await svc.noteCreateNote(catId1, 'SvcTest DupTitle');
       expect(c.status).toBe(200);
 
-      const r = await svc.noteCreateNote(catId1, 'SvcTest DupTitle');
-      expect(r.status).not.toBe(200);
+      await expectRefused(
+        'create_note',
+        { category_id: catId1, title: 'SvcTest DupTitle' },
+        'note.title_duplicate',
+      );
 
       // Case-insensitive
-      const r2 = await svc.noteCreateNote(catId1, 'svctest duptitle');
-      expect(r2.status).not.toBe(200);
+      await expectRefused(
+        'create_note',
+        { category_id: catId1, title: 'svctest duptitle' },
+        'note.title_duplicate',
+      );
 
       await deleteNoteOk(c.data.note.id);
     });
 
-    test('2.13 update_note — duplicate title (excluding self) returns error', async () => {
+    test('2.13 update_note — duplicate title (excluding self) refused with title_duplicate', async () => {
       // Create two notes
       const n1 = await svc.noteCreateNote(catId1, 'SvcTest TitleA');
       expect(n1.status).toBe(200);
@@ -415,8 +473,11 @@ test.describe('note Area Services E2E Tests', () => {
       expect(n2.status).toBe(200);
 
       // Try to rename n2 to n1's title
-      const r = await svc.noteUpdateNote(n2.data.note.id, { title: 'SvcTest TitleA' });
-      expect(r.status).not.toBe(200);
+      await expectRefused(
+        'update_note',
+        { note_id: n2.data.note.id, title: 'SvcTest TitleA' },
+        'note.title_duplicate',
+      );
 
       await deleteNoteOk(n1.data.note.id);
       await deleteNoteOk(n2.data.note.id);
@@ -431,11 +492,10 @@ test.describe('note Area Services E2E Tests', () => {
       await deleteCategoryOk(r.data.category.id);
     });
 
-    test('2.15 create_category — over max length (101 chars) returns error', async () => {
+    test('2.15 create_category — over max length (101 chars) refused with category_name_too_long', async () => {
       const name = 'SvcTest' + 'A'.repeat(94);
       expect(name.length).toBe(101);
-      const r = await svc.noteCreateCategory(name);
-      expect(r.status).not.toBe(200);
+      await expectRefused('create_category', { name }, 'note.category_name_too_long');
     });
 
     test('2.16 create_note — max title length (200 chars) accepted', async () => {
@@ -446,11 +506,14 @@ test.describe('note Area Services E2E Tests', () => {
       await deleteNoteOk(r.data.note.id);
     });
 
-    test('2.17 create_note — over max title length (201 chars) returns error', async () => {
+    test('2.17 create_note — over max title length (201 chars) refused with title_too_long', async () => {
       const title = 'SvcTest' + 'B'.repeat(194);
       expect(title.length).toBe(201);
-      const r = await svc.noteCreateNote(catId1, title);
-      expect(r.status).not.toBe(200);
+      await expectRefused(
+        'create_note',
+        { category_id: catId1, title },
+        'note.title_too_long',
+      );
     });
 
     test('2.18 create_note — max content length (100000 chars) accepted', async () => {
@@ -461,10 +524,13 @@ test.describe('note Area Services E2E Tests', () => {
       await deleteNoteOk(r.data.note.id);
     });
 
-    test('2.19 create_note — over max content length (100001 chars) returns error', async () => {
+    test('2.19 create_note — over max content length (100001 chars) refused with content_too_long', async () => {
       const content = 'C'.repeat(100001);
-      const r = await svc.noteCreateNote(catId1, 'SvcTest OverContent', { content });
-      expect(r.status).not.toBe(200);
+      await expectRefused(
+        'create_note',
+        { category_id: catId1, title: 'SvcTest OverContent', content },
+        'note.content_too_long',
+      );
     });
 
     // ─── 2.E Unicode & special characters ────────────────
