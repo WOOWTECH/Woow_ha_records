@@ -337,6 +337,30 @@ class HaAssetPanel extends LitElement {
         color: var(--primary-color);
         border-color: var(--primary-color);
       }
+      .tab-actions {
+        display: flex;
+        gap: 4px;
+        margin-left: 8px;
+        flex-shrink: 0;
+      }
+      .tab-action-btn {
+        padding: 4px 8px;
+        cursor: pointer;
+        border: none;
+        background: none;
+        color: var(--secondary-text-color);
+        border-radius: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .tab-action-btn:hover {
+        background: var(--secondary-background-color);
+        color: var(--primary-text-color);
+      }
+      .tab-action-btn.danger:hover {
+        color: var(--error-color);
+      }
 
       /* Sort controls */
       .sort-btn {
@@ -550,6 +574,10 @@ class HaAssetPanel extends LitElement {
           min-height: 44px;
           width: 44px;
           height: 44px;
+        }
+        .tab-action-btn {
+          min-width: 44px;
+          min-height: 44px;
         }
 
         /* Tab context menu */
@@ -1483,6 +1511,7 @@ class HaAssetPanel extends LitElement {
 
   _renderTabBar() {
     const allCount = this._assets.length;
+    const activeCategory = this._categories.find(cat => cat.id === this._activeTab);
 
     return html`
       <div class="tab-bar">
@@ -1511,6 +1540,26 @@ class HaAssetPanel extends LitElement {
           @click=${() => this._openAddCategoryDialog()}
           title="${this._localize("add_category")}"
         >+</button>
+        ${activeCategory
+          ? html`
+              <div class="tab-actions">
+                <button
+                  class="tab-action-btn"
+                  @click=${() => this._openRenameCategoryDialog(activeCategory)}
+                  title="${this._localize("rename_category")}"
+                >
+                  <svg viewBox="0 0 24 24" style="width:16px;height:16px"><path fill="currentColor" d="M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z"/></svg>
+                </button>
+                <button
+                  class="tab-action-btn danger"
+                  @click=${() => this._openDeleteCategoryConfirm(activeCategory)}
+                  title="${this._localize("delete_category")}"
+                >
+                  <svg viewBox="0 0 24 24" style="width:16px;height:16px"><path fill="currentColor" d="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z"/></svg>
+                </button>
+              </div>
+            `
+          : ""}
       </div>
     `;
   }
