@@ -13,9 +13,7 @@ from homeassistant.components.text import ENTITY_ID_FORMAT, TextEntity, TextMode
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
-from ...const import unique_id
 from .const import (
-    AREA,
     ATTR_CATEGORY,
     ATTR_CREATED_AT,
     ATTR_NOTE_ID,
@@ -25,7 +23,7 @@ from .const import (
     ICON_NOTE,
     MAX_NOTE_CONTENT_LENGTH,
 )
-from .entity import HaNoteRecordEntity
+from .entity import HaNoteRecordEntity, note_unique_id
 from .store import Category, HaNoteRecordStore, Note
 
 _LOGGER = logging.getLogger(__name__)
@@ -102,7 +100,8 @@ class HaNoteRecordTextEntity(HaNoteRecordEntity, TextEntity):
         * ``category_id`` (str) -- unique category identifier
 
     Unique ID pattern
-        ``{DOMAIN}_{category_id}_{note_id}_content``
+        ``note_{note_id}_content`` -- category-free, so the note can move
+        between categories without changing identity (ADR-0003).
 
     Entity ID
         Suggested via ``_apply_entity_id`` so a long note title cannot push the
@@ -123,7 +122,7 @@ class HaNoteRecordTextEntity(HaNoteRecordEntity, TextEntity):
     ) -> None:
         """Initialize the text entity."""
         super().__init__(store, note, category)
-        self._attr_unique_id = unique_id(AREA, category.id, note.id, "content")
+        self._attr_unique_id = note_unique_id(note.id, "content")
         self._attr_name = note.title
         self._apply_entity_id(ENTITY_ID_FORMAT)
 

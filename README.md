@@ -131,7 +131,7 @@ Full request/response specifications live in [`docs/api/`](docs/api/README.md), 
 | 20 | `woow_ha_records/note/get_data` | Public | List all categories and notes |
 | 21 | `woow_ha_records/note/create_category` | Admin | Create a new note category |
 | 22 | `woow_ha_records/note/create_note` | Admin | Create a new note in a category |
-| 23 | `woow_ha_records/note/update_note` | Admin | Update note title, content, or pinned state |
+| 23 | `woow_ha_records/note/update_note` | Admin | Update note category, title, content, or pinned state |
 | 24 | `woow_ha_records/note/delete_note` | Admin | Delete a note and clean up entities |
 | 25 | `woow_ha_records/note/delete_category` | Admin | Delete a category (cascade-deletes all notes; needs `force`) |
 | 26 | `woow_ha_records/finance/accounts` | Public | List all financial accounts |
@@ -152,6 +152,19 @@ Full request/response specifications live in [`docs/api/`](docs/api/README.md), 
 > every account payload the read services and WebSocket commands return. No alias
 > is accepted. See
 > [ADR-0002](docs/adr/0002-spell-the-remark-field-note-at-every-boundary.md).
+
+> **Breaking change:** a Note's entities changed `unique_id`. The category used
+> to sit inside it, which is what stopped a Note moving between categories;
+> ADR-0003 took it out, so `note_<category>_<note>_<suffix>` is now
+> `note_<note>_<suffix>`. There is no migration, consistent with
+> [ADR-0001](docs/adr/0001-merge-four-integrations-into-one-domain.md): Notes
+> created before the upgrade register fresh entities, and their old entries are
+> left behind as unavailable. **Delete the integration's unavailable entities
+> once after upgrading** — Settings → Devices & Services → Entities, filter by
+> status. `entity_id`s do not change and no automation breaks. New Notes are
+> named without their category, so `text.work_shopping_list` becomes
+> `text.shopping_list`. See
+> [ADR-0003](docs/adr/0003-category-is-a-note-attribute-not-part-of-note-identity.md).
 
 ---
 
@@ -393,6 +406,15 @@ clean break with no migration: remove the old integrations, delete their
 `custom_components/` directories, install this one, and re-enter your data.
 Entity IDs, service names, and WebSocket commands all changed — see
 [ADR-0001](docs/adr/0001-merge-four-integrations-into-one-domain.md).
+
+### Upgrading a 2.0 install
+
+One clean break since 2.0: a Note's entities changed `unique_id` so that a Note
+can move between categories. Notes created before it register fresh entities and
+leave their old ones behind as unavailable — delete those once, under Settings →
+Devices & Services → Entities. Nothing else needs doing, and no `entity_id`
+changes. See
+[ADR-0003](docs/adr/0003-category-is-a-note-attribute-not-part-of-note-identity.md).
 
 ## Configuration
 

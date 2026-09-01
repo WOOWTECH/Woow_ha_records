@@ -861,6 +861,10 @@
           "name": "Note ID",
           "description": "The unique note identifier."
         },
+        "category_id": {
+          "name": "Category ID",
+          "description": "Move the note into this category. Omit to leave it where it is."
+        },
         "title": {
           "name": "Title",
           "description": "New note title. Must be unique within the category. Max 200 characters."

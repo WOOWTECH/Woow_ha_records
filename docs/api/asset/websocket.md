@@ -254,7 +254,7 @@ Delete an asset and all associated entities.
 
 Delete a category and **cascade-delete all assets** filed under it. Also removes each deleted asset's entities and its device from the device registry.
 
-The cascade is opt-in. A category that still holds assets is refused unless `force` is `true`, and nothing is deleted. Unlike a note, an asset has an escape route — `woow_ha_records/asset/update` moves it to another `category_id` — so reassigning what is worth keeping and then deleting the emptied category needs no `force` at all. The asset panel names the category and counts its assets before asking, so it passes `force`.
+The cascade is opt-in. A category that still holds assets is refused unless `force` is `true`, and nothing is deleted. An asset has an escape route — `woow_ha_records/asset/update` moves it to another `category_id` — so reassigning what is worth keeping and then deleting the emptied category needs no `force` at all. A note has had one since ADR-0003; before that, this was the difference between the two Areas. The asset panel names the category and counts its assets before asking, so it passes `force`.
 
 The other two category commands, `create_category` and `update_category`, are not yet documented here.
 

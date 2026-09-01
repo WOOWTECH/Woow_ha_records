@@ -25,7 +25,6 @@ from homeassistant.core import (
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import device_registry as dr
-from homeassistant.helpers import entity_registry as er
 
 from ...const import device_id
 from ...runtime import get_data
@@ -36,6 +35,7 @@ from .const import (
     MAX_NOTE_CONTENT_LENGTH,
     MAX_NOTE_TITLE_LENGTH,
 )
+from .entity import async_move_note_entities, async_remove_note_entities
 from .store import HaNoteRecordStore
 
 _LOGGER = logging.getLogger(__name__)
@@ -221,7 +221,14 @@ async def handle_create_note(call: ServiceCall) -> ServiceResponse:
 
 
 async def handle_update_note(call: ServiceCall) -> ServiceResponse:
-    """Update one or more fields on an existing note."""
+    """Update one or more fields on an existing note.
+
+    ``category_id`` moves the note to another category. It is one optional
+    field among the others because ADR-0003 made the category an attribute of
+    a note rather than part of its identity; the only thing a move needs
+    beyond the store write is re-pointing the note's entities at the
+    destination category's device.
+    """
     store = _get_store(call.hass)
     note_id = call.data["note_id"]
     note = store.get_note(note_id)
@@ -233,6 +240,22 @@ async def handle_update_note(call: ServiceCall) -> ServiceResponse:
             translation_key="note.note_not_found",
             translation_placeholders={"note_id": note_id},
         )
+
+    # Validate the destination category if a move was asked for. Nothing is
+    # written until every check below passes, so a bad destination leaves the
+    # note exactly as it was.
+    destination = None
+    category_id = note.category_id
+    if "category_id" in call.data:
+        category_id = call.data["category_id"]
+        destination = store.get_category(category_id)
+        if destination is None:
+            raise ServiceValidationError(
+                f"Category '{category_id}' not found",
+                translation_domain=DOMAIN,
+                translation_key="note.category_not_found",
+                translation_placeholders={"category_id": category_id},
+            )
 
     # Validate title if provided
     title = None
@@ -254,9 +277,21 @@ async def handle_update_note(call: ServiceCall) -> ServiceResponse:
                 translation_placeholders={"max_length": str(MAX_NOTE_TITLE_LENGTH)},
             )
 
-        # Case-insensitive duplicate title check (excluding current note)
-        for other_note in store.get_notes_by_category(note.category_id):
-            if other_note.id != note_id and other_note.title.lower() == title.lower():
+    # Case-insensitive duplicate title check, against the category the note
+    # will be in and under the title it will have. A move carries the note's
+    # existing title into a category that may already hold it, so the check
+    # has to run for a move that renames nothing. It is skipped when neither
+    # is changing, so an edit to content alone cannot be refused by a
+    # duplicate that predates it.
+    moving = category_id != note.category_id
+    renaming = title is not None and title.lower() != note.title.lower()
+    if moving or renaming:
+        new_title = title if title is not None else note.title
+        for other_note in store.get_notes_by_category(category_id):
+            if (
+                other_note.id != note_id
+                and other_note.title.lower() == new_title.lower()
+            ):
                 raise ServiceValidationError(
                     "Note title already exists in this category",
                     translation_domain=DOMAIN,
@@ -281,7 +316,11 @@ async def handle_update_note(call: ServiceCall) -> ServiceResponse:
 
     # Apply all updates atomically
     await store.async_update_note(
-        note_id, title=title, content=content, pinned=pinned
+        note_id,
+        title=title,
+        content=content,
+        pinned=pinned,
+        category_id=category_id if moving else None,
     )
 
     updated_note = store.get_note(note_id)
@@ -290,6 +329,12 @@ async def handle_update_note(call: ServiceCall) -> ServiceResponse:
             "Failed to update note",
             translation_domain=DOMAIN,
             translation_key="note.update_failed",
+        )
+
+    # The store holds no registry, so the entities follow separately.
+    if moving and destination is not None:
+        async_move_note_entities(
+            call.hass, store.entry.entry_id, note_id, destination
         )
 
     return {"success": True, "note": updated_note.to_dict()}
@@ -309,8 +354,6 @@ async def handle_delete_note(call: ServiceCall) -> ServiceResponse:
             translation_placeholders={"note_id": note_id},
         )
 
-    category_id = note.category_id
-
     success = await store.async_delete_note(note_id)
     if not success:
         raise ServiceValidationError(
@@ -319,13 +362,7 @@ async def handle_delete_note(call: ServiceCall) -> ServiceResponse:
             translation_key="note.delete_failed",
         )
 
-    # Clean up entity registry entries
-    ent_reg = er.async_get(call.hass)
-    for platform, suffix in [("text", "_content"), ("switch", "_pinned")]:
-        unique_id = f"{DOMAIN}_{category_id}_{note_id}{suffix}"
-        entity_id = ent_reg.async_get_entity_id(platform, DOMAIN, unique_id)
-        if entity_id:
-            ent_reg.async_remove(entity_id)
+    async_remove_note_entities(call.hass, note_id)
 
     return {"success": True}
 
@@ -333,12 +370,13 @@ async def handle_delete_note(call: ServiceCall) -> ServiceResponse:
 async def handle_delete_category(call: ServiceCall) -> ServiceResponse:
     """Delete a category, cascade-deleting its notes only if asked to.
 
-    The cascade destroys an arbitrary number of Notes, and a Note cannot be
-    moved out of a Category first, so there is no way to save one. ``force``
-    is the opt-in. The panel already type-gates the deletion behind the
-    Category's name, so it passes ``force: true`` and nothing changes there;
-    what the flag guards is this surface, which ``services.yaml`` points AI
-    assistants straight at. Issue #45.
+    The cascade destroys an arbitrary number of Notes, so ``force`` is the
+    opt-in. Since ADR-0003 a caller who wants to keep them can move them out
+    with ``note_update_note`` first, which turns the refusal into an
+    instruction rather than a dead end. The panel already type-gates the
+    deletion behind the Category's name, so it passes ``force: true`` and
+    nothing changes there; what the flag guards is this surface, which
+    ``services.yaml`` points AI assistants straight at. Issue #45.
     """
     store = _get_store(call.hass)
     category_id = call.data["category_id"]
@@ -369,15 +407,9 @@ async def handle_delete_category(call: ServiceCall) -> ServiceResponse:
         )
 
     # Cascade-delete all notes in this category first
-    ent_reg = er.async_get(call.hass)
     for note in notes:
         await store.async_delete_note(note.id)
-        # Clean up entity registry entries for each deleted note
-        for platform, suffix in [("text", "_content"), ("switch", "_pinned")]:
-            unique_id = f"{DOMAIN}_{category_id}_{note.id}{suffix}"
-            entity_id = ent_reg.async_get_entity_id(platform, DOMAIN, unique_id)
-            if entity_id:
-                ent_reg.async_remove(entity_id)
+        async_remove_note_entities(call.hass, note.id)
 
     success = await store.async_delete_category(category_id)
     if not success:
@@ -453,6 +485,7 @@ SERVICE_HANDLERS = {
         vol.Schema(
             {
                 vol.Required("note_id"): cv.string,
+                vol.Optional("category_id"): cv.string,
                 vol.Optional("title"): cv.string,
                 vol.Optional("content"): cv.string,
                 vol.Optional("pinned"): cv.boolean,

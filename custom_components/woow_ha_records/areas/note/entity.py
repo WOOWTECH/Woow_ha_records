@@ -9,15 +9,17 @@ from __future__ import annotations
 
 import hashlib
 import logging
+from typing import Final
 
 from homeassistant.const import MAX_LENGTH_STATE_ENTITY_ID
 from homeassistant.core import HomeAssistant, callback, valid_entity_id
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity import Entity
 from homeassistant.util import slugify
 
-from ...const import device_id
+from ...const import device_id, unique_id
 from .const import AREA, DOMAIN
 from .store import Category, HaNoteRecordStore, Note
 
@@ -31,10 +33,82 @@ ENTITY_ID_HASH_LENGTH = 8
 # Assistant having to cut the string to make room.
 ENTITY_ID_COLLISION_RESERVE = 10
 
+# The device every note category presents in the device registry.
+DEVICE_MANUFACTURER: Final = "Ha Note Record"
+DEVICE_MODEL: Final = "Note Category"
+
+# The two entities every note owns, as (platform, unique_id suffix). The move
+# and delete paths both reach for a note's entities in the registry, and
+# neither can keep its own copy of the shape without drifting from the entity
+# classes that register it.
+NOTE_ENTITIES: Final[tuple[tuple[str, str], ...]] = (
+    ("text", "content"),
+    ("switch", "pinned"),
+)
+
+
+def note_unique_id(note_id: str, suffix: str) -> str:
+    """Return the unique_id of one of a note's entities.
+
+    The category is absent by ADR-0003: it is an attribute of a note, not part
+    of its identity, which is what lets a note move between categories without
+    the move becoming an identity change.
+    """
+    return unique_id(AREA, note_id, suffix)
+
+
+@callback
+def async_move_note_entities(
+    hass: HomeAssistant,
+    entry_id: str,
+    note_id: str,
+    category: Category,
+) -> None:
+    """Re-point a moved note's entities at the destination category's device.
+
+    Home Assistant reads ``device_info`` once, when an entity is added, and
+    never again, so nothing about a move reaches the device registry on its
+    own -- the note's entities would keep hanging off the category it left
+    until the next restart rebuilt them. Updating the registry entry directly
+    is what moves them now.
+
+    The destination device is created if the category held no notes yet, since
+    a category's device exists only once something has been added under it.
+    The source category keeps its device even when this empties it: the
+    category still exists, and only deleting one removes its device.
+    """
+    dev_reg = dr.async_get(hass)
+    device = dev_reg.async_get_or_create(
+        config_entry_id=entry_id,
+        identifiers={(DOMAIN, device_id(AREA, category.id))},
+        name=category.name,
+        manufacturer=DEVICE_MANUFACTURER,
+        model=DEVICE_MODEL,
+    )
+
+    ent_reg = er.async_get(hass)
+    for platform, suffix in NOTE_ENTITIES:
+        entity_id = ent_reg.async_get_entity_id(
+            platform, DOMAIN, note_unique_id(note_id, suffix)
+        )
+        if entity_id:
+            ent_reg.async_update_entity(entity_id, device_id=device.id)
+
+
+@callback
+def async_remove_note_entities(hass: HomeAssistant, note_id: str) -> None:
+    """Remove a deleted note's entities from the entity registry."""
+    ent_reg = er.async_get(hass)
+    for platform, suffix in NOTE_ENTITIES:
+        entity_id = ent_reg.async_get_entity_id(
+            platform, DOMAIN, note_unique_id(note_id, suffix)
+        )
+        if entity_id:
+            ent_reg.async_remove(entity_id)
+
 
 def note_entity_id(
     entity_id_format: str,
-    category_name: str,
     entity_name: str,
     note_id: str,
 ) -> str:
@@ -49,18 +123,22 @@ def note_entity_id(
     every state write for the note raise.
 
     So bound the object_id here instead. A name that fits keeps the slug Home
-    Assistant's own default composition would have produced, so short-titled
-    notes are named as before. A longer one is cut to the budget and given a
-    short digest of the note id, which keeps it unique between notes and
-    stable across restarts.
+    Assistant would derive from the entity name, so short-titled notes read
+    naturally. A longer one is cut to the budget and given a short digest of
+    the note id, which keeps it unique between notes and stable across
+    restarts.
 
-    One deliberate difference: Home Assistant composes from
-    ``device.name_by_user or device.name``, while this always uses the
-    category name. Renaming the category's device therefore no longer feeds
-    into the entity_id of notes added afterwards -- the price of guaranteeing
-    the bound without a device-registry lookup.
+    The category is deliberately absent. Home Assistant would compose from
+    ``device.name_by_user or device.name`` -- the category's device -- and this
+    once copied that by slugifying the category name alongside the entity name.
+    A category name in the object_id is a snapshot, and ADR-0003 made a note
+    movable between categories, so every such snapshot would go stale on the
+    first move. Leaving it out is what stops an entity_id naming a category the
+    note has left. Two notes with the same title in different categories now
+    collide, and Home Assistant suffixes the second ``_2`` --
+    ``ENTITY_ID_COLLISION_RESERVE`` holds back the room for it.
     """
-    object_id = slugify(f"{category_name} {entity_name}")
+    object_id = slugify(entity_name)
     budget = (
         MAX_LENGTH_STATE_ENTITY_ID
         - len(entity_id_format.format(""))
@@ -102,6 +180,25 @@ class HaNoteRecordEntity(Entity):
         self._category = category
         self._note_exists = True
 
+    async def async_added_to_hass(self) -> None:
+        """Follow the store for the life of the entity.
+
+        Every write path edits the store and nothing else, so without this an
+        edit made through a service or a WebSocket command sits in the store
+        unread until something else happens to write state. A move is the case
+        that made this necessary -- the entity registry moves the entity to the
+        destination device immediately, and the ``category`` attribute would
+        otherwise still name the source until the next restart.
+        """
+        await super().async_added_to_hass()
+        self.async_on_remove(self._store.async_add_listener(self._handle_store_update))
+
+    @callback
+    def _handle_store_update(self) -> None:
+        """Write state after any store change."""
+        self._refresh_note()
+        self.async_write_ha_state()
+
     def _apply_entity_id(self, entity_id_format: str) -> None:
         """Suggest a length-bounded entity_id to Home Assistant.
 
@@ -113,7 +210,6 @@ class HaNoteRecordEntity(Entity):
         """
         self.entity_id = note_entity_id(
             entity_id_format,
-            self._category.name,
             self._attr_name or "",
             self._note.id,
         )
@@ -156,18 +252,26 @@ class HaNoteRecordEntity(Entity):
         return DeviceInfo(
             identifiers={(DOMAIN, device_id(AREA, self._category.id))},
             name=self._category.name,
-            manufacturer="Ha Note Record",
-            model="Note Category",
+            manufacturer=DEVICE_MANUFACTURER,
+            model=DEVICE_MODEL,
         )
 
     def _refresh_note(self) -> bool:
         """Refresh note data from store.
+
+        Refreshes the category with it. A note can move between categories
+        (ADR-0003), so the category held here is as mutable as the note is --
+        leaving it behind would have the ``category`` attribute keep naming the
+        one the note left.
 
         Returns True if note still exists, False otherwise.
         """
         note = self._store.get_note(self._note.id)
         if note:
             self._note = note
+            category = self._store.get_category(note.category_id)
+            if category:
+                self._category = category
             self._note_exists = True
             return True
         self._note_exists = False

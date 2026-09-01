@@ -2,14 +2,17 @@
 
 A note title may be up to ``MAX_NOTE_TITLE_LENGTH`` (200) characters. Slugifying
 a CJK title romanises each character into several ASCII ones, so the object_id
-Home Assistant would derive from ``"{category} {title}"`` runs well past the
-255-character entity_id limit. HA truncates to 255, and that cut can land on an
-underscore -- which ``valid_entity_id`` rejects, so writing the state raises.
+Home Assistant would derive runs well past the 255-character entity_id limit. HA
+truncates to 255, and that cut can land on an underscore -- which
+``valid_entity_id`` rejects, so writing the state raises.
+
+The category reaches neither the unique_id nor the entity_id (ADR-0003). A note
+can move between categories, so anything of the category captured in a note's
+identity would name the one it left.
 """
 from __future__ import annotations
 
 import pytest
-
 from homeassistant.components.switch import ENTITY_ID_FORMAT as SWITCH_ENTITY_ID_FORMAT
 from homeassistant.components.text import ENTITY_ID_FORMAT as TEXT_ENTITY_ID_FORMAT
 from homeassistant.const import MAX_LENGTH_STATE_ENTITY_ID
@@ -32,9 +35,13 @@ ENTITY_ID_FORMATS = [TEXT_ENTITY_ID_FORMAT, SWITCH_ENTITY_ID_FORMAT]
 ENTITY_CLASSES = [HaNoteRecordTextEntity, HaNoteRecordSwitchEntity]
 
 
-def make_category(name: str = CATEGORY_NAME) -> Category:
+def make_category(
+    name: str = CATEGORY_NAME, category_id: str = "cat1"
+) -> Category:
     """Build a category."""
-    return Category(id="cat1", name=name, created_at="2025-06-15T10:00:00+00:00")
+    return Category(
+        id=category_id, name=name, created_at="2025-06-15T10:00:00+00:00"
+    )
 
 
 def make_note(title: str, note_id: str = "note1") -> Note:
@@ -55,21 +62,22 @@ class TestNoteEntityId:
 
     @pytest.mark.parametrize("entity_id_format", ENTITY_ID_FORMATS)
     def test_short_name_unchanged(self, entity_id_format: str):
-        """Test a name that fits is slugified as Home Assistant would."""
+        """Test a name that fits is slugified as Home Assistant would.
+
+        The object_id is the entity name and nothing else. It carried the
+        category name until ADR-0003; this asserts that it no longer does.
+        """
         assert note_entity_id(
-            entity_id_format, "Work", "Shopping list", "note1"
-        ) == entity_id_format.format(slugify("Work Shopping list"))
+            entity_id_format, "Shopping list", "note1"
+        ) == entity_id_format.format(slugify("Shopping list"))
 
     @pytest.mark.parametrize("entity_id_format", ENTITY_ID_FORMATS)
     def test_max_length_title_within_limit(self, entity_id_format: str):
         """Test a 200-character CJK title yields a valid, bounded entity_id."""
         # Without a bound this name is far past what an entity_id can hold.
-        unbounded = slugify(f"{CATEGORY_NAME} {MAX_LENGTH_TITLE}")
-        assert len(unbounded) > MAX_LENGTH_STATE_ENTITY_ID
+        assert len(slugify(MAX_LENGTH_TITLE)) > MAX_LENGTH_STATE_ENTITY_ID
 
-        entity_id = note_entity_id(
-            entity_id_format, CATEGORY_NAME, MAX_LENGTH_TITLE, "note1"
-        )
+        entity_id = note_entity_id(entity_id_format, MAX_LENGTH_TITLE, "note1")
         assert len(entity_id) <= MAX_LENGTH_STATE_ENTITY_ID
         assert valid_entity_id(entity_id)
 
@@ -78,32 +86,56 @@ class TestNoteEntityId:
     def test_every_title_length_valid(self, entity_id_format: str, char: str):
         """Test no title length up to the maximum produces a bad slug."""
         for length in range(1, MAX_NOTE_TITLE_LENGTH + 1):
-            entity_id = note_entity_id(
-                entity_id_format, CATEGORY_NAME, char * length, "note1"
-            )
+            entity_id = note_entity_id(entity_id_format, char * length, "note1")
             assert len(entity_id) <= MAX_LENGTH_STATE_ENTITY_ID, length
             assert valid_entity_id(entity_id), (length, entity_id)
 
     def test_stable_for_same_note(self):
         """Test the same note always gets the same entity_id."""
-        args = (TEXT_ENTITY_ID_FORMAT, CATEGORY_NAME, MAX_LENGTH_TITLE, "note1")
+        args = (TEXT_ENTITY_ID_FORMAT, MAX_LENGTH_TITLE, "note1")
         assert note_entity_id(*args) == note_entity_id(*args)
 
     def test_same_title_different_notes(self):
         """Test two identically titled long notes get distinct entity_ids."""
         assert note_entity_id(
-            TEXT_ENTITY_ID_FORMAT, CATEGORY_NAME, MAX_LENGTH_TITLE, "note1"
-        ) != note_entity_id(
-            TEXT_ENTITY_ID_FORMAT, CATEGORY_NAME, MAX_LENGTH_TITLE, "note2"
-        )
+            TEXT_ENTITY_ID_FORMAT, MAX_LENGTH_TITLE, "note1"
+        ) != note_entity_id(TEXT_ENTITY_ID_FORMAT, MAX_LENGTH_TITLE, "note2")
+
+    def test_same_title_short_notes_collide(self):
+        """Test two short notes titled alike compose one object_id.
+
+        The price of leaving the category out: titles are unique per category,
+        so this is reachable by ordinary use rather than an edge case. Home
+        Assistant resolves it with a ``_2`` suffix, and
+        ``ENTITY_ID_COLLISION_RESERVE`` is the room held back for that.
+        """
+        assert note_entity_id(
+            TEXT_ENTITY_ID_FORMAT, "Shopping list", "note1"
+        ) == note_entity_id(TEXT_ENTITY_ID_FORMAT, "Shopping list", "note2")
 
     def test_unslugifiable_name(self):
         """Test a name with nothing to slugify still yields a valid entity_id."""
-        assert valid_entity_id(note_entity_id(TEXT_ENTITY_ID_FORMAT, "…", "★", "note1"))
+        assert valid_entity_id(note_entity_id(TEXT_ENTITY_ID_FORMAT, "★", "note1"))
 
 
 class TestHaNoteRecordEntity:
     """Tests for the entity_id the note platforms hand Home Assistant."""
+
+    @pytest.mark.parametrize("entity_class", ENTITY_CLASSES)
+    def test_identity_does_not_depend_on_category(self, store, entity_class):
+        """Test one note composes one identity whatever category holds it.
+
+        ADR-0003: the category is an attribute of a note, not part of its
+        identity, and that is precisely what lets a note move without the move
+        becoming an identity change. If this fails, #43 has regressed.
+        """
+        note = make_note("Shopping list")
+        here = entity_class(store, note, make_category("Work", "cat1"))
+        there = entity_class(store, note, make_category("Personal", "cat2"))
+
+        assert here.unique_id == there.unique_id
+        assert here.entity_id == there.entity_id
+        assert "cat1" not in here.unique_id
 
     @pytest.mark.parametrize("entity_class", ENTITY_CLASSES)
     def test_entity_id_bounded(self, store, entity_class):
@@ -152,7 +184,7 @@ class TestHaNoteRecordEntity:
         entity = entity_class(store, make_note("Shopping list"), make_category("Work"))
         domain = entity.entity_id.split(".", 1)[0]
         existing = entity_registry.async_get_or_create(
-            domain, DOMAIN, entity.unique_id, suggested_object_id="work_shopping_list"
+            domain, DOMAIN, entity.unique_id, suggested_object_id="shopping_list"
         )
 
         entity.async_repair_registry_entity_id(hass)

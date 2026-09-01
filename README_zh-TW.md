@@ -125,7 +125,7 @@
 | 20 | `woow_ha_records/note/get_data` | Public | 列出所有分類與筆記 |
 | 21 | `woow_ha_records/note/create_category` | Admin | 建立新筆記分類 |
 | 22 | `woow_ha_records/note/create_note` | Admin | 在分類中建立新筆記 |
-| 23 | `woow_ha_records/note/update_note` | Admin | 更新筆記標題、內容或置頂狀態 |
+| 23 | `woow_ha_records/note/update_note` | Admin | 更新筆記分類、標題、內容或置頂狀態 |
 | 24 | `woow_ha_records/note/delete_note` | Admin | 刪除筆記並清理實體 |
 | 25 | `woow_ha_records/note/delete_category` | Admin | 刪除分類（連鎖刪除所有筆記，需 `force`） |
 | 26 | `woow_ha_records/finance/accounts` | Public | 列出所有財務帳戶 |
@@ -145,6 +145,16 @@
 > `finance_update_account`、`woow_ha_records/finance/update_account`，以及讀取服務
 > 與 WebSocket 指令回傳的每一份帳戶 payload。不接受舊名稱。詳見
 > [ADR-0002](docs/adr/0002-spell-the-remark-field-note-at-every-boundary.md)。
+
+> **破壞性變更：** 筆記實體的 `unique_id` 改變了。分類原本被寫在裡面，這正是筆記
+> 無法在分類之間移動的原因；ADR-0003 把它拿掉，因此
+> `note_<分類>_<筆記>_<後綴>` 現在是 `note_<筆記>_<後綴>`。依照
+> [ADR-0001](docs/adr/0001-merge-four-integrations-into-one-domain.md) 的先例，
+> **不提供自動遷移**：升級前建立的筆記會註冊全新的實體，舊的項目會留下來變成
+> 「不可用」。**升級後請手動刪除一次這些不可用的實體** —— 設定 → 裝置與服務 →
+> 實體，依狀態篩選。`entity_id` 不會改變，因此不會有自動化壞掉。之後新建的筆記
+> 名稱不再包含分類，`text.work_shopping_list` 會變成 `text.shopping_list`。詳見
+> [ADR-0003](docs/adr/0003-category-is-a-note-attribute-not-part-of-note-identity.md)。
 
 ---
 
@@ -384,6 +394,14 @@ custom_components/
 刪掉它們的 `custom_components/` 目錄、安裝這一個，然後重新輸入資料。entity ID、
 服務名稱與 WebSocket 指令全部改變，原因見
 [ADR-0001](docs/adr/0001-merge-four-integrations-into-one-domain.md)。
+
+### 從 2.0 升級
+
+2.0 之後有一次乾淨切斷：筆記實體的 `unique_id` 改變，讓筆記可以在分類之間移動。
+在此之前建立的筆記會註冊全新的實體，舊的則留下來變成「不可用」——請到設定 →
+裝置與服務 → 實體，手動刪除一次。除此之外不需要做任何事，`entity_id` 也不會改變。
+詳見
+[ADR-0003](docs/adr/0003-category-is-a-note-attribute-not-part-of-note-identity.md)。
 
 ## 設定說明
 

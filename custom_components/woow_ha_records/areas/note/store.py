@@ -239,11 +239,27 @@ class HaNoteRecordStore:
         title: str | None = None,
         content: str | None = None,
         pinned: bool | None = None,
+        category_id: str | None = None,
     ) -> bool:
-        """Update note fields atomically. Only provided fields are updated."""
+        """Update note fields atomically. Only provided fields are updated.
+
+        *category_id* moves the note to another category. It is an ordinary
+        field here because ADR-0003 made it one: the note's entities no longer
+        carry the category in their identity, so nothing about a move is
+        special to the store. Re-pointing those entities at the destination
+        category's device is the caller's job -- see
+        ``async_move_note_entities`` -- because the store holds no registry.
+
+        A destination that does not exist is refused and nothing is written,
+        the same way ``async_create_note`` refuses an unknown category.
+        """
         note = self.get_note(note_id)
         if not note:
             _LOGGER.warning("Note not found for update: %s", note_id)
+            return False
+
+        if category_id is not None and not self.get_category(category_id):
+            _LOGGER.warning("Category not found for note move: %s", category_id)
             return False
 
         if title is not None:
@@ -252,6 +268,8 @@ class HaNoteRecordStore:
             note.content = content
         if pinned is not None:
             note.pinned = pinned
+        if category_id is not None:
+            note.category_id = category_id
 
         note.updated_at = self._get_timestamp()
         await self.async_save()
