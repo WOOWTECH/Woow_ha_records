@@ -409,14 +409,29 @@ clean break with no migration: remove the old integrations, delete their
 Entity IDs, service names, and WebSocket commands all changed — see
 [ADR-0001](docs/adr/0001-merge-four-integrations-into-one-domain.md).
 
-### Upgrading a 2.0 install
+### Upgrading from 2.x to 3.0
 
-One clean break since 2.0: a Note's entities changed `unique_id` so that a Note
-can move between categories. Notes created before it register fresh entities and
-leave their old ones behind as unavailable — delete those once, under Settings →
-Devices & Services → Entities. Nothing else needs doing, and no `entity_id`
-changes. See
+Two clean breaks since 2.0, which is why this release is 3.0 and not 2.1. Both
+need a decision from you before you upgrade.
+
+**A Note's entities changed `unique_id`,** so that a Note can move between
+categories. Notes created before the change register fresh entities and leave
+their old ones behind as unavailable — delete those once, under Settings →
+Devices & Services → Entities. No `entity_id` changes, so dashboards and
+automations that name a Note keep working. See
 [ADR-0003](docs/adr/0003-category-is-a-note-attribute-not-part-of-note-identity.md).
+
+**The Account's Remark is spelled `note`, not `notes`,** in
+`finance_update_account`, in `woow_ha_records/finance/update_account`, and in
+every account payload the read services and WebSocket commands return. No alias
+is accepted. Since every service now has a registered schema, a caller still
+sending `notes` fails outright rather than half-succeeding — so grep your
+scripts and automations for it before upgrading. See
+[ADR-0002](docs/adr/0002-spell-the-remark-field-note-at-every-boundary.md).
+
+Two services also tightened, and will refuse calls that used to succeed:
+`note_delete_category` and `asset_delete_category` no longer cascade unless the
+caller passes `force: true`.
 
 ## Configuration
 
