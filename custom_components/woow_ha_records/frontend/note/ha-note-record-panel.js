@@ -809,18 +809,9 @@ class HaNoteRecordPanel extends LitElement {
 
   async _loadData() {
     this._loading = true;
-    try {
-      const result = await this.hass.callWS({
-        type: "woow_ha_records/note/get_data",
-      });
-      this._categories = result.categories || [];
-      this._notes = result.notes || [];
-
-      if (!this._activeTab && this._categories.length > 0) {
-        this._activeTab = this._categories[0].id;
-      }
-    } catch (error) {
-      console.error("Failed to load data:", error);
+    await this._refreshData();
+    if (!this._activeTab && this._categories.length > 0) {
+      this._activeTab = this._categories[0].id;
     }
     this._loading = false;
   }
@@ -1046,7 +1037,7 @@ class HaNoteRecordPanel extends LitElement {
       this._closeNoteDialog();
     } catch (error) {
       console.error("Failed to save note:", error);
-      if (error.code === "duplicate") {
+      if (error.code === "duplicate" && targetCategoryName) {
         // A move can collide without renaming anything: the note carries its
         // title into the destination. Name the destination, not the title.
         this._showError(
@@ -1074,8 +1065,10 @@ class HaNoteRecordPanel extends LitElement {
       return;
     }
     this._showError(
-      this._localize("move_target_missing_error")
-        .replace("{name}", targetCategoryName)
+      targetCategoryName
+        ? this._localize("move_target_missing_error")
+            .replace("{name}", targetCategoryName)
+        : error.message || "Failed to save note"
     );
     // Snap the selector back to where the note actually is.
     this._editingNote = { ...this._editingNote, category_id: current.category_id };
