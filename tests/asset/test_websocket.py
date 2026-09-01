@@ -1,9 +1,11 @@
-"""The asset Area's ``delete_category`` command guards its cascade too.
+"""The asset Area's WebSocket commands guard what its services guard.
 
-The service surface is not the only unguarded way in — the panel drives the
-same deletion over WebSocket, and any other client can too. Both surfaces take
-the same ``force`` opt-in so neither is the soft way round the other.
-Issue #49; the service side is covered in ``test_services.py``.
+The service surface is not the only way in — the panel drives the same
+operations over WebSocket, and any other client can too. Each guard the
+services take, the commands take identically, so neither surface is the soft
+way round the other: the ``force`` opt-in on ``delete_category`` (issue #49),
+and the Category-must-exist check on ``create`` and ``update`` (issue #68).
+The service side of both is covered in ``test_services.py``.
 """
 from __future__ import annotations
 
@@ -16,6 +18,8 @@ from custom_components.woow_ha_records.websocket import (
     async_register_websocket_commands,
 )
 
+CREATE_ASSET = "woow_ha_records/asset/create"
+UPDATE_ASSET = "woow_ha_records/asset/update"
 DELETE_CATEGORY = "woow_ha_records/asset/delete_category"
 
 
@@ -140,3 +144,157 @@ class TestDeleteCategoryGuard:
         response = await ws_client.receive_json()
 
         assert response["error"]["code"] == "not_found"
+
+
+class TestCategoryMustExistOnCreate:
+    """``create`` refuses a ``category_id`` naming no Category. Issue #68."""
+
+    async def test_refuses_an_unknown_category(
+        self, ws_client, coordinator: AssetCoordinator
+    ) -> None:
+        """The create is refused with ``not_found``, and no Asset is written."""
+        await ws_client.send_json(
+            {
+                "id": 1,
+                "type": CREATE_ASSET,
+                "name": "Kettle",
+                "category_id": "cat_deadbeef",
+            }
+        )
+        response = await ws_client.receive_json()
+
+        assert not response["success"]
+        assert response["error"]["code"] == "not_found"
+        assert dict(coordinator.assets) == {}
+
+    async def test_still_accepts_an_uncategorised_asset(
+        self, ws_client, coordinator: AssetCoordinator
+    ) -> None:
+        """The empty string is "no category", not a dangling reference."""
+        await ws_client.send_json(
+            {"id": 1, "type": CREATE_ASSET, "name": "Kettle", "category_id": ""}
+        )
+        response = await ws_client.receive_json()
+
+        assert response["success"]
+        assert response["result"]["asset"]["category_id"] == ""
+
+    async def test_still_accepts_a_category_that_exists(
+        self, ws_client, coordinator: AssetCoordinator
+    ) -> None:
+        """The check refuses dangling ids, not categorisation itself."""
+        category = await coordinator.async_create_category("Appliances")
+
+        await ws_client.send_json(
+            {
+                "id": 1,
+                "type": CREATE_ASSET,
+                "name": "Kettle",
+                "category_id": category.id,
+            }
+        )
+        response = await ws_client.receive_json()
+
+        assert response["success"]
+        assert response["result"]["asset"]["category_id"] == category.id
+
+
+class TestCategoryMustExistOnUpdate:
+    """``update`` refuses a ``category_id`` naming no Category. Issue #68."""
+
+    async def test_refuses_an_unknown_category(
+        self, ws_client, coordinator: AssetCoordinator
+    ) -> None:
+        """The move is refused with ``not_found``, and the Asset stays put."""
+        category = await coordinator.async_create_category("Appliances")
+        asset = await coordinator.async_create_asset_full(
+            "Kettle", category_id=category.id
+        )
+
+        await ws_client.send_json(
+            {
+                "id": 1,
+                "type": UPDATE_ASSET,
+                "asset_id": asset.id,
+                "category_id": "cat_deadbeef",
+            }
+        )
+        response = await ws_client.receive_json()
+
+        assert not response["success"]
+        assert response["error"]["code"] == "not_found"
+        assert coordinator.get_asset(asset.id).category_id == category.id
+
+    async def test_the_refusal_writes_none_of_the_other_fields(
+        self, ws_client, coordinator: AssetCoordinator
+    ) -> None:
+        """A refused call leaves the whole Asset untouched.
+
+        The handler writes field by field as it walks the message, so the
+        Category has to be checked before the first write — otherwise a
+        refusal would still have renamed the Asset it refused to move.
+        """
+        asset = await coordinator.async_create_asset_full("Kettle", brand="Bosch")
+
+        await ws_client.send_json(
+            {
+                "id": 1,
+                "type": UPDATE_ASSET,
+                "asset_id": asset.id,
+                "name": "Toaster",
+                "brand": "Philips",
+                "category_id": "cat_deadbeef",
+            }
+        )
+        response = await ws_client.receive_json()
+
+        assert response["error"]["code"] == "not_found"
+        unchanged = coordinator.get_asset(asset.id)
+        assert unchanged.name == "Kettle"
+        assert unchanged.brand == "Bosch"
+        assert unchanged.category_id == ""
+
+    async def test_still_accepts_clearing_the_category(
+        self, ws_client, coordinator: AssetCoordinator
+    ) -> None:
+        """Moving an Asset out of every Category stays a legitimate edit."""
+        category = await coordinator.async_create_category("Appliances")
+        asset = await coordinator.async_create_asset_full(
+            "Kettle", category_id=category.id
+        )
+
+        await ws_client.send_json(
+            {
+                "id": 1,
+                "type": UPDATE_ASSET,
+                "asset_id": asset.id,
+                "category_id": "",
+            }
+        )
+        response = await ws_client.receive_json()
+
+        assert response["success"]
+        assert response["result"]["asset"]["category_id"] == ""
+
+    async def test_still_accepts_a_move_to_a_category_that_exists(
+        self, ws_client, coordinator: AssetCoordinator
+    ) -> None:
+        """The check refuses dangling ids, not moving itself."""
+        source = await coordinator.async_create_category("Appliances")
+        destination = await coordinator.async_create_category("Kitchen")
+        asset = await coordinator.async_create_asset_full(
+            "Kettle", category_id=source.id
+        )
+
+        await ws_client.send_json(
+            {
+                "id": 1,
+                "type": UPDATE_ASSET,
+                "asset_id": asset.id,
+                "category_id": destination.id,
+            }
+        )
+        response = await ws_client.receive_json()
+
+        assert response["success"]
+        assert response["result"]["asset"]["category_id"] == destination.id

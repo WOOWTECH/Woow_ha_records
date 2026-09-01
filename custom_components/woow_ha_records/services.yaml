@@ -663,7 +663,8 @@ asset_create_asset:
       name: "Category ID"
       description: >-
         The UUID of the category this asset belongs to. Obtain valid
-        category IDs by calling the list_categories service first.
+        category IDs by calling the list_categories service first — an ID
+        that names no existing category is refused and no asset is created.
         Leave empty for uncategorized assets.
       example: "f8e7d6c5-b4a3-2190-fedc-ba0987654321"
       selector:
@@ -757,7 +758,8 @@ asset_update_asset:
       name: "Category ID"
       description: >-
         New category UUID to reassign this asset. Obtain valid category
-        IDs from the list_categories service. Omit to leave unchanged.
+        IDs from the list_categories service — an ID that names no existing
+        category is refused and nothing is changed. Omit to leave unchanged.
       example: "f8e7d6c5-b4a3-2190-fedc-ba0987654321"
       selector:
         text:

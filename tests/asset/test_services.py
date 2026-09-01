@@ -13,6 +13,8 @@ from custom_components.woow_ha_records.areas.asset.services import _parse_dateti
 from custom_components.woow_ha_records.const import DOMAIN
 from custom_components.woow_ha_records.services import async_register_services
 
+CREATE_ASSET = "asset_create_asset"
+UPDATE_ASSET = "asset_update_asset"
 DELETE_CATEGORY = "asset_delete_category"
 
 STRINGS = (
@@ -278,3 +280,183 @@ class TestDeleteCategoryGuard:
             )
 
         assert caught.value.translation_key == "asset.category_not_found"
+
+
+# ---------------------------------------------------------------------------
+# ``asset_create_asset`` and ``asset_update_asset`` verify the Category exists
+# ---------------------------------------------------------------------------
+#
+# Both verbs took any ``category_id`` on faith, so an Asset could be filed
+# under a Category never created or since deleted — silently unfindable
+# through every Category listing, which is how the panel presents assets.
+# Issue #68, the mirror of what #43 closed on the note side. The empty string
+# is not a claim about any Category ("uncategorised" is a legitimate state),
+# so only a non-empty id that resolves to nothing is refused.
+
+
+class TestCategoryMustExistOnCreate:
+    """``asset_create_asset`` refuses a ``category_id`` naming no Category."""
+
+    async def test_refuses_an_unknown_category(
+        self, hass: HomeAssistant, asset_services: AssetCoordinator
+    ) -> None:
+        """The create is refused, and no Asset is written."""
+        with pytest.raises(ServiceValidationError) as caught:
+            await hass.services.async_call(
+                DOMAIN,
+                CREATE_ASSET,
+                {"name": "Kettle", "category_id": "cat_deadbeef"},
+                blocking=True,
+            )
+
+        assert caught.value.translation_key == "asset.category_not_found"
+        assert dict(asset_services.assets) == {}
+
+    async def test_still_accepts_an_uncategorised_asset(
+        self, hass: HomeAssistant, asset_services: AssetCoordinator
+    ) -> None:
+        """The empty string is "no category", not a dangling reference."""
+        result = await hass.services.async_call(
+            DOMAIN,
+            CREATE_ASSET,
+            {"name": "Kettle", "category_id": ""},
+            blocking=True,
+            return_response=True,
+        )
+
+        assert result["success"] is True
+        assert result["asset"]["category_id"] == ""
+
+    async def test_still_accepts_a_category_that_exists(
+        self, hass: HomeAssistant, asset_services: AssetCoordinator
+    ) -> None:
+        """The check refuses dangling ids, not categorisation itself."""
+        category = await asset_services.async_create_category("Appliances")
+
+        result = await hass.services.async_call(
+            DOMAIN,
+            CREATE_ASSET,
+            {"name": "Kettle", "category_id": category.id},
+            blocking=True,
+            return_response=True,
+        )
+
+        assert result["asset"]["category_id"] == category.id
+
+    async def test_renders_a_message_with_nothing_left_unfilled(
+        self, hass: HomeAssistant, asset_services: AssetCoordinator
+    ) -> None:
+        """The placeholders raised actually fill the published message.
+
+        Home Assistant drops the whole ``.format()`` call when one
+        placeholder is missing, showing the raw template instead. Issue #27.
+        """
+        message = json.loads(STRINGS.read_text(encoding="utf-8"))["exceptions"][
+            "asset"
+        ]["category_not_found"]["message"]
+
+        with pytest.raises(ServiceValidationError) as caught:
+            await hass.services.async_call(
+                DOMAIN,
+                CREATE_ASSET,
+                {"name": "Kettle", "category_id": "cat_deadbeef"},
+                blocking=True,
+            )
+
+        rendered = message.format(**caught.value.translation_placeholders)
+        assert "{" not in rendered
+        assert "cat_deadbeef" in rendered
+
+
+class TestCategoryMustExistOnUpdate:
+    """``asset_update_asset`` refuses a ``category_id`` naming no Category."""
+
+    async def test_refuses_an_unknown_category(
+        self, hass: HomeAssistant, asset_services: AssetCoordinator
+    ) -> None:
+        """The move is refused, and the Asset stays where it was."""
+        category = await asset_services.async_create_category("Appliances")
+        asset = await asset_services.async_create_asset_full(
+            "Kettle", category_id=category.id
+        )
+
+        with pytest.raises(ServiceValidationError) as caught:
+            await hass.services.async_call(
+                DOMAIN,
+                UPDATE_ASSET,
+                {"asset_id": asset.id, "category_id": "cat_deadbeef"},
+                blocking=True,
+            )
+
+        assert caught.value.translation_key == "asset.category_not_found"
+        assert asset_services.get_asset(asset.id).category_id == category.id
+
+    async def test_the_refusal_writes_none_of_the_other_fields(
+        self, hass: HomeAssistant, asset_services: AssetCoordinator
+    ) -> None:
+        """A refused call leaves the whole Asset untouched.
+
+        The handler writes field by field as it walks the call, so the
+        Category has to be checked before the first write — otherwise a
+        refusal would still have renamed the Asset it refused to move.
+        """
+        asset = await asset_services.async_create_asset_full(
+            "Kettle", brand="Bosch"
+        )
+
+        with pytest.raises(ServiceValidationError):
+            await hass.services.async_call(
+                DOMAIN,
+                UPDATE_ASSET,
+                {
+                    "asset_id": asset.id,
+                    "name": "Toaster",
+                    "brand": "Philips",
+                    "category_id": "cat_deadbeef",
+                },
+                blocking=True,
+            )
+
+        unchanged = asset_services.get_asset(asset.id)
+        assert unchanged.name == "Kettle"
+        assert unchanged.brand == "Bosch"
+        assert unchanged.category_id == ""
+
+    async def test_still_accepts_clearing_the_category(
+        self, hass: HomeAssistant, asset_services: AssetCoordinator
+    ) -> None:
+        """Moving an Asset out of every Category stays a legitimate edit."""
+        category = await asset_services.async_create_category("Appliances")
+        asset = await asset_services.async_create_asset_full(
+            "Kettle", category_id=category.id
+        )
+
+        result = await hass.services.async_call(
+            DOMAIN,
+            UPDATE_ASSET,
+            {"asset_id": asset.id, "category_id": ""},
+            blocking=True,
+            return_response=True,
+        )
+
+        assert result["asset"]["category_id"] == ""
+
+    async def test_still_accepts_a_move_to_a_category_that_exists(
+        self, hass: HomeAssistant, asset_services: AssetCoordinator
+    ) -> None:
+        """The check refuses dangling ids, not moving itself."""
+        source = await asset_services.async_create_category("Appliances")
+        destination = await asset_services.async_create_category("Kitchen")
+        asset = await asset_services.async_create_asset_full(
+            "Kettle", category_id=source.id
+        )
+
+        result = await hass.services.async_call(
+            DOMAIN,
+            UPDATE_ASSET,
+            {"asset_id": asset.id, "category_id": destination.id},
+            blocking=True,
+            return_response=True,
+        )
+
+        assert result["asset"]["category_id"] == destination.id

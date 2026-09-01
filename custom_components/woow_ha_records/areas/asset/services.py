@@ -82,6 +82,24 @@ def _parse_datetime(value: str | None, field: str) -> datetime | None:
     return dt_util.as_utc(parsed)
 
 
+def _require_category(coordinator: AssetCoordinator, category_id: str) -> None:
+    """Refuse a non-empty ``category_id`` that names no Category.
+
+    The empty string passes: it is "uncategorised", a legitimate state, not a
+    claim about any Category. A non-empty id that resolves to nothing would
+    file the Asset where no listing and no export can find it, so it is
+    refused before anything is written. Issue #68, mirroring what #43 did for
+    the note Area.
+    """
+    if category_id and coordinator.get_category(category_id) is None:
+        raise ServiceValidationError(
+            f"Category '{category_id}' not found",
+            translation_domain=DOMAIN,
+            translation_key="asset.category_not_found",
+            translation_placeholders={"category_id": category_id},
+        )
+
+
 # ---------------------------------------------------------------------------
 # Query services — SupportsResponse.ONLY
 # ---------------------------------------------------------------------------
@@ -170,6 +188,9 @@ async def handle_create_asset(call: ServiceCall) -> ServiceResponse:
             translation_key="asset.name_required",
         )
 
+    category_id = call.data.get("category_id", "")
+    _require_category(coordinator, category_id)
+
     purchase_at = _parse_datetime(call.data.get("purchase_at"), "purchase_at")
     warranty_until = _parse_datetime(
         call.data.get("warranty_until"), "warranty_until"
@@ -178,7 +199,7 @@ async def handle_create_asset(call: ServiceCall) -> ServiceResponse:
     asset = await coordinator.async_create_asset_full(
         name,
         brand=call.data.get("brand", ""),
-        category_id=call.data.get("category_id", ""),
+        category_id=category_id,
         value=call.data.get("value", 0),
         purchase_at=purchase_at,
         warranty_until=warranty_until,
@@ -200,6 +221,12 @@ async def handle_update_asset(call: ServiceCall) -> ServiceResponse:
             translation_key="asset.asset_not_found",
             translation_placeholders={"asset_id": asset_id},
         )
+
+    # The handler writes field by field as it walks the call, so the Category
+    # is checked before the first write — a refusal must leave every field of
+    # the Asset as it was, not just ``category_id``. Issue #68.
+    if "category_id" in call.data:
+        _require_category(coordinator, call.data["category_id"])
 
     # Validate name if provided
     if "name" in call.data:
