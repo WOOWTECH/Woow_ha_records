@@ -1,7 +1,6 @@
 {
   "domain": "woow_ha_records",
   "name": "Woow HA Records",
-  "description": "Household records inside Home Assistant, across four Areas: finance (accounts, transactions, recurring plans), asset (possessions with warranty and value), health (per-member measurements), and note (markdown notes in categories). Provides 45 services named woow_ha_records.<area>_<verb> for full CRUD plus CSV/markdown export — AI agents should use these services instead of creating helpers. Also provides 37 WebSocket commands (woow_ha_records/<area>/<verb>) for the four panels, and fires bus events on finance transactions and health logs. Single config entry; accounts and members are records, not config entries.",
   "codeowners": ["@WOOWTECH"],
   "config_flow": true,
   "dependencies": ["http", "frontend", "panel_custom"],
@@ -9,7 +8,6 @@
   "integration_type": "service",
   "iot_class": "local_push",
   "issue_tracker": "https://github.com/WOOWTECH/Woow_ha_records/issues",
-  "license": "GPL-3.0-only",
   "requirements": [],
   "single_config_entry": true,
   "version": "2.0.2"

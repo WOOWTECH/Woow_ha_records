@@ -340,3 +340,133 @@ class TestTranslations:
             f"only its own — copy the message into this Area's namespace "
             f"rather than borrowing another's: {misplaced}"
         )
+
+
+RE_PLACEHOLDER_IN_SINGLE_QUOTES = re.compile(r"'{\w+}'")
+"""hassfest's own rule, verbatim: script/hassfest/translations.py."""
+
+FRONTEND_TRANSLATIONS = sorted(
+    (COMPONENT / "frontend").glob("*/translations.json")
+)
+
+
+def _leaf_strings(node: object, prefix: str = "") -> list[tuple[str, str]]:
+    """Flatten a strings file into (dotted path, value) pairs."""
+    if isinstance(node, str):
+        return [(prefix, node)]
+    if isinstance(node, dict):
+        return [
+            pair
+            for key, value in node.items()
+            for pair in _leaf_strings(value, f"{prefix}.{key}")
+        ]
+    return []
+
+
+class TestHassfestParity:
+    """The translation checks CI cannot delegate to hassfest.
+
+    CI's validate job runs hassfest with ``--skip-plugins translations``,
+    because that plugin's schema requires ``exceptions.<slug>.message``
+    exactly, and this repo's ``exceptions`` subtree is deliberately nested
+    one level per Area — the boundary #30 drew and CLAUDE.md binds. Home
+    Assistant itself flattens the subtree before any lookup, so the shape
+    is legal at runtime; hassfest alone refuses it. Skipping the plugin
+    was the resolution #36 chose, and it drops every other check the
+    plugin performed. The two that bind on this repo are re-encoded here,
+    against the same rules hassfest applies.
+    """
+
+    @pytest.mark.parametrize(
+        "relpath",
+        ["strings.json", "translations/en.json", "translations/zh-Hant.json"],
+    )
+    def test_no_placeholder_sits_inside_single_quotes(
+        self, relpath: str
+    ) -> None:
+        """No UI string wraps a placeholder in single quotes.
+
+        Frontend intl parsing treats ``'{`` as an escape, so ``'{name}'``
+        reaches the user literally, braces and all, instead of the value.
+        hassfest found 14 of these; #34 repaired them, and this keeps the
+        15th from accumulating unwatched.
+        """
+        quoted = sorted(
+            f"{path} = {value!r}"
+            for path, value in _leaf_strings(_load_json(COMPONENT / relpath))
+            if RE_PLACEHOLDER_IN_SINGLE_QUOTES.search(value)
+        )
+        assert not quoted, (
+            f"{len(quoted)} string(s) in {relpath} wrap a placeholder in "
+            f"single quotes, which renders it literally instead of "
+            f"substituting the value: {quoted}"
+        )
+
+    def test_strings_carries_only_sections_the_schema_defines(self) -> None:
+        """strings.json's top-level sections all exist in hassfest's schema.
+
+        An unknown section is dead weight Home Assistant never serves —
+        except that for years it looked served: the ``panel`` section
+        appeared to feed three panels via ``hass.localize()`` while only
+        the asset panel actually read it. #36 moved those strings to
+        ``frontend/asset/translations.json``, the pattern the note panel
+        already used. A new section here must be one hassfest's
+        ``gen_strings_schema`` names, and then also added to this list.
+        """
+        allowed = {"config", "entity", "exceptions", "services"}
+        unknown = sorted(set(_load_json(STRINGS)) - allowed)
+        assert not unknown, (
+            f"strings.json carries {len(unknown)} top-level section(s) "
+            f"Home Assistant's schema does not define, so nothing serves "
+            f"them: {unknown}. Panel strings live in "
+            f"frontend/<area>/translations.json instead."
+        )
+
+
+class TestFrontendPanelTranslations:
+    """Panel UI strings ship beside the panel that reads them.
+
+    The pattern is the note panel's, and #36 converged the asset panel
+    onto it: ``frontend/<area>/translations.json``, fetched by the panel
+    at init, one top-level key per language. Home Assistant's own
+    translation pipeline cannot carry these — its schema has no section
+    for panel strings, which is how the ``panel`` section died.
+    """
+
+    def test_asset_and_note_panels_ship_translations(self) -> None:
+        """The two converged panels each carry a translations.json.
+
+        finance and health inline their strings in the panel JS instead;
+        if either ever converges, it joins this set.
+        """
+        shipped = {path.parent.name for path in FRONTEND_TRANSLATIONS}
+        missing = {"asset", "note"} - shipped
+        assert not missing, (
+            f"frontend translations.json missing for: {sorted(missing)}"
+        )
+
+    @pytest.mark.parametrize(
+        "path", FRONTEND_TRANSLATIONS, ids=lambda p: p.parent.name
+    )
+    def test_every_language_mirrors_en(self, path: Path) -> None:
+        """Each language table carries exactly the keys en does.
+
+        Same rule, same reason as the component translation files: two
+        tables that must stay in sync with nothing watching them is how
+        issue #4 happened.
+        """
+        data = _load_json(path)
+        assert "en" in data, f"{path.parent.name}/translations.json has no en"
+
+        reference = set(data["en"])
+        for language, table in data.items():
+            missing = sorted(reference - set(table))
+            extra = sorted(set(table) - reference)
+            assert not missing, (
+                f"{path.parent.name}/translations.json [{language}] is "
+                f"missing {len(missing)} key(s) en defines: {missing}"
+            )
+            assert not extra, (
+                f"{path.parent.name}/translations.json [{language}] defines "
+                f"{len(extra)} key(s) en does not: {extra}"
+            )

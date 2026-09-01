@@ -14,6 +14,92 @@ import {
   unsafeCSS,
 } from "https://unpkg.com/lit-element@2.4.0/lit-element.js?module";
 
+// Translations are loaded from a local JSON file at init time — the same
+// pattern the note panel uses (frontend/note/ha-note-record-panel.js). The
+// _translations module-level variable holds the parsed data.
+let _translations = null;
+
+async function loadTranslations() {
+  if (_translations) return _translations;
+  try {
+    // Resolve the translations.json URL relative to this module's location.
+    const base = new URL(".", import.meta.url).href;
+    const resp = await fetch(base + "translations.json?v=" + Date.now());
+    _translations = await resp.json();
+  } catch (e) {
+    console.warn("ha-asset-panel: failed to load translations.json, using built-in English fallback", e);
+    _translations = {
+      en: {
+        title: "Asset Record",
+        add_asset: "Add Asset",
+        edit_asset: "Edit Asset",
+        name: "Name",
+        brand: "Brand",
+        category: "Category",
+        value: "Value",
+        warranty: "Warranty",
+        purchase_at: "Purchase Date",
+        warranty_until: "Warranty Until",
+        manual: "Manual",
+        maintenance: "Maintenance",
+        save: "Save",
+        cancel: "Cancel",
+        delete: "Delete",
+        delete_confirm: "Are you sure you want to delete this asset?",
+        total_assets: "Total Assets",
+        total_value: "Total Value",
+        no_assets: "No assets yet",
+        no_assets_hint: "Click the button above to add your first asset",
+        expired: "Expired",
+        name_required: "Name is required",
+        no_search_results: "No assets match your search",
+        all_categories: "All",
+        uncategorized: "Uncategorized",
+        add_category: "Add Category",
+        category_name: "Category Name",
+        category_name_placeholder: "Enter category name",
+        rename_category: "Rename Category",
+        delete_category: "Delete Category",
+        delete_category_confirm: "This will also delete {count} asset(s) in this category. Are you sure?",
+        category_empty_error: "Category name cannot be empty",
+        category_duplicate_error: "A category with this name already exists",
+        sort_by: "Sort by",
+        sort_name: "Name",
+        sort_created: "Created",
+        sort_updated: "Updated",
+        sort_asc: "Ascending",
+        sort_desc: "Descending",
+        load_error: "Failed to load assets",
+        save_error: "Failed to save asset",
+        delete_error: "Failed to delete asset",
+        deleting: "Deleting...",
+        invalid_date: "Invalid date",
+      },
+    };
+  }
+  return _translations;
+}
+
+/**
+ * Resolve the language key for the translations object.
+ * zh-TW / zh-HK map to zh-Hant; other zh-* to zh-Hans; everything else to en.
+ */
+function _resolveLangKey(lang) {
+  if (!lang) return "en";
+  if (lang.startsWith("zh-TW") || lang.startsWith("zh-HK") || lang === "zh-Hant") return "zh-Hant";
+  if (lang.startsWith("zh")) return "zh-Hans";
+  return "en";
+}
+
+/**
+ * Look up a single translation key using the loaded translations data.
+ */
+function _getTranslation(key, lang) {
+  if (!_translations) return key;
+  const langKey = _resolveLangKey(lang);
+  return _translations[langKey]?.[key] || _translations["en"]?.[key] || key;
+}
+
 // Inlined shared styles for HA panel compatibility
 const sharedStylesLit = `
   /* TOP BAR - matches HA standard header */
@@ -1032,7 +1118,10 @@ class HaAssetPanel extends LitElement {
 
   connectedCallback() {
     super.connectedCallback();
-    this._loadAssets();
+    // Ensure translations are loaded before the data load's re-render.
+    loadTranslations().then(() => {
+      this._loadAssets();
+    });
     document.addEventListener("keydown", this._boundHandleKeydown);
     document.addEventListener("click", this._boundCloseMenus);
     if (this.hass) {
@@ -1117,61 +1206,7 @@ class HaAssetPanel extends LitElement {
   }
 
   _localize(key) {
-    // Try to get translation from HA
-    const translation = this.hass?.localize?.(`component.woow_ha_records.panel.${key}`);
-    if (translation) return translation;
-
-    // Fallback translations
-    const isZhHant = this.hass?.language === "zh-Hant" ||
-      this.hass?.language?.startsWith("zh-TW") ||
-      this.hass?.language?.startsWith("zh-HK");
-    const fallbacks = {
-      title: isZhHant ? "資產紀錄" : "Asset Record",
-      add_asset: isZhHant ? "新增資產" : "Add Asset",
-      edit_asset: isZhHant ? "編輯資產" : "Edit Asset",
-      name: isZhHant ? "名稱" : "Name",
-      brand: isZhHant ? "品牌" : "Brand",
-      category: isZhHant ? "類型" : "Category",
-      value: isZhHant ? "價值" : "Value",
-      warranty: isZhHant ? "保固" : "Warranty",
-      purchase_at: isZhHant ? "購買時間" : "Purchase Date",
-      warranty_until: isZhHant ? "保固到期" : "Warranty Until",
-      manual: isZhHant ? "使用說明" : "Manual",
-      maintenance: isZhHant ? "維修說明" : "Maintenance",
-      save: isZhHant ? "儲存" : "Save",
-      cancel: isZhHant ? "取消" : "Cancel",
-      delete: isZhHant ? "刪除" : "Delete",
-      delete_confirm: isZhHant ? "確定要刪除此資產嗎？" : "Are you sure you want to delete this asset?",
-      total_assets: isZhHant ? "資產總數" : "Total Assets",
-      total_value: isZhHant ? "總價值" : "Total Value",
-      no_assets: isZhHant ? "尚無資產資料" : "No assets yet",
-      no_assets_hint: isZhHant ? "點擊上方按鈕新增您的第一個資產" : "Click the button above to add your first asset",
-      expired: isZhHant ? "已過期" : "Expired",
-      name_required: isZhHant ? "名稱為必填" : "Name is required",
-      no_search_results: isZhHant ? "沒有符合搜尋條件的資產" : "No results found",
-      save_error: isZhHant ? "儲存資產失敗" : "Failed to save asset",
-      delete_error: isZhHant ? "刪除資產失敗" : "Failed to delete asset",
-      load_error: isZhHant ? "載入資產失敗" : "Failed to load assets",
-      invalid_date: isZhHant ? "無效日期" : "Invalid date",
-      deleting: isZhHant ? "刪除中..." : "Deleting...",
-      all_categories: isZhHant ? "全部" : "All",
-      uncategorized: isZhHant ? "未分類" : "Uncategorized",
-      add_category: isZhHant ? "新增分類" : "Add Category",
-      category_name: isZhHant ? "分類名稱" : "Category Name",
-      category_name_placeholder: isZhHant ? "輸入分類名稱" : "Enter category name",
-      rename_category: isZhHant ? "重新命名分類" : "Rename Category",
-      delete_category: isZhHant ? "刪除分類" : "Delete Category",
-      delete_category_confirm: isZhHant ? "將同時刪除分類下 {count} 項資產，確定要刪除嗎？" : "This will also delete {count} asset(s) in this category. Are you sure?",
-      category_empty_error: isZhHant ? "分類名稱不能為空" : "Category name cannot be empty",
-      category_duplicate_error: isZhHant ? "已存在相同名稱的分類" : "A category with this name already exists",
-      sort_by: isZhHant ? "排序" : "Sort by",
-      sort_name: isZhHant ? "名稱" : "Name",
-      sort_created: isZhHant ? "建立時間" : "Created",
-      sort_updated: isZhHant ? "更新時間" : "Updated",
-      sort_asc: isZhHant ? "升序" : "Ascending",
-      sort_desc: isZhHant ? "降序" : "Descending",
-    };
-    return fallbacks[key] || key;
+    return _getTranslation(key, this.hass?.language);
   }
 
   /**

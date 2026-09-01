@@ -10,18 +10,14 @@
 # is the version the integration declares it needs, and nothing declares
 # support for a version nothing tests.
 #
-# There is no `validate` job yet. hassfest and the HACS action were tried here
-# first, and hassfest surfaced four pre-existing problems, none of them caused
-# by this workflow: three manifest keys Home Assistant's schema does not
-# define, a `panel` translations section that three panels genuinely use via
-# hass.localize() but the schema does not allow, 14 exception messages that
-# quote their placeholders, and the HACS check itself, which never ran because
-# hassfest failed before it. The first is fixed here because this workflow
-# caused half of it. The rest are a translations-architecture decision and a
-# collision with an open PR, and each deserves its own change rather than
-# being rushed through this one. Adding the job before they are settled would
-# mean shipping a red light on day one, which is a light everyone learns to
-# ignore.
+# The validate job checks manifest.json, services.yaml and the rest of the
+# integration's metadata against Home Assistant's own schemas on every PR.
+# hassfest's `translations` plugin alone is skipped: its schema requires a
+# flat `exceptions.<slug>.message` map, and this repo deliberately nests
+# `exceptions` one level per Area (#30) — Home Assistant itself flattens the
+# subtree before any lookup, so the shape is legal at runtime and hassfest
+# alone refuses it. The translation checks that do bind on this repo run as
+# tests instead: TestHassfestParity in tests/test_translations.py. (#36)
 name: CI
 
 on:
@@ -68,6 +64,30 @@ jobs:
           name: pytest-results
           path: pytest-results.xml
           retention-days: 14
+
+  validate:
+    name: validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      # The official hassfest action accepts no inputs, so this runs the same
+      # container the action runs, directly, to reach --skip-plugins. Why the
+      # translations plugin is skipped is in this file's header comment; the
+      # checks it would have contributed live in tests/test_translations.py.
+      - name: hassfest
+        run: docker run --rm -v ${{ github.workspace }}://github/workspace ghcr.io/home-assistant/hassfest --skip-plugins translations
+
+      - name: HACS
+        uses: hacs/action@main
+        with:
+          category: integration
+          # `woow_ha_records` is not registered in home-assistant/brands, so this
+          # check cannot pass from inside this repo — clearing it means opening a
+          # PR against someone else's repository and waiting on their review. A
+          # red light nobody here can turn green is a red light everyone learns
+          # to ignore, so it is ignored explicitly instead. Tracked separately.
+          ignore: brands
 
   lint:
     name: lint
