@@ -396,13 +396,24 @@ custom_components/
 服務名稱與 WebSocket 指令全部改變，原因見
 [ADR-0001](docs/adr/0001-merge-four-integrations-into-one-domain.md)。
 
-### 從 2.0 升級
+### 從 2.x 升級到 3.0
 
-2.0 之後有一次乾淨切斷：筆記實體的 `unique_id` 改變，讓筆記可以在分類之間移動。
-在此之前建立的筆記會註冊全新的實體，舊的則留下來變成「不可用」——請到設定 →
-裝置與服務 → 實體，手動刪除一次。除此之外不需要做任何事，`entity_id` 也不會改變。
-詳見
+2.0 之後有兩次乾淨切斷，這也是本次發佈是 3.0 而非 2.1 的原因。兩者都需要你在升級
+前先做處理。
+
+**筆記實體的 `unique_id` 改變了**，讓筆記可以在分類之間移動。在此之前建立的筆記會
+註冊全新的實體，舊的則留下來變成「不可用」——請到設定 → 裝置與服務 → 實體，手動
+刪除一次。`entity_id` 不會改變，因此指名筆記的儀表板與自動化仍可運作。詳見
 [ADR-0003](docs/adr/0003-category-is-a-note-attribute-not-part-of-note-identity.md)。
+
+**帳戶的備註欄位改拼作 `note`，不再是 `notes`**，包含 `finance_update_account`、
+`woow_ha_records/finance/update_account`，以及所有讀取服務與 WebSocket 指令回傳的
+帳戶內容。不接受舊名稱。由於現在每個服務都註冊了 schema，仍送 `notes` 的呼叫端會
+直接失敗，而不是半成功——升級前請先搜過你的腳本與自動化。詳見
+[ADR-0002](docs/adr/0002-spell-the-remark-field-note-at-every-boundary.md)。
+
+另有兩個服務收緊，會拒絕過去會成功的呼叫：`note_delete_category` 與
+`asset_delete_category` 除非呼叫端傳入 `force: true`，否則不再連鎖刪除。
 
 ## 設定說明
 
