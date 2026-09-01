@@ -152,7 +152,8 @@
 > [ADR-0001](docs/adr/0001-merge-four-integrations-into-one-domain.md) 的先例，
 > **不提供自動遷移**：升級前建立的筆記會註冊全新的實體，舊的項目會留下來變成
 > 「不可用」。**升級後請手動刪除一次這些不可用的實體** —— 設定 → 裝置與服務 →
-> 實體，依狀態篩選。`entity_id` 不會改變，因此不會有自動化壞掉。之後新建的筆記
+> 實體，依狀態篩選（一個罕見的既有例外：若殘骸自己的 `entity_id` 就是無效的，
+> 這個方式刪不掉，見 #69）。`entity_id` 不會改變，因此不會有自動化壞掉。之後新建的筆記
 > 名稱不再包含分類，`text.work_shopping_list` 會變成 `text.shopping_list`。詳見
 > [ADR-0003](docs/adr/0003-category-is-a-note-attribute-not-part-of-note-identity.md)。
 

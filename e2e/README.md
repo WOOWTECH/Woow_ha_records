@@ -78,6 +78,34 @@ Shared helpers in `utils/`: `ha-auth.ts` (login flow → access token),
 
 ---
 
+## One-off — clean up the note entities ADR-0003 orphaned
+
+Not a test. `cleanup-43-orphans.mjs` is the upgrade step the README asks a user
+to do by hand after #43, driven over the WebSocket registry API so its result
+can be checked rather than eyeballed.
+
+The note `unique_id` lost its category in #43, so every note entity registered
+before that upgrade is orphaned: Home Assistant created a fresh entry under the
+new shape and left the old one behind as unavailable. This removes the old ones
+and nothing else — it touches only entries that are both this integration's and
+of the pre-#43 shape.
+
+```bash
+node cleanup-43-orphans.mjs           # report only
+node cleanup-43-orphans.mjs --apply   # remove them
+```
+
+The report is worth reading on its own: `current-shape entries with no note`
+should be zero on any install running the #65 fix, and is a count of orphans
+the delete paths failed to clean up on one that is not.
+
+An orphan whose `entity_id` is itself invalid — over-long and truncated onto a
+trailing underscore, from before #12 bounded them — cannot be removed this way
+or through the Home Assistant UI, because the registry command validates the
+`entity_id` it is handed. See #69.
+
+---
+
 ## Harness 2 — k3s, disposable HA, retention only
 
 Proves that finance transactions and health records survive

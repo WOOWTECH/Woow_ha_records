@@ -161,7 +161,9 @@ Full request/response specifications live in [`docs/api/`](docs/api/README.md), 
 > created before the upgrade register fresh entities, and their old entries are
 > left behind as unavailable. **Delete the integration's unavailable entities
 > once after upgrading** — Settings → Devices & Services → Entities, filter by
-> status. `entity_id`s do not change and no automation breaks. New Notes are
+> status (one exception, rare and pre-existing: an orphan whose own
+> `entity_id` is invalid cannot be removed that way — see #69).
+> `entity_id`s do not change and no automation breaks. New Notes are
 > named without their category, so `text.work_shopping_list` becomes
 > `text.shopping_list`. See
 > [ADR-0003](docs/adr/0003-category-is-a-note-attribute-not-part-of-note-identity.md).
