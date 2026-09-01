@@ -340,7 +340,10 @@ export class HAWebSocketClient {
     });
   }
 
-  async noteUpdateNote(noteId: string, updates: { title?: string; content?: string; pinned?: boolean }) {
+  async noteUpdateNote(
+    noteId: string,
+    updates: { title?: string; content?: string; pinned?: boolean; category_id?: string },
+  ) {
     return this.sendCommand({
       type: 'woow_ha_records/note/update_note',
       note_id: noteId,
