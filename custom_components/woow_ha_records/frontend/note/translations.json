@@ -31,7 +31,10 @@
     "search": "Search...",
     "add": "Add",
     "more_actions": "More actions",
-    "add_note_to_category": "Add Note to this Category"
+    "add_note_to_category": "Add Note to this Category",
+    "category": "Category",
+    "duplicate_in_category_error": "The category \"{name}\" already holds a note with this title.",
+    "move_target_missing_error": "The category \"{name}\" no longer exists. Choose another category."
   },
   "zh-Hant": {
     "title": "筆記本",
@@ -65,7 +68,10 @@
     "search": "搜尋...",
     "add": "新增",
     "more_actions": "更多操作",
-    "add_note_to_category": "在此分類新增筆記"
+    "add_note_to_category": "在此分類新增筆記",
+    "category": "分類",
+    "duplicate_in_category_error": "「{name}」分類中已有相同標題的筆記。",
+    "move_target_missing_error": "「{name}」分類已不存在，請選擇其他分類。"
   },
   "zh-Hans": {
     "title": "笔记本",
@@ -99,6 +105,9 @@
     "search": "搜索...",
     "add": "添加",
     "more_actions": "更多操作",
-    "add_note_to_category": "在此分类添加笔记"
+    "add_note_to_category": "在此分类添加笔记",
+    "category": "分类",
+    "duplicate_in_category_error": "\"{name}\"分类中已有相同标题的笔记。",
+    "move_target_missing_error": "\"{name}\"分类已不存在，请选择其他分类。"
   }
 }

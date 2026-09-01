@@ -42,6 +42,9 @@ async function loadTranslations() {
         delete_category_confirm_label: 'Type "{name}" to confirm',
         menu: "Menu", search: "Search...", add: "Add", more_actions: "More actions",
         add_note_to_category: "Add Note to this Category",
+        category: "Category",
+        duplicate_in_category_error: 'The category "{name}" already holds a note with this title.',
+        move_target_missing_error: 'The category "{name}" no longer exists. Choose another category.',
       },
     };
   }
@@ -478,7 +481,8 @@ class HaNoteRecordPanel extends LitElement {
       }
 
       .form-group input,
-      .form-group textarea {
+      .form-group textarea,
+      .form-group select {
         width: 100%;
         padding: 12px;
         border: 1px solid var(--divider-color);
@@ -490,7 +494,8 @@ class HaNoteRecordPanel extends LitElement {
       }
 
       .form-group input:focus,
-      .form-group textarea:focus {
+      .form-group textarea:focus,
+      .form-group select:focus {
         outline: none;
         border-color: var(--primary-color);
       }
@@ -732,7 +737,8 @@ class HaNoteRecordPanel extends LitElement {
 
         /* Form inputs: 16px to prevent iOS auto-zoom */
         .form-group input,
-        .form-group textarea {
+        .form-group textarea,
+        .form-group select {
           font-size: 16px;
         }
 
@@ -1002,24 +1008,37 @@ class HaNoteRecordPanel extends LitElement {
       return;
     }
 
+    const targetCategoryId = this._editingNote.category_id;
+    // Captured before the call: on a not_found the refresh below may have
+    // already dropped the destination from _categories.
+    const targetCategoryName =
+      this._categories.find((c) => c.id === targetCategoryId)?.name || "";
+    let moving = false;
+
     try {
       if (this._dialogMode === "create") {
         const result = await this.hass.callWS({
           type: "woow_ha_records/note/create_note",
-          category_id: this._editingNote.category_id,
+          category_id: targetCategoryId,
           title: this._editingNote.title,
           content: this._editingNote.content,
           pinned: this._editingNote.pinned,
         });
         this._notes = [...this._notes, result];
       } else {
-        const result = await this.hass.callWS({
+        const original = this._notes.find((n) => n.id === this._editingNote.id);
+        moving = !!original && targetCategoryId !== original.category_id;
+        const message = {
           type: "woow_ha_records/note/update_note",
           note_id: this._editingNote.id,
           title: this._editingNote.title,
           content: this._editingNote.content,
           pinned: this._editingNote.pinned,
-        });
+        };
+        if (moving) {
+          message.category_id = targetCategoryId;
+        }
+        const result = await this.hass.callWS(message);
         this._notes = this._notes.map((n) =>
           n.id === result.id ? result : n
         );
@@ -1027,7 +1046,52 @@ class HaNoteRecordPanel extends LitElement {
       this._closeNoteDialog();
     } catch (error) {
       console.error("Failed to save note:", error);
+      if (error.code === "duplicate") {
+        // A move can collide without renaming anything: the note carries its
+        // title into the destination. Name the destination, not the title.
+        this._showError(
+          this._localize("duplicate_in_category_error")
+            .replace("{name}", targetCategoryName)
+        );
+      } else if (error.code === "not_found" && moving) {
+        await this._recoverFromFailedMove(error, targetCategoryName);
+      } else {
+        this._showError(error.message || "Failed to save note");
+      }
+    }
+  }
+
+  async _recoverFromFailedMove(error, targetCategoryName) {
+    // The destination (or the note itself) vanished under us — someone
+    // deleted it in another tab. Re-fetch the truth so the dialog's category
+    // list stops offering what is gone, then leave the form usable.
+    await this._refreshData();
+    const current = this._notes.find((n) => n.id === this._editingNote?.id);
+    if (!current) {
+      // The note is what disappeared; nothing left to edit.
       this._showError(error.message || "Failed to save note");
+      this._closeNoteDialog();
+      return;
+    }
+    this._showError(
+      this._localize("move_target_missing_error")
+        .replace("{name}", targetCategoryName)
+    );
+    // Snap the selector back to where the note actually is.
+    this._editingNote = { ...this._editingNote, category_id: current.category_id };
+  }
+
+  async _refreshData() {
+    // Like _loadData, but without the loading flag: render() replaces the
+    // whole panel (open dialog included) with a spinner while it is set.
+    try {
+      const result = await this.hass.callWS({
+        type: "woow_ha_records/note/get_data",
+      });
+      this._categories = result.categories || [];
+      this._notes = result.notes || [];
+    } catch (error) {
+      console.error("Failed to refresh data:", error);
     }
   }
 
@@ -1220,6 +1284,30 @@ class HaNoteRecordPanel extends LitElement {
                   placeholder="${this._localize("note_content_placeholder")}"
                 ></textarea>
               </div>
+              ${isEdit
+                ? html`
+                    <div class="form-group">
+                      <label for="note-category">${this._localize("category")}</label>
+                      <select
+                        id="note-category"
+                        .value=${this._editingNote?.category_id || ""}
+                        @change=${(e) =>
+                          this._updateNoteField("category_id", e.target.value)}
+                      >
+                        ${this._categories.map(
+                          (cat) => html`
+                            <option
+                              value="${cat.id}"
+                              ?selected=${this._editingNote?.category_id === cat.id}
+                            >
+                              ${cat.name}
+                            </option>
+                          `
+                        )}
+                      </select>
+                    </div>
+                  `
+                : ""}
               <div class="form-group form-group-checkbox">
                 <input
                   type="checkbox"

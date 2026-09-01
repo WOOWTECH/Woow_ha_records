@@ -356,6 +356,46 @@ test.describe('note Area E2E Tests', () => {
       await page.waitForTimeout(2000);
       expect(alertTriggered).toBe(false);
     });
+
+    test('8.4 Move a note between categories via the edit dialog (#67)', async ({ page }) => {
+      // Fixtures: two temp categories and a note in the first.
+      const stamp = Date.now();
+      const src = await ws.noteCreateCategory(`移動來源 MOVE-SRC-${stamp}`);
+      const dst = await ws.noteCreateCategory(`移動目的 MOVE-DST-${stamp}`);
+      const note = await ws.noteCreateNote(src.id, `移動測試筆記 ${stamp}`, 'move me', false);
+
+      try {
+        await loginAndNavigate(page, 'ha-note-record');
+        const panel = page.locator('ha-note-record-panel');
+
+        // Open the source category tab, then the note's edit dialog.
+        await panel.locator('.category-tab', { hasText: `MOVE-SRC-${stamp}` }).click();
+        await panel.locator('.note-card', { hasText: `移動測試筆記 ${stamp}` }).click();
+
+        // The selector defaults to the note's current category.
+        const select = panel.locator('#note-category');
+        await expect(select).toHaveValue(src.id);
+
+        // Choose the destination and save.
+        await select.selectOption(dst.id);
+        await panel.locator('button[type="submit"]').click();
+
+        // The dialog closes and the backend now files the note under the
+        // destination — the move went over update_note, not delete+create,
+        // so the note keeps its id.
+        await expect(panel.locator('#note-category')).toHaveCount(0);
+        await expect
+          .poll(async () => {
+            const data = await ws.noteGetData();
+            return data.notes.find((n: any) => n.id === note.id)?.category_id;
+          })
+          .toBe(dst.id);
+      } finally {
+        await ws.noteDeleteNote(note.id).catch(() => {});
+        await ws.noteDeleteCategory(src.id).catch(() => {});
+        await ws.noteDeleteCategory(dst.id).catch(() => {});
+      }
+    });
   });
 
   // ─── Stability ─────────────────────────────────────────
