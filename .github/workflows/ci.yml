@@ -78,16 +78,19 @@ jobs:
       - name: hassfest
         run: docker run --rm -v ${{ github.workspace }}://github/workspace ghcr.io/home-assistant/hassfest --skip-plugins translations
 
+      # The `brands` check passes on local assets. HACS looks for
+      # custom_components/woow_ha_records/brand/icon.png in the repo tree and
+      # returns before it consults brands.home-assistant.io, so that one file
+      # holds the check green; the logo and @2x files beside it are for the UI,
+      # which since 2026.3 prefers an integration's own brand/ directory to the
+      # CDN. Nothing references any of them by path — they read as unused
+      # binaries and are not. Registering the domain in home-assistant/brands
+      # is not required: that repo now marks custom_integrations/ a legacy
+      # folder. (#40)
       - name: HACS
         uses: hacs/action@main
         with:
           category: integration
-          # `woow_ha_records` is not registered in home-assistant/brands, so this
-          # check cannot pass from inside this repo — clearing it means opening a
-          # PR against someone else's repository and waiting on their review. A
-          # red light nobody here can turn green is a red light everyone learns
-          # to ignore, so it is ignored explicitly instead. Tracked separately.
-          ignore: brands
 
   lint:
     name: lint
