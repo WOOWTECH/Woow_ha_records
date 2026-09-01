@@ -861,6 +861,10 @@
           "name": "筆記 ID",
           "description": "筆記的唯一識別碼。"
         },
+        "category_id": {
+          "name": "分類 ID",
+          "description": "將筆記移動到這個分類。省略則維持原本的分類。"
+        },
         "title": {
           "name": "標題",
           "description": "新的筆記標題。在同一分類中不可重複，最多 200 個字元。"

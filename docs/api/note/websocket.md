@@ -187,7 +187,7 @@ Create a new note in a category.
 
 ### woow_ha_records/note/update_note
 
-Update a note's title, content, or pinned state. All fields are optional — only provided fields are updated.
+Update a note's category, title, content, or pinned state. All fields but `note_id` are optional — only provided fields are updated.
 
 **Auth:** Admin
 
@@ -196,9 +196,12 @@ Update a note's title, content, or pinned state. All fields are optional — onl
 | Parameter | Type | Required | Validation | Description |
 |-----------|------|----------|------------|-------------|
 | `note_id` | string | Yes | Must exist | Note ID |
+| `category_id` | string | No | Must exist, must not already hold this title | Move the note to this category |
 | `title` | string | No | Non-empty, max 200 chars, unique in category | New title |
 | `content` | string | No | Max 100,000 chars | New content |
 | `pinned` | boolean | No | — | New pinned state |
+
+Passing `category_id` moves the note. It keeps its title, content, pinned state and `created_at`; only the category and `updated_at` change, and its `_content` and `_pinned` entities move to the destination category's device. The duplicate-title check runs against the **destination**, so a move that renames nothing is still refused if that category already holds a note with this title. The note's `entity_id` does not change and never named its category — see [ADR-0003](../../adr/0003-category-is-a-note-attribute-not-part-of-note-identity.md).
 
 **Request:**
 
@@ -292,7 +295,7 @@ Delete a note and clean up its entity registry entries.
 
 Delete a category and **cascade-delete all notes** within it. Also removes all entity registry and device registry entries.
 
-The cascade is opt-in. A note cannot be moved to another category, so the cascade is the only thing that ends it and there is no undo — a category that still holds notes is refused unless `force` is `true`. The note panel type-gates the deletion behind the category's name and passes `force`.
+The cascade is opt-in and there is no undo — a category that still holds notes is refused unless `force` is `true`. A note now has an escape route: `woow_ha_records/note/update_note` moves it to another `category_id`, so moving out what is worth keeping and then deleting the emptied category needs no `force` at all. The note panel type-gates the deletion behind the category's name and passes `force`.
 
 **Auth:** Admin
 

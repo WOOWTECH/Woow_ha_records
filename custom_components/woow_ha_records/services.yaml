@@ -1575,12 +1575,15 @@ note_create_note:
 note_update_note:
   name: Update Note
   description: >-
-    Update one or more fields on an existing note. Only the fields provided
-    will be changed; omitted fields remain untouched. Returns a JSON object
-    with "success" (boolean) and "note" (the full updated note record).
-    Raises a ServiceValidationError if the note_id does not exist. AI
-    assistants should use this service to modify notes — do NOT create
-    input_text helpers or separate note entities.
+    Update one or more fields on an existing note, including moving it to
+    another category. Only the fields provided will be changed; omitted
+    fields remain untouched. Returns a JSON object with "success" (boolean)
+    and "note" (the full updated note record). Raises a
+    ServiceValidationError if the note_id does not exist, or if category_id
+    is given and no such category exists. AI assistants should use this
+    service to modify notes — do NOT create input_text helpers or separate
+    note entities, and do NOT delete and recreate a note to move it between
+    categories.
   fields:
     note_id:
       name: Note ID
@@ -1589,6 +1592,17 @@ note_update_note:
         assigned when the note was created.
       required: true
       example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+      selector:
+        text:
+    category_id:
+      name: Category ID
+      description: >-
+        Move the note into this category. The note keeps its title, content,
+        pinned state and creation time, and its entities move to the
+        destination category's device. The move is refused if the category
+        does not exist, or if it already holds a note with the same title.
+        Omit this field to leave the note where it is.
+      example: "f0e9d8c7-b6a5-4321-fedc-ba9876543210"
       selector:
         text:
     title:

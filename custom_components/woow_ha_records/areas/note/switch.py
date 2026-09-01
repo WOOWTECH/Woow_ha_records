@@ -13,9 +13,8 @@ from homeassistant.components.switch import ENTITY_ID_FORMAT, SwitchEntity
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
-from ...const import unique_id
-from .const import AREA, ATTR_NOTE_ID, ICON_PINNED, ICON_UNPINNED
-from .entity import HaNoteRecordEntity
+from .const import ATTR_NOTE_ID, ICON_PINNED, ICON_UNPINNED
+from .entity import HaNoteRecordEntity, note_unique_id
 from .store import Category, HaNoteRecordStore, Note
 
 _LOGGER = logging.getLogger(__name__)
@@ -79,7 +78,8 @@ class HaNoteRecordSwitchEntity(HaNoteRecordEntity, SwitchEntity):
         * ``note_id`` (str) -- unique note identifier
 
     Unique ID pattern
-        ``{DOMAIN}_{category_id}_{note_id}_pinned``
+        ``note_{note_id}_pinned`` -- category-free, so the note can move
+        between categories without changing identity (ADR-0003).
 
     Entity ID
         Suggested via ``_apply_entity_id`` so a long note title cannot push the
@@ -101,7 +101,7 @@ class HaNoteRecordSwitchEntity(HaNoteRecordEntity, SwitchEntity):
     ) -> None:
         """Initialize the switch entity."""
         super().__init__(store, note, category)
-        self._attr_unique_id = unique_id(AREA, category.id, note.id, "pinned")
+        self._attr_unique_id = note_unique_id(note.id, "pinned")
         self._attr_name = f"{note.title} Pinned"
         self._apply_entity_id(ENTITY_ID_FORMAT)
 

@@ -1,10 +1,13 @@
 """``note_delete_category`` will not cascade unless the caller says so.
 
-Deleting a Category destroys every Note filed under it, and a Note has no
-escape route — it cannot be moved elsewhere first (#43). The note panel already
+Deleting a Category destroys every Note filed under it. The note panel already
 guards this: it names the Category, counts its Notes, and makes the user type
 the name back. The service and WebSocket surfaces guarded nothing, and
 ``services.yaml`` points AI assistants straight at the service. Issue #45.
+
+The guard was written when a Note had no escape route at all. #43 gave it one,
+so the refusal now tells a caller something they can act on: move the Notes out
+with ``note_update_note`` and the Category deletes without ``force``.
 
 So the cascade is now opt-in. Without ``force`` the call is refused and
 nothing is deleted; with it the behaviour is exactly what it always was, which

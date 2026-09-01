@@ -21,9 +21,9 @@ ha_note_record/create_note
     Permission: admin required.
 
 ha_note_record/update_note
-    Update an existing note.
-    Parameters: note_id (str, required), title (str, optional),
-    content (str, optional), pinned (bool, optional).
+    Update an existing note, including moving it to another category.
+    Parameters: note_id (str, required), category_id (str, optional),
+    title (str, optional), content (str, optional), pinned (bool, optional).
     Permission: admin required.
 
 ha_note_record/delete_note
@@ -58,9 +58,10 @@ Cascade delete behavior
 Deleting a category triggers a cascade that removes all notes belonging
 to that category, cleans up their text and switch entities from the
 entity registry, and removes the category's device from the device
-registry. Because a note cannot be moved to another category first, that
-cascade is the only way its notes end, so it is opt-in: a category that
-still holds notes is refused unless the caller passes ``force``.
+registry. It is opt-in: a category that still holds notes is refused
+unless the caller passes ``force``. A caller who wants to keep those
+notes can now move them out first with ``update_note``, which is what
+ADR-0003 made possible.
 
 Error codes
 -----------
@@ -80,7 +81,6 @@ import voluptuous as vol
 from homeassistant.components import websocket_api
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import device_registry as dr
-from homeassistant.helpers import entity_registry as er
 
 from ...const import device_id
 from ...runtime import get_data
@@ -91,6 +91,7 @@ from .const import (
     MAX_NOTE_CONTENT_LENGTH,
     MAX_NOTE_TITLE_LENGTH,
 )
+from .entity import async_move_note_entities, async_remove_note_entities
 from .store import HaNoteRecordStore
 
 _LOGGER = logging.getLogger(__name__)
@@ -358,6 +359,7 @@ async def websocket_create_note(
     {
         vol.Required("type"): "woow_ha_records/note/update_note",
         vol.Required("note_id"): str,
+        vol.Optional("category_id"): str,
         vol.Optional("title"): str,
         vol.Optional("content"): str,
         vol.Optional("pinned"): bool,
@@ -379,6 +381,11 @@ async def websocket_update_note(
     ----------
     note_id : str, required
         The ID of the note to update.
+    category_id : str, optional
+        Move the note to this category. The note keeps its title, content,
+        pinned state and creation time; its entities are re-pointed at the
+        destination category's device. Omit to leave the category unchanged.
+        See ADR-0003.
     title : str, optional
         New title. Whitespace is trimmed from both ends. Cannot be
         empty after trimming. Maximum length is ``MAX_NOTE_TITLE_LENGTH``
@@ -402,15 +409,24 @@ async def websocket_update_note(
     Errors
     ------
     not_found
-        Store is not initialized, or the note does not exist.
+        Store is not initialized, the note does not exist, or the
+        destination category does not exist.
     invalid_input
         Title is empty after trimming, title exceeds 200 characters,
         or content exceeds 100000 characters.
     duplicate
-        The new title already exists for another note in the same
-        category (case-insensitive comparison).
+        The title already exists for another note in the category the
+        note will be in (case-insensitive comparison). A move is refused
+        on this too, since it carries the note's title into a category
+        that may already hold it.
     error
         Failed to retrieve the note after update.
+
+    Side effects
+    ------------
+    On a move, re-points the note's text and switch entities at the
+    destination category's device in the entity registry, creating that
+    device if the category held no notes yet.
     """
     store = _get_store(hass)
     if store is None:
@@ -423,6 +439,18 @@ async def websocket_update_note(
     if note is None:
         connection.send_error(msg["id"], "not_found", "Note not found")
         return
+
+    # Validate the destination category if a move was asked for. Nothing is
+    # written until every check below passes, so a bad destination leaves the
+    # note exactly as it was.
+    destination = None
+    category_id = note.category_id
+    if "category_id" in msg:
+        category_id = msg["category_id"]
+        destination = store.get_category(category_id)
+        if destination is None:
+            connection.send_error(msg["id"], "not_found", "Category not found")
+            return
 
     # Validate title if provided
     title = None
@@ -441,9 +469,22 @@ async def websocket_update_note(
             )
             return
 
-        # Check for duplicate title in category (excluding current note)
-        for other_note in store.get_notes_by_category(note.category_id):
-            if other_note.id != note_id and other_note.title.lower() == title.lower():
+    # Case-insensitive duplicate title check, against the category the note
+    # will be in and under the title it will have. A move carries the note's
+    # existing title into a category that may already hold it, so the check
+    # has to run for a move that renames nothing. It is skipped when neither
+    # is changing, so an edit to content alone cannot be refused by a
+    # duplicate that predates it. ``handle_update_note`` in services.py
+    # applies the same rule; the two surfaces must not drift.
+    moving = category_id != note.category_id
+    renaming = title is not None and title.lower() != note.title.lower()
+    if moving or renaming:
+        new_title = title if title is not None else note.title
+        for other_note in store.get_notes_by_category(category_id):
+            if (
+                other_note.id != note_id
+                and other_note.title.lower() == new_title.lower()
+            ):
                 connection.send_error(
                     msg["id"],
                     "duplicate",
@@ -469,15 +510,24 @@ async def websocket_update_note(
 
     # Apply all updates atomically (single save)
     await store.async_update_note(
-        note_id, title=title, content=content, pinned=pinned
+        note_id,
+        title=title,
+        content=content,
+        pinned=pinned,
+        category_id=category_id if moving else None,
     )
 
     # Refresh note data
     updated_note = store.get_note(note_id)
-    if updated_note:
-        connection.send_result(msg["id"], updated_note.to_dict())
-    else:
+    if updated_note is None:
         connection.send_error(msg["id"], "error", "Failed to update note")
+        return
+
+    # The store holds no registry, so the entities follow separately.
+    if moving and destination is not None:
+        async_move_note_entities(hass, store.entry.entry_id, note_id, destination)
+
+    connection.send_result(msg["id"], updated_note.to_dict())
 
 
 @websocket_api.websocket_command(
@@ -535,17 +585,9 @@ async def websocket_delete_note(
         connection.send_error(msg["id"], "not_found", "Note not found")
         return
 
-    category_id = note.category_id
-
     success = await store.async_delete_note(note_id)
     if success:
-        # Clean up entity registry entries
-        ent_reg = er.async_get(hass)
-        for platform, suffix in [("text", "_content"), ("switch", "_pinned")]:
-            unique_id = f"{DOMAIN}_{category_id}_{note_id}{suffix}"
-            entity_id = ent_reg.async_get_entity_id(platform, DOMAIN, unique_id)
-            if entity_id:
-                ent_reg.async_remove(entity_id)
+        async_remove_note_entities(hass, note_id)
         connection.send_result(msg["id"], {"deleted": True})
     else:
         connection.send_error(msg["id"], "error", "Failed to delete note")
@@ -617,9 +659,11 @@ async def websocket_delete_category(
         connection.send_error(msg["id"], "not_found", "Category not found")
         return
 
-    # The cascade destroys an arbitrary number of notes and a note cannot be
-    # moved out of a category first, so it is opt-in. The panel type-gates the
-    # deletion behind the category's name and passes ``force``. Issue #45.
+    # The cascade destroys an arbitrary number of notes, so it is opt-in. Since
+    # ADR-0003 a caller who wants to keep them can move them out first, which
+    # makes the refusal an instruction rather than a dead end. The panel
+    # type-gates the deletion behind the category's name and passes ``force``.
+    # Issue #45.
     #
     # ``handle_delete_category`` in services.py guards identically and words it
     # the same way; the two surfaces duplicate the cascade itself already, and
@@ -635,15 +679,9 @@ async def websocket_delete_category(
         return
 
     # Cascade-delete all notes in this category first
-    ent_reg = er.async_get(hass)
     for note in notes:
         await store.async_delete_note(note.id)
-        # Clean up entity registry entries for each deleted note
-        for platform, suffix in [("text", "_content"), ("switch", "_pinned")]:
-            unique_id = f"{DOMAIN}_{category_id}_{note.id}{suffix}"
-            entity_id = ent_reg.async_get_entity_id(platform, DOMAIN, unique_id)
-            if entity_id:
-                ent_reg.async_remove(entity_id)
+        async_remove_note_entities(hass, note.id)
 
     success = await store.async_delete_category(category_id)
     if success:

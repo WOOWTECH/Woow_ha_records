@@ -22,6 +22,7 @@ import pytest
 import voluptuous as vol
 import yaml
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 
 from custom_components.woow_ha_records.const import DOMAIN, service_name
 from custom_components.woow_ha_records.services import (
@@ -201,9 +202,12 @@ class TestThroughTheRealServiceRegistry:
     actually applies them. Both calls are rejected before the handler runs,
     so neither needs the integration's runtime data to be set up.
 
-    ``note_update_note`` with a stray ``category_id`` is the exact call from
-    issue #44 — it used to drop the field and report success, which is how
-    #26 came to be mistaken for a missing feature.
+    Issue #44 was found on ``note_update_note`` with a ``category_id`` it did
+    not accept: the field was dropped, the call reported success, and that is
+    how #26 came to be mistaken for a missing feature. #43 has since made
+    ``category_id`` a real field on this service, so the stray field here is a
+    misspelling of it — the same shape of mistake, and the one a caller who
+    has read about the move is now most likely to make.
     """
 
     async def test_an_unknown_field_is_rejected(self, hass: HomeAssistant) -> None:
@@ -214,11 +218,31 @@ class TestThroughTheRealServiceRegistry:
             await hass.services.async_call(
                 DOMAIN,
                 "note_update_note",
+                {"note_id": "abc", "categroy_id": "def"},
+                blocking=True,
+            )
+
+        assert "categroy_id" in str(caught.value)
+
+    async def test_the_move_field_is_accepted(self, hass: HomeAssistant) -> None:
+        """``category_id`` reaches the handler rather than being rejected.
+
+        The guard on the test above: a schema that rejected every unrecognised
+        field would pass it whether or not the move field was recognised. This
+        call gets past validation and fails in the handler instead, on runtime
+        data no test here sets up.
+        """
+        async_register_services(hass)
+
+        with pytest.raises(HomeAssistantError) as caught:
+            await hass.services.async_call(
+                DOMAIN,
+                "note_update_note",
                 {"note_id": "abc", "category_id": "def"},
                 blocking=True,
             )
 
-        assert "category_id" in str(caught.value)
+        assert not isinstance(caught.value, vol.Invalid)
 
     async def test_a_missing_required_field_is_rejected(
         self, hass: HomeAssistant
