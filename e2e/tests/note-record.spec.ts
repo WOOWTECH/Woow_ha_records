@@ -396,6 +396,111 @@ test.describe('note Area E2E Tests', () => {
         await ws.noteDeleteCategory(dst.id).catch(() => {});
       }
     });
+
+    // The panel surfaces save errors as persistent notifications; this
+    // returns the ones the note panel created that mention `text`.
+    const notificationsMentioning = async (text: string) => {
+      const all = await ws.sendCommand({ type: 'persistent_notification/get' });
+      return all.filter(
+        (n: any) =>
+          n.notification_id?.startsWith('woow_ha_records_note_') &&
+          n.message?.includes(text),
+      );
+    };
+
+    const dismissNotifications = async (notifications: any[]) => {
+      for (const n of notifications) {
+        await ws
+          .sendCommand({
+            type: 'call_service',
+            domain: 'persistent_notification',
+            service: 'dismiss',
+            service_data: { notification_id: n.notification_id },
+          })
+          .catch(() => {});
+      }
+    };
+
+    test('8.5 Refused move names the destination category (#67)', async ({ page }) => {
+      // A move that renames nothing can still collide: the note carries its
+      // title into a destination that already holds it.
+      const stamp = Date.now();
+      const title = `撞名筆記 ${stamp}`;
+      const src = await ws.noteCreateCategory(`撞名來源 DUP-SRC-${stamp}`);
+      const dst = await ws.noteCreateCategory(`撞名目的 DUP-DST-${stamp}`);
+      const note = await ws.noteCreateNote(src.id, title, 'mover', false);
+      const blocker = await ws.noteCreateNote(dst.id, title, 'already here', false);
+
+      try {
+        await loginAndNavigate(page, 'ha-note-record');
+        const panel = page.locator('ha-note-record-panel');
+        await panel.locator('.category-tab', { hasText: `DUP-SRC-${stamp}` }).click();
+        await panel.locator('.note-card', { hasText: title }).click();
+        await panel.locator('#note-category').selectOption(dst.id);
+        await panel.locator('button[type="submit"]').click();
+
+        // The error message names the destination, and the dialog stays
+        // open so the user can pick somewhere else.
+        await expect
+          .poll(async () => (await notificationsMentioning(dst.name)).length)
+          .toBeGreaterThan(0);
+        await expect(panel.locator('#note-category')).toHaveCount(1);
+
+        // The note did not move.
+        const data = await ws.noteGetData();
+        expect(data.notes.find((n: any) => n.id === note.id)?.category_id).toBe(src.id);
+
+        await dismissNotifications(await notificationsMentioning(dst.name));
+      } finally {
+        await ws.noteDeleteNote(note.id).catch(() => {});
+        await ws.noteDeleteNote(blocker.id).catch(() => {});
+        await ws.noteDeleteCategory(src.id).catch(() => {});
+        await ws.noteDeleteCategory(dst.id).catch(() => {});
+      }
+    });
+
+    test('8.6 Move to a deleted category recovers, not sticks (#67)', async ({ page }) => {
+      const stamp = Date.now();
+      const src = await ws.noteCreateCategory(`失蹤來源 GONE-SRC-${stamp}`);
+      const dst = await ws.noteCreateCategory(`失蹤目的 GONE-DST-${stamp}`);
+      const note = await ws.noteCreateNote(src.id, `失蹤測試筆記 ${stamp}`, 'stay', false);
+
+      try {
+        await loginAndNavigate(page, 'ha-note-record');
+        const panel = page.locator('ha-note-record-panel');
+        await panel.locator('.category-tab', { hasText: `GONE-SRC-${stamp}` }).click();
+        await panel.locator('.note-card', { hasText: `失蹤測試筆記 ${stamp}` }).click();
+
+        // Someone deletes the destination in another tab while the dialog
+        // is open; the panel's selector still offers it.
+        await ws.noteDeleteCategory(dst.id);
+        await panel.locator('#note-category').selectOption(dst.id);
+        await panel.locator('button[type="submit"]').click();
+
+        // The error names the vanished category and the selector snaps back
+        // to where the note actually is.
+        await expect
+          .poll(async () => (await notificationsMentioning(dst.name)).length)
+          .toBeGreaterThan(0);
+        await expect(panel.locator('#note-category')).toHaveValue(src.id);
+
+        // The form is not stuck: a follow-up save goes through.
+        const newTitle = `失蹤測試筆記 ${stamp} (改)`;
+        await panel.locator('#note-title').fill(newTitle);
+        await panel.locator('button[type="submit"]').click();
+        await expect(panel.locator('#note-category')).toHaveCount(0);
+        const data = await ws.noteGetData();
+        const after = data.notes.find((n: any) => n.id === note.id);
+        expect(after?.title).toBe(newTitle);
+        expect(after?.category_id).toBe(src.id);
+
+        await dismissNotifications(await notificationsMentioning(dst.name));
+      } finally {
+        await ws.noteDeleteNote(note.id).catch(() => {});
+        await ws.noteDeleteCategory(src.id).catch(() => {});
+        await ws.noteDeleteCategory(dst.id).catch(() => {});
+      }
+    });
   });
 
   // ─── Stability ─────────────────────────────────────────
