@@ -19,7 +19,8 @@ ha_asset_record/create
     Parameters:
         name             (str, required, max 255, whitespace-trimmed)
         brand            (str, optional, max 255)
-        category_id      (str, optional)
+        category_id      (str, optional, must name an existing category
+                          or be empty)
         value            (float, optional)
         purchase_at      (str, optional, ISO 8601 datetime)
         warranty_until   (str, optional, ISO 8601 datetime)
@@ -34,7 +35,8 @@ ha_asset_record/update
         asset_id         (str, required, must match ``^asset_[a-f0-9]+$``)
         name             (str, optional, max 255, cannot be empty)
         brand            (str, optional, max 255)
-        category_id      (str, optional)
+        category_id      (str, optional, must name an existing category
+                          or be empty)
         value            (float, optional)
         purchase_at      (str, optional, ISO 8601 datetime)
         warranty_until   (str, optional, ISO 8601 datetime)
@@ -225,6 +227,15 @@ async def ws_create_asset(
         connection.send_error(msg["id"], "invalid_input", "Asset name is required")
         return
 
+    # A non-empty category_id must name a Category that exists; the empty
+    # string stays valid as "uncategorised". Issue #68.
+    category_id = msg.get("category_id", "")
+    if category_id and coordinator.get_category(category_id) is None:
+        connection.send_error(
+            msg["id"], "not_found", f"Category {category_id} not found"
+        )
+        return
+
     # [H-09] Parse datetime fields with error responses for invalid values
     purchase_at: datetime | None = None
     if "purchase_at" in msg and msg["purchase_at"]:
@@ -254,7 +265,7 @@ async def ws_create_asset(
     asset = await coordinator.async_create_asset_full(
         name,
         brand=msg.get("brand", ""),
-        category_id=msg.get("category_id", ""),
+        category_id=category_id,
         value=msg.get("value", 0),
         purchase_at=purchase_at,
         warranty_until=warranty_until,
@@ -300,6 +311,18 @@ async def ws_update_asset(
     if asset is None:
         connection.send_error(msg["id"], "not_found", f"Asset {asset_id} not found")
         return
+
+    # The handler writes field by field as it walks the message, so the
+    # Category is checked before the first write — a refusal must leave every
+    # field of the Asset as it was, not just category_id. The empty string
+    # stays valid as "uncategorised". Issue #68.
+    if "category_id" in msg:
+        category_id = msg["category_id"]
+        if category_id and coordinator.get_category(category_id) is None:
+            connection.send_error(
+                msg["id"], "not_found", f"Category {category_id} not found"
+            )
+            return
 
     # Update name if provided
     if "name" in msg:
