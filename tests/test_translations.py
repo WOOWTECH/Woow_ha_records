@@ -123,6 +123,20 @@ def _placeholders_in(message: str) -> set[str]:
     return set(re.findall(r"\{(\w+)\}", message))
 
 
+_ENGLISH_WORD = re.compile(r"[A-Za-z]{3,}")
+_CJK = re.compile(r"[\u3400-\u9fff]")
+
+
+def _leaves(node: object, prefix: str = "") -> dict[str, str]:
+    """Dot-joined path -> text for every string leaf."""
+    if isinstance(node, dict):
+        out: dict[str, str] = {}
+        for key, value in node.items():
+            out.update(_leaves(value, f"{prefix}{key}."))
+        return out
+    return {prefix[:-1]: node} if isinstance(node, str) else {}
+
+
 class TestTranslations:
     """Every language file stays in lockstep with strings.json."""
 
@@ -161,6 +175,27 @@ class TestTranslations:
         assert english == source, (
             "translations/en.json has diverged from strings.json. It is a "
             "verbatim copy, never edited by hand: copy strings.json over it."
+        )
+
+    def test_zh_hant_translates_every_english_sentence(self) -> None:
+        """No zh-Hant leaf is left as the English text.
+
+        Key parity cannot see a value that was copied over untranslated: the
+        config-flow title, description and abort shipped in English for a
+        zh-Hant user (commercial acceptance INFRA-HA-009-3). A leaf whose
+        English text has a word in it must carry at least one CJK character.
+        """
+        english = _leaves(_load_json(TRANSLATIONS / "en.json"))
+        chinese = _leaves(_load_json(TRANSLATIONS / "zh-Hant.json"))
+        untranslated = sorted(
+            key
+            for key, text in english.items()
+            if _ENGLISH_WORD.search(re.sub(r"\{\w+\}", "", text))
+            and not _CJK.search(chinese.get(key, ""))
+        )
+        assert not untranslated, (
+            f"translations/zh-Hant.json leaves {len(untranslated)} string(s) "
+            f"in English: {untranslated}"
         )
 
     def test_every_service_has_ui_strings(self) -> None:
