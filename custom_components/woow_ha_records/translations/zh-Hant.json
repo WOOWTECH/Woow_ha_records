@@ -2,12 +2,12 @@
   "config": {
     "step": {
       "user": {
-        "title": "Woow HA Records",
-        "description": "Adds finance, asset, health and note records. Accounts, members, assets and notes are created afterwards from the panels or services."
+        "title": "設定 Woow HA Records",
+        "description": "加入財務、資產、健康與筆記四類紀錄。帳戶、成員、資產與筆記請在完成後從側邊欄面板或服務建立。"
       }
     },
     "abort": {
-      "already_configured": "Woow HA Records is already set up."
+      "already_configured": "Woow HA Records 已經設定過了。"
     }
   },
   "entity": {
